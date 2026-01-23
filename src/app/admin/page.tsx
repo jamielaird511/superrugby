@@ -1,0 +1,980 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import Link from "next/link";
+
+type Round = {
+  id: string;
+  season: number;
+  round_number: number;
+  lock_time: string | null;
+};
+
+type Team = {
+  code: string;
+  name: string;
+  logo_path: string | null;
+  sort_order: number;
+};
+
+type Fixture = {
+  id: string;
+  match_number: number;
+  home_team_code: string;
+  away_team_code: string;
+  kickoff_at: string | null;
+  round_id: string;
+};
+
+type Result = {
+  fixture_id: string;
+  winning_team: string;
+  margin_band: string | null;
+};
+
+export default function AdminPage() {
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [results, setResults] = useState<Record<string, Result>>({});
+  const [resultEntries, setResultEntries] = useState<Record<string, { winning_team: string; margin_band: string | null }>>({});
+  const [editingResultFixtureId, setEditingResultFixtureId] = useState<string | null>(null);
+  const [confirmModalData, setConfirmModalData] = useState<{ fixtureId: string; fixture: Fixture; entry: { winning_team: string; margin_band: string | null } } | null>(null);
+  const [deleteModalData, setDeleteModalData] = useState<{ fixtureId: string; fixture: Fixture } | null>(null);
+  const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Round form state
+  const [roundSeason, setRoundSeason] = useState<number>(new Date().getFullYear());
+  const [roundNumber, setRoundNumber] = useState<number>(1);
+
+  // Fixture form state
+  const [editingFixtureId, setEditingFixtureId] = useState<string | null>(null);
+  const [fixtureMatchNumber, setFixtureMatchNumber] = useState<number>(1);
+  const [fixtureHomeTeamCode, setFixtureHomeTeamCode] = useState<string>("");
+  const [fixtureAwayTeamCode, setFixtureAwayTeamCode] = useState<string>("");
+  const [fixtureKickoffAt, setFixtureKickoffAt] = useState<string>("");
+
+  // Fetch rounds and teams on load
+  useEffect(() => {
+    fetchRounds();
+    fetchTeams();
+  }, []);
+
+  // Fetch fixtures when round is selected
+  useEffect(() => {
+    if (selectedRoundId) {
+      fetchFixtures(selectedRoundId);
+    } else {
+      setFixtures([]);
+      setResults({});
+      setResultEntries({});
+      setEditingResultFixtureId(null);
+      setEditingFixtureId(null);
+      setFixtureMatchNumber(1);
+      setFixtureHomeTeamCode("");
+      setFixtureAwayTeamCode("");
+      setFixtureKickoffAt("");
+    }
+  }, [selectedRoundId]);
+
+  const fetchRounds = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("rounds")
+        .select("*")
+        .order("season", { ascending: true })
+        .order("round_number", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching rounds:", error);
+        setMessage({ type: "error", text: `Error fetching rounds: ${error.message}` });
+      } else {
+        setRounds(data || []);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching rounds:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const fetchTeams = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("teams")
+        .select("*")
+        .order("sort_order", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching teams:", error);
+        setMessage({ type: "error", text: `Error fetching teams: ${error.message}` });
+      } else {
+        setTeams(data || []);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching teams:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const fetchFixtures = async (roundId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("fixtures")
+        .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
+        .eq("round_id", roundId)
+        .order("match_number", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching fixtures:", error);
+        setMessage({ type: "error", text: `Error fetching fixtures: ${error.message}` });
+      } else {
+        setFixtures(data || []);
+        if (data && data.length > 0) {
+          fetchResults(data.map((f) => f.id));
+        } else {
+          setResults({});
+          setResultEntries({});
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching fixtures:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const fetchResults = async (fixtureIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from("results")
+        .select("fixture_id, winning_team, margin_band")
+        .in("fixture_id", fixtureIds);
+
+      if (error) {
+        console.error("Error fetching results:", {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+        });
+        setMessage({ type: "error", text: `Error fetching results: ${error.message}` });
+      } else {
+        const resultsMap: Record<string, Result> = {};
+        const entriesMap: Record<string, { winning_team: string; margin_band: string | null }> = {};
+        (data || []).forEach((result) => {
+          resultsMap[result.fixture_id] = result;
+          entriesMap[result.fixture_id] = {
+            winning_team: result.winning_team,
+            margin_band: result.margin_band,
+          };
+        });
+        // Initialize entries for fixtures without results
+        fixtureIds.forEach((fixtureId) => {
+          if (!entriesMap[fixtureId]) {
+            entriesMap[fixtureId] = {
+              winning_team: "",
+              margin_band: null,
+            };
+          }
+        });
+        setResults(resultsMap);
+        setResultEntries(entriesMap);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching results:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const handleCreateRound = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    try {
+      const roundData: any = {
+        season: roundSeason,
+        round_number: roundNumber,
+      };
+
+      const { data, error } = await supabase
+        .from("rounds")
+        .insert([roundData])
+        .select();
+
+      if (error) {
+        console.error("Error creating round:", error);
+        setMessage({ type: "error", text: `Error: ${error.message}` });
+      } else {
+        console.log("Round created:", data);
+        setMessage({ type: "success", text: "Round created successfully!" });
+        setRoundNumber(roundNumber + 1);
+        fetchRounds();
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const resetFixtureForm = () => {
+    setEditingFixtureId(null);
+    setFixtureMatchNumber(1);
+    setFixtureHomeTeamCode("");
+    setFixtureAwayTeamCode("");
+    setFixtureKickoffAt("");
+  };
+
+  const handleCreateFixture = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    if (!selectedRoundId) {
+      setMessage({ type: "error", text: "Please select a round first" });
+      return;
+    }
+
+    if (fixtureHomeTeamCode === fixtureAwayTeamCode) {
+      setMessage({ type: "error", text: "Home and away team cannot be the same" });
+      return;
+    }
+
+    try {
+      const kickoffAtIso = fixtureKickoffAt
+        ? new Date(fixtureKickoffAt).toISOString()
+        : null;
+
+      const fixtureData: any = {
+        round_id: selectedRoundId,
+        match_number: fixtureMatchNumber,
+        home_team_code: fixtureHomeTeamCode,
+        away_team_code: fixtureAwayTeamCode,
+        kickoff_at: kickoffAtIso,
+      };
+
+      if (editingFixtureId) {
+        // Update existing fixture
+        const { data, error } = await supabase
+          .from("fixtures")
+          .update(fixtureData)
+          .eq("id", editingFixtureId)
+          .select();
+
+        if (error) {
+          console.error("Error updating fixture:", error);
+          setMessage({ type: "error", text: `Error: ${error.message}` });
+        } else {
+          console.log("Fixture updated:", data);
+          setMessage({ type: "success", text: "Fixture updated successfully!" });
+          resetFixtureForm();
+          fetchFixtures(selectedRoundId);
+        }
+      } else {
+        // Insert new fixture
+        const { data, error } = await supabase
+          .from("fixtures")
+          .insert([fixtureData])
+          .select();
+
+        if (error) {
+          console.error("Error creating fixture:", error);
+          setMessage({ type: "error", text: `Error: ${error.message}` });
+        } else {
+          console.log("Fixture created:", data);
+          setMessage({ type: "success", text: "Fixture created successfully!" });
+          setFixtureMatchNumber(fixtureMatchNumber + 1);
+          setFixtureHomeTeamCode("");
+          setFixtureAwayTeamCode("");
+          setFixtureKickoffAt("");
+          fetchFixtures(selectedRoundId);
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const handleEditFixture = (fixture: Fixture) => {
+    setEditingFixtureId(fixture.id);
+    setFixtureMatchNumber(fixture.match_number);
+    setFixtureHomeTeamCode(fixture.home_team_code);
+    setFixtureAwayTeamCode(fixture.away_team_code);
+    if (fixture.kickoff_at) {
+      const kickoffValue = new Date(fixture.kickoff_at)
+        .toLocaleString("sv-SE", { timeZone: "Pacific/Auckland" })
+        .replace(" ", "T")
+        .slice(0, 16);
+      setFixtureKickoffAt(kickoffValue);
+    } else {
+      setFixtureKickoffAt("");
+    }
+  };
+
+  const handleDeleteFixture = async (fixtureId: string) => {
+    if (!confirm("Are you sure you want to delete this fixture?")) {
+      return;
+    }
+
+    setMessage(null);
+
+    try {
+      const { error } = await supabase
+        .from("fixtures")
+        .delete()
+        .eq("id", fixtureId);
+
+      if (error) {
+        console.error("Error deleting fixture:", error);
+        setMessage({ type: "error", text: `Error: ${error.message}` });
+      } else {
+        console.log("Fixture deleted");
+        setMessage({ type: "success", text: "Fixture deleted successfully!" });
+        if (selectedRoundId) {
+          fetchFixtures(selectedRoundId);
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const selectedRound = rounds.find((r) => r.id === selectedRoundId);
+
+  const getTeamName = (code: string) => {
+    const team = teams.find((t) => t.code === code);
+    return team ? team.name : code;
+  };
+
+  const getTeam = (code: string) => {
+    return teams.find((t) => t.code === code);
+  };
+
+  const handleSetWinner = (fixtureId: string, winner: string) => {
+    setResultEntries((prev) => ({
+      ...prev,
+      [fixtureId]: {
+        ...prev[fixtureId],
+        winning_team: winner,
+        margin_band: winner === "DRAW" ? null : prev[fixtureId]?.margin_band ?? null,
+      },
+    }));
+  };
+
+  const handleSetMargin = (fixtureId: string, marginBand: string | null) => {
+    setResultEntries((prev) => ({
+      ...prev,
+      [fixtureId]: {
+        ...prev[fixtureId],
+        margin_band: marginBand,
+      },
+    }));
+  };
+
+  const handleSaveResult = (fixtureId: string) => {
+    const entry = resultEntries[fixtureId];
+    if (!entry || !entry.winning_team) {
+      setMessage({ type: "error", text: "Please select a winner" });
+      return;
+    }
+
+    if (entry.winning_team !== "DRAW" && !entry.margin_band) {
+      setMessage({ type: "error", text: "Please select a margin" });
+      return;
+    }
+
+    const fixture = fixtures.find((f) => f.id === fixtureId);
+    if (!fixture) return;
+
+    setConfirmModalData({ fixtureId, fixture, entry });
+  };
+
+  const handleConfirmSaveResult = async () => {
+    if (!confirmModalData) return;
+
+    const { fixtureId, entry } = confirmModalData;
+    setMessage(null);
+    setConfirmModalData(null);
+
+    try {
+      const resultData: any = {
+        fixture_id: fixtureId,
+        winning_team: entry.winning_team,
+        margin_band: entry.winning_team === "DRAW" ? null : entry.margin_band,
+      };
+
+      const { data, error } = await supabase
+        .from("results")
+        .upsert(resultData, { onConflict: "fixture_id" })
+        .select();
+
+      if (error) {
+        console.error("Error saving result:", {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+        });
+        setMessage({ type: "error", text: `Error: ${error.message}` });
+      } else {
+        console.log("Result saved:", data);
+        setMessage({ type: "success", text: "Result saved successfully!" });
+        setEditingResultFixtureId(null);
+        if (selectedRoundId) {
+          fetchFixtures(selectedRoundId);
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  const handleCancelEditResult = (fixtureId: string) => {
+    const existingResult = results[fixtureId];
+    setResultEntries((prev) => ({
+      ...prev,
+      [fixtureId]: {
+        winning_team: existingResult?.winning_team || "",
+        margin_band: existingResult?.margin_band ?? null,
+      },
+    }));
+    setEditingResultFixtureId(null);
+  };
+
+  const handleDeleteResult = (fixtureId: string) => {
+    const fixture = fixtures.find((f) => f.id === fixtureId);
+    if (!fixture) return;
+    setDeleteModalData({ fixtureId, fixture });
+  };
+
+  const handleConfirmDeleteResult = async () => {
+    if (!deleteModalData) return;
+
+    const { fixtureId } = deleteModalData;
+    setMessage(null);
+    setDeleteModalData(null);
+
+    try {
+      const { error } = await supabase
+        .from("results")
+        .delete()
+        .eq("fixture_id", fixtureId);
+
+      if (error) {
+        console.error("Error deleting result:", {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+        });
+        setMessage({ type: "error", text: `Error: ${error.message}` });
+      } else {
+        console.log("Result deleted");
+        setMessage({ type: "success", text: "Result deleted" });
+        // Clear local state for this fixture
+        setResultEntries((prev) => ({
+          ...prev,
+          [fixtureId]: {
+            winning_team: "",
+            margin_band: null,
+          },
+        }));
+        setEditingResultFixtureId(null);
+        // Re-fetch results to update the UI
+        if (selectedRoundId) {
+          fetchFixtures(selectedRoundId);
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">Admin - Rounds & Fixtures</h1>
+          <Link
+            href="/"
+            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          >
+            ← Back to Home
+          </Link>
+        </div>
+
+        {message && (
+          <div className={`mb-4 rounded-lg p-3 text-sm ${
+            message.type === "success" 
+              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+          }`}>
+            {message.text}
+          </div>
+        )}
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Round Creation Form */}
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">Create Round</h2>
+            <form onSubmit={handleCreateRound} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Season
+                </label>
+                <input
+                  type="number"
+                  value={roundSeason}
+                  onChange={(e) => setRoundSeason(Number(e.target.value))}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Round Number
+                </label>
+                <input
+                  type="number"
+                  value={roundNumber}
+                  onChange={(e) => setRoundNumber(Number(e.target.value))}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+              >
+                Create Round
+              </button>
+            </form>
+          </div>
+
+          {/* Rounds List */}
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">Rounds</h2>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {rounds.length === 0 ? (
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">No rounds yet</p>
+              ) : (
+                rounds.map((round) => (
+                  <div
+                    key={round.id}
+                    className={`flex items-center justify-between rounded-md border p-3 ${
+                      selectedRoundId === round.id
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-zinc-200 dark:border-zinc-700"
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-black dark:text-zinc-50">
+                      Season {round.season} - Round {round.round_number}
+                    </span>
+                    <button
+                      onClick={() => setSelectedRoundId(round.id)}
+                      className={`rounded-md px-3 py-1 text-xs transition-colors ${
+                        selectedRoundId === round.id
+                          ? "bg-blue-600 text-white"
+                          : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                      }`}
+                    >
+                      {selectedRoundId === round.id ? "Selected" : "Select"}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Fixture Creation Form - Only show when round is selected */}
+        {selectedRoundId && (
+          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
+              {editingFixtureId ? "Edit" : "Create"} Fixture {selectedRound && `(Season ${selectedRound.season} - Round ${selectedRound.round_number})`}
+            </h2>
+            <form onSubmit={handleCreateFixture} className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Match Number
+                </label>
+                <input
+                  type="number"
+                  value={fixtureMatchNumber}
+                  onChange={(e) => setFixtureMatchNumber(Number(e.target.value))}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Kickoff At
+                </label>
+                <input
+                  type="datetime-local"
+                  value={fixtureKickoffAt}
+                  onChange={(e) => setFixtureKickoffAt(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Home Team
+                </label>
+                <select
+                  value={fixtureHomeTeamCode}
+                  onChange={(e) => setFixtureHomeTeamCode(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  required
+                >
+                  <option value="">Select home team</option>
+                  {teams.map((team) => (
+                    <option key={team.code} value={team.code}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Away Team
+                </label>
+                <select
+                  value={fixtureAwayTeamCode}
+                  onChange={(e) => setFixtureAwayTeamCode(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  required
+                >
+                  <option value="">Select away team</option>
+                  {teams.map((team) => (
+                    <option key={team.code} value={team.code}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2 flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                >
+                  {editingFixtureId ? "Update Fixture" : "Create Fixture"}
+                </button>
+                {editingFixtureId && (
+                  <button
+                    type="button"
+                    onClick={resetFixtureForm}
+                    className="rounded-md border border-zinc-300 px-4 py-2 text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Fixtures List - Only show when round is selected */}
+        {selectedRoundId && (
+          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
+              Fixtures {selectedRound && `(Season ${selectedRound.season} - Round ${selectedRound.round_number})`}
+            </h2>
+            {fixtures.length === 0 ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">No fixtures yet for this round</p>
+            ) : (
+              <div className="space-y-2">
+                {fixtures.map((fixture) => {
+                  const homeTeam = getTeam(fixture.home_team_code);
+                  const awayTeam = getTeam(fixture.away_team_code);
+                  const homeName = homeTeam ? homeTeam.name : fixture.home_team_code;
+                  const awayName = awayTeam ? awayTeam.name : fixture.away_team_code;
+                  const kickoffStr = fixture.kickoff_at
+                    ? new Date(fixture.kickoff_at).toLocaleString("en-NZ", { timeZone: "Pacific/Auckland" })
+                    : "(no kickoff time)";
+                  const existingResult = results[fixture.id];
+                  const entry = resultEntries[fixture.id] || {
+                    winning_team: existingResult?.winning_team || "",
+                    margin_band: existingResult?.margin_band ?? null,
+                  };
+                  const isSaved = !!existingResult;
+                  const isEditing = editingResultFixtureId === fixture.id;
+                  const isDraw = entry.winning_team === "DRAW";
+                  const isKickoffLocked = fixture.kickoff_at && new Date() >= new Date(fixture.kickoff_at);
+                  const isLocked = isSaved && !isEditing;
+                  return (
+                    <div
+                      key={fixture.id}
+                      className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 text-sm text-black dark:text-zinc-50">
+                          <span>Match {fixture.match_number}:</span>
+                          <div className="flex items-center gap-1">
+                            {homeTeam?.logo_path && (
+                              <img
+                                src={homeTeam.logo_path}
+                                alt={homeName}
+                                className="h-5 w-5 object-contain"
+                              />
+                            )}
+                            <span>{homeName}</span>
+                          </div>
+                          <span>vs</span>
+                          <div className="flex items-center gap-1">
+                            {awayTeam?.logo_path && (
+                              <img
+                                src={awayTeam.logo_path}
+                                alt={awayName}
+                                className="h-5 w-5 object-contain"
+                              />
+                            )}
+                            <span>{awayName}</span>
+                          </div>
+                          <span>— {kickoffStr}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditFixture(fixture)}
+                            className="rounded-md bg-blue-600 px-3 py-1 text-xs text-white transition-colors hover:bg-blue-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFixture(fixture.id)}
+                            className="rounded-md bg-red-600 px-3 py-1 text-xs text-white transition-colors hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <div className="border-t border-zinc-200 pt-3 dark:border-zinc-700">
+                        <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                          Result {isSaved && <span className="text-green-600 dark:text-green-400">(Saved)</span>}
+                          {isKickoffLocked && !isSaved && <span className="text-red-600 dark:text-red-400 ml-2">(Locked)</span>}
+                        </div>
+                        {isKickoffLocked && !isSaved ? (
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                              This fixture is locked (kickoff has passed). No result can be entered.
+                            </div>
+                          </div>
+                        ) : isLocked ? (
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                              Winner:{" "}
+                              {isDraw
+                                ? "Draw"
+                                : entry.winning_team === fixture.home_team_code
+                                  ? homeName
+                                  : entry.winning_team === fixture.away_team_code
+                                    ? awayName
+                                    : getTeam(entry.winning_team)?.name || entry.winning_team}
+                              {!isDraw && entry.margin_band && ` • Margin: ${entry.margin_band}`}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setEditingResultFixtureId(fixture.id)}
+                              className="rounded-md bg-blue-600 px-3 py-1 text-xs text-white transition-colors hover:bg-blue-700"
+                            >
+                              Edit Result
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteResult(fixture.id)}
+                              className="rounded-md bg-red-600 px-3 py-1 text-xs text-white transition-colors hover:bg-red-700"
+                            >
+                              Delete Result
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSetWinner(fixture.id, fixture.home_team_code)}
+                                disabled={isKickoffLocked && !isSaved}
+                                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
+                                  entry.winning_team === fixture.home_team_code
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                                } ${isKickoffLocked && !isSaved ? "cursor-not-allowed opacity-50" : ""}`}
+                              >
+                                {homeTeam?.logo_path && (
+                                  <img
+                                    src={homeTeam.logo_path}
+                                    alt={homeName}
+                                    className="h-4 w-4 object-contain"
+                                  />
+                                )}
+                                <span>{homeName}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetWinner(fixture.id, fixture.away_team_code)}
+                                disabled={isKickoffLocked && !isSaved}
+                                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
+                                  entry.winning_team === fixture.away_team_code
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                                } ${isKickoffLocked && !isSaved ? "cursor-not-allowed opacity-50" : ""}`}
+                              >
+                                {awayTeam?.logo_path && (
+                                  <img
+                                    src={awayTeam.logo_path}
+                                    alt={awayName}
+                                    className="h-4 w-4 object-contain"
+                                  />
+                                )}
+                                <span>{awayName}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetWinner(fixture.id, "DRAW")}
+                                disabled={isKickoffLocked && !isSaved}
+                                className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                                  isDraw
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                                } ${isKickoffLocked && !isSaved ? "cursor-not-allowed opacity-50" : ""}`}
+                              >
+                                Draw
+                              </button>
+                            </div>
+                            <select
+                              value={entry.margin_band || ""}
+                              onChange={(e) => handleSetMargin(fixture.id, e.target.value === "" ? null : e.target.value)}
+                              disabled={isDraw || (isKickoffLocked && !isSaved)}
+                              className={`rounded-md border border-zinc-300 px-2 py-1 text-xs text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${
+                                isDraw || (isKickoffLocked && !isSaved)
+                                  ? "cursor-not-allowed opacity-50 bg-zinc-100 dark:bg-zinc-900"
+                                  : ""
+                              }`}
+                            >
+                              <option value="">Select margin</option>
+                              <option value="1-12">1-12</option>
+                              <option value="13+">13+</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveResult(fixture.id)}
+                              disabled={isKickoffLocked && !isSaved}
+                              className={`rounded-md px-3 py-1 text-xs text-white transition-colors ${
+                                isKickoffLocked && !isSaved
+                                  ? "cursor-not-allowed opacity-50 bg-zinc-400"
+                                  : "bg-green-600 hover:bg-green-700"
+                              }`}
+                            >
+                              {isSaved ? "Update Result" : "Save"}
+                            </button>
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelEditResult(fixture.id)}
+                                className="rounded-md border border-zinc-300 px-3 py-1 text-xs text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Confirm Save Modal */}
+        {confirmModalData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-black dark:text-zinc-50 mb-4">Confirm Result</h3>
+              <div className="space-y-2 text-sm text-black dark:text-zinc-50 mb-4">
+                <div>
+                  <span className="font-medium">Match {confirmModalData.fixture.match_number}:</span>{" "}
+                  {getTeam(confirmModalData.fixture.home_team_code)?.name || confirmModalData.fixture.home_team_code} vs{" "}
+                  {getTeam(confirmModalData.fixture.away_team_code)?.name || confirmModalData.fixture.away_team_code}
+                </div>
+                <div>
+                  <span className="font-medium">Winner:</span>{" "}
+                  {confirmModalData.entry.winning_team === "DRAW"
+                    ? "Draw"
+                    : getTeam(confirmModalData.entry.winning_team)?.name || confirmModalData.entry.winning_team}
+                </div>
+                <div>
+                  <span className="font-medium">Margin:</span>{" "}
+                  {confirmModalData.entry.winning_team === "DRAW"
+                    ? "No margin"
+                    : confirmModalData.entry.margin_band || "Not selected"}
+                </div>
+                <div className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
+                  {results[confirmModalData.fixtureId]
+                    ? `Confirm updating result to ${confirmModalData.entry.winning_team === "DRAW" ? "Draw" : getTeam(confirmModalData.entry.winning_team)?.name || confirmModalData.entry.winning_team} / margin ${confirmModalData.entry.winning_team === "DRAW" ? "N/A" : confirmModalData.entry.margin_band || "N/A"}`
+                    : `Confirm locking in result: ${confirmModalData.entry.winning_team === "DRAW" ? "Draw" : getTeam(confirmModalData.entry.winning_team)?.name || confirmModalData.entry.winning_team} ${confirmModalData.entry.winning_team === "DRAW" ? "" : confirmModalData.entry.margin_band ? `(${confirmModalData.entry.margin_band})` : ""}`}
+                  {results[confirmModalData.fixtureId] && " This will update all participant scores."}
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmModalData(null)}
+                  className="rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSaveResult}
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm text-white transition-colors hover:bg-green-700"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm Delete Modal */}
+        {deleteModalData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-black dark:text-zinc-50 mb-4">Delete Result</h3>
+              <div className="space-y-2 text-sm text-black dark:text-zinc-50 mb-4">
+                <div>
+                  <span className="font-medium">Match {deleteModalData.fixture.match_number}:</span>{" "}
+                  {getTeam(deleteModalData.fixture.home_team_code)?.name || deleteModalData.fixture.home_team_code} vs{" "}
+                  {getTeam(deleteModalData.fixture.away_team_code)?.name || deleteModalData.fixture.away_team_code}
+                </div>
+                <div className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
+                  This will remove the result and reset all participant scores for this match.
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalData(null)}
+                  className="rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteResult}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700"
+                >
+                  Delete Result
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

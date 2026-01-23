@@ -100,15 +100,22 @@ export default function AdminPage() {
   };
 
   const fetchTeams = async () => {
+    const TEAMS_TABLE = "super_rugby_teams";
     try {
       const { data, error } = await supabase
-        .from("teams")
+        .from(TEAMS_TABLE)
         .select("*")
         .order("sort_order", { ascending: true });
 
       if (error) {
-        console.error("Error fetching teams:", error);
-        setMessage({ type: "error", text: `Error fetching teams: ${error.message}` });
+        console.error("Error fetching teams:", {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+          raw: error
+        });
+        setMessage({ type: "error", text: `Error fetching teams: ${error?.message ?? JSON.stringify(error)}` });
       } else {
         setTeams(data || []);
       }
@@ -570,9 +577,20 @@ export default function AdminPage() {
                         : "border-zinc-200 dark:border-zinc-700"
                     }`}
                   >
-                    <span className="text-sm font-medium text-black dark:text-zinc-50">
-                      Season {round.season} - Round {round.round_number}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/print/round/${round.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+                        title="Print picks sheet"
+                      >
+                        🖨️
+                      </a>
+                      <span className="text-sm font-medium text-black dark:text-zinc-50">
+                        Season {round.season} - Round {round.round_number}
+                      </span>
+                    </div>
                     <button
                       onClick={() => setSelectedRoundId(round.id)}
                       className={`rounded-md px-3 py-1 text-xs transition-colors ${
@@ -631,7 +649,7 @@ export default function AdminPage() {
                   required
                 >
                   <option value="">Select home team</option>
-                  {teams.map((team) => (
+                  {[...teams].sort((a, b) => a.name.localeCompare(b.name)).map((team) => (
                     <option key={team.code} value={team.code}>
                       {team.name}
                     </option>
@@ -649,7 +667,7 @@ export default function AdminPage() {
                   required
                 >
                   <option value="">Select away team</option>
-                  {teams.map((team) => (
+                  {[...teams].sort((a, b) => a.name.localeCompare(b.name)).map((team) => (
                     <option key={team.code} value={team.code}>
                       {team.name}
                     </option>
@@ -693,7 +711,15 @@ export default function AdminPage() {
                   const homeName = homeTeam ? homeTeam.name : fixture.home_team_code;
                   const awayName = awayTeam ? awayTeam.name : fixture.away_team_code;
                   const kickoffStr = fixture.kickoff_at
-                    ? new Date(fixture.kickoff_at).toLocaleString("en-NZ", { timeZone: "Pacific/Auckland" })
+                    ? new Intl.DateTimeFormat("en-NZ", {
+                        timeZone: "Pacific/Auckland",
+                        day: "numeric",
+                        month: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      }).format(new Date(fixture.kickoff_at))
                     : "(no kickoff time)";
                   const existingResult = results[fixture.id];
                   const entry = resultEntries[fixture.id] || {
@@ -796,7 +822,7 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, fixture.home_team_code)}
-                                disabled={isKickoffLocked && !isSaved}
+                                disabled={Boolean(isKickoffLocked) && !Boolean(isSaved)}
                                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                                   entry.winning_team === fixture.home_team_code
                                     ? "bg-blue-600 text-white"
@@ -815,7 +841,7 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, fixture.away_team_code)}
-                                disabled={isKickoffLocked && !isSaved}
+                                disabled={Boolean(isKickoffLocked) && !Boolean(isSaved)}
                                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                                   entry.winning_team === fixture.away_team_code
                                     ? "bg-blue-600 text-white"
@@ -834,7 +860,7 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, "DRAW")}
-                                disabled={isKickoffLocked && !isSaved}
+                                disabled={Boolean(isKickoffLocked) && !Boolean(isSaved)}
                                 className={`rounded-md px-2 py-1 text-xs transition-colors ${
                                   isDraw
                                     ? "bg-blue-600 text-white"

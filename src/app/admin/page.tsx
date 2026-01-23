@@ -726,11 +726,17 @@ export default function AdminPage() {
                     winning_team: existingResult?.winning_team || "",
                     margin_band: existingResult?.margin_band ?? null,
                   };
-                  const isSaved = !!existingResult;
+                  // Strict boolean definitions at source
+                  const isSaved = Boolean(existingResult);
                   const isEditing = editingResultFixtureId === fixture.id;
-                  const isDraw = entry.winning_team === "DRAW";
-                  const isKickoffLocked = fixture.kickoff_at && new Date() >= new Date(fixture.kickoff_at);
+                  const isDraw = Boolean(entry.winning_team === "DRAW");
+                  const isKickoffLocked = Boolean(fixture.kickoff_at && new Date() >= new Date(fixture.kickoff_at));
                   const isLocked = isSaved && !isEditing;
+                  
+                  // Use strict booleans directly (no need for separate Bool variables)
+                  const isDrawBool = isDraw;
+                  const isSavedBool = isSaved;
+                  const isKickoffLockedBool = isKickoffLocked;
                   return (
                     <div
                       key={fixture.id}
@@ -822,12 +828,12 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, fixture.home_team_code)}
-                                disabled={Boolean(isKickoffLocked) && !Boolean(isSaved)}
+                                disabled={isKickoffLockedBool && !isSavedBool}
                                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                                   entry.winning_team === fixture.home_team_code
                                     ? "bg-blue-600 text-white"
                                     : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                                } ${isKickoffLocked && !isSaved ? "cursor-not-allowed opacity-50" : ""}`}
+                                } ${isKickoffLockedBool && !isSavedBool ? "cursor-not-allowed opacity-50" : ""}`}
                               >
                                 {homeTeam?.logo_path && (
                                   <img
@@ -841,12 +847,12 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, fixture.away_team_code)}
-                                disabled={Boolean(isKickoffLocked) && !Boolean(isSaved)}
+                                disabled={isKickoffLockedBool && !isSavedBool}
                                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                                   entry.winning_team === fixture.away_team_code
                                     ? "bg-blue-600 text-white"
                                     : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                                } ${isKickoffLocked && !isSaved ? "cursor-not-allowed opacity-50" : ""}`}
+                                } ${isKickoffLockedBool && !isSavedBool ? "cursor-not-allowed opacity-50" : ""}`}
                               >
                                 {awayTeam?.logo_path && (
                                   <img
@@ -860,12 +866,12 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, "DRAW")}
-                                disabled={Boolean(isKickoffLocked) && !Boolean(isSaved)}
+                                disabled={isKickoffLockedBool && !isSavedBool}
                                 className={`rounded-md px-2 py-1 text-xs transition-colors ${
-                                  isDraw
+                                  isDrawBool
                                     ? "bg-blue-600 text-white"
                                     : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                                } ${isKickoffLocked && !isSaved ? "cursor-not-allowed opacity-50" : ""}`}
+                                } ${isKickoffLockedBool && !isSavedBool ? "cursor-not-allowed opacity-50" : ""}`}
                               >
                                 Draw
                               </button>
@@ -873,9 +879,9 @@ export default function AdminPage() {
                             <select
                               value={entry.margin_band || ""}
                               onChange={(e) => handleSetMargin(fixture.id, e.target.value === "" ? null : e.target.value)}
-                              disabled={isDraw || (isKickoffLocked && !isSaved)}
+                              disabled={isDrawBool || (isKickoffLockedBool && !isSavedBool)}
                               className={`rounded-md border border-zinc-300 px-2 py-1 text-xs text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${
-                                isDraw || (isKickoffLocked && !isSaved)
+                                isDrawBool || (isKickoffLockedBool && !isSavedBool)
                                   ? "cursor-not-allowed opacity-50 bg-zinc-100 dark:bg-zinc-900"
                                   : ""
                               }`}
@@ -887,9 +893,9 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => handleSaveResult(fixture.id)}
-                              disabled={isKickoffLocked && !isSaved}
+                              disabled={isKickoffLockedBool && !isSavedBool}
                               className={`rounded-md px-3 py-1 text-xs text-white transition-colors ${
-                                isKickoffLocked && !isSaved
+                                isKickoffLockedBool && !isSavedBool
                                   ? "cursor-not-allowed opacity-50 bg-zinc-400"
                                   : "bg-green-600 hover:bg-green-700"
                               }`}

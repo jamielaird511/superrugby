@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import * as Select from "@radix-ui/react-select";
+import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, LockClosedIcon, ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 
 // Table name constants (from project usage)
 const FIXTURES_TABLE = "fixtures";
@@ -83,6 +85,7 @@ export default function TeamHomePage() {
   const [savingFixtureId, setSavingFixtureId] = useState<string | null>(null);
   const [savedFixtureIds, setSavedFixtureIds] = useState<Set<string>>(new Set());
   const [pickErrors, setPickErrors] = useState<Record<string, string>>({});
+  const [editingByMatchId, setEditingByMatchId] = useState<Record<string, boolean>>({});
   const isInitializingRound = useRef(true);
 
   useEffect(() => {
@@ -256,6 +259,16 @@ export default function TeamHomePage() {
       setPicks(picksMap);
       setSelectedWinnerByFixtureId(winnerMap);
       setSelectedMarginByFixtureId(marginMap);
+      // Initialize editing state: false for matches with saved picks, true for matches without
+      setEditingByMatchId((prev) => {
+        const next = { ...prev };
+        Object.keys(picksMap).forEach((fixtureId) => {
+          if (!(fixtureId in next)) {
+            next[fixtureId] = false; // Has saved pick, default to locked
+          }
+        });
+        return next;
+      });
     } catch (err) {
       console.error("Error fetching picks:", err);
     }
@@ -407,6 +420,12 @@ export default function TeamHomePage() {
       // Refresh picks
       await fetchPicks();
       
+      // Remove from editing mode (re-lock)
+      setEditingByMatchId((prev) => ({
+        ...prev,
+        [fixture.id]: false,
+      }));
+      
       // Show saved indication
       setSavedFixtureIds((prev) => new Set(prev).add(fixture.id));
       setTimeout(() => {
@@ -492,6 +511,12 @@ export default function TeamHomePage() {
       // Refresh picks
       await fetchPicks();
       
+      // Remove from editing mode (re-lock)
+      setEditingByMatchId((prev) => ({
+        ...prev,
+        [fixture.id]: false,
+      }));
+      
       // Show saved indication
       setSavedFixtureIds((prev) => new Set(prev).add(fixture.id));
       setTimeout(() => {
@@ -562,7 +587,7 @@ export default function TeamHomePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+      <div className="flex min-h-screen items-center justify-center font-sans">
         <div className="text-center">
           <p className="text-zinc-600 dark:text-zinc-400">Loading team...</p>
         </div>
@@ -572,7 +597,7 @@ export default function TeamHomePage() {
 
   if (error || !participant) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+      <div className="flex min-h-screen items-center justify-center font-sans">
         <div className="text-center">
           <p className="text-red-600 dark:text-red-400">
             {error || "Team not found"}
@@ -582,108 +607,198 @@ export default function TeamHomePage() {
     );
   }
 
+  const handleLogout = async () => {
+    // Clear localStorage
+    localStorage.removeItem("participant_id");
+    // Redirect to home
+    router.push("/");
+  };
+
+  const handleHome = () => {
+    // Scroll to top of page (we're already on team home)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="container mx-auto max-w-6xl px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">
-            {participant.business_name} — {participant.team_name}
-          </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Welcome back. Your next picks are below.
-          </p>
-        </div>
-
-        {/* Tiles */}
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* Make Picks Tile */}
-          <Link
-            href={canMakePicks() ? "/picks" : "#"}
-            className={`rounded-lg border p-6 shadow-sm transition-all ${
-              canMakePicks()
-                ? "cursor-pointer border-zinc-200 bg-white hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
-                : "cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-60 dark:border-zinc-800 dark:bg-zinc-950"
-            }`}
-            onClick={(e) => {
-              if (!canMakePicks()) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <div className="mb-2 text-2xl">📝</div>
-            <h3 className="mb-1 text-lg font-semibold text-black dark:text-zinc-50">
-              Make Picks
-            </h3>
-            <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Submit your picks for upcoming games
-            </p>
-            {!canMakePicks() && (
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {nextRoundFixtures.length === 0
-                  ? "No upcoming games"
-                  : "All games locked"}
-              </p>
-            )}
-          </Link>
-
-          {/* Results Tile */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-2 text-2xl">📊</div>
-            <h3 className="mb-1 text-lg font-semibold text-black dark:text-zinc-50">
-              Results
-            </h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              View match results and scores
-            </p>
+    <div className="min-h-screen font-sans pt-16">
+      {/* Fixed Navigation Bar */}
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-[#002D47] bg-[#003A5D] shadow-md">
+        <div className="mx-auto h-16 max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16 flex items-center justify-between">
+          {/* Left: ANZ Logo */}
+          <div className="flex items-center">
+            <img
+              src="/brand/logo-anz.svg"
+              alt="ANZ"
+              className="h-10 w-auto"
+            />
           </div>
 
-          {/* Team Settings Tile */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-2 text-2xl">⚙️</div>
-            <h3 className="mb-1 text-lg font-semibold text-black dark:text-zinc-50">
-              Team Settings
-            </h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Manage your team details
-            </p>
+          {/* Center: Business — Team Name */}
+          <div className="flex-1 text-center">
+            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+              {participant.business_name} — {participant.team_name}
+            </h2>
+          </div>
+
+          {/* Right: Home + Logout Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleHome}
+              className="rounded-md border border-white/30 bg-transparent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/15 hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
+            >
+              Home
+            </button>
+            <button
+              onClick={handleLogout}
+              className="rounded-md border border-white bg-white px-4 py-1.5 text-sm font-medium text-[#003A5D] transition-colors hover:bg-zinc-50 hover:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="py-8 pt-8">
+        {/* Tiles */}
+        <div className="mb-8 mx-auto w-full max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Make Picks Tile */}
+            <Link
+              href={canMakePicks() ? "/picks" : "#"}
+              className={`rounded-lg border border-[#D6E3EC] bg-white px-4 py-4 text-center transition-all ${
+                canMakePicks()
+                  ? "cursor-pointer hover:bg-[#F5FAFD]"
+                  : "cursor-not-allowed opacity-60"
+              }`}
+              onClick={(e) => {
+                if (!canMakePicks()) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <PencilSquareIcon className="mx-auto h-7 w-7 text-[#004165]" />
+              <h3 className="mt-2 text-sm font-semibold text-[#003A5D]">
+                Picks
+              </h3>
+            </Link>
+
+            {/* Results Tile */}
+            <div className="rounded-lg border border-[#D6E3EC] bg-white px-4 py-4 text-center">
+              <ChartBarIcon className="mx-auto h-7 w-7 text-[#004165]" />
+              <h3 className="mt-2 text-sm font-semibold text-[#003A5D]">
+                Results
+              </h3>
+            </div>
+
+            {/* Team Settings Tile */}
+            <div className="rounded-lg border border-[#D6E3EC] bg-white px-4 py-4 text-center">
+              <Cog6ToothIcon className="mx-auto h-7 w-7 text-[#004165]" />
+              <h3 className="mt-2 text-sm font-semibold text-[#003A5D]">
+                Settings
+              </h3>
+            </div>
           </div>
         </div>
 
         {/* Next Round Section */}
-        <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-              {selectedRoundId && rounds.length > 0
-                ? (() => {
-                    const selectedRound = rounds.find((r) => r.id === selectedRoundId);
-                    return selectedRound ? `Round ${selectedRound.round_number}` : "Next Round";
-                  })()
-                : "Next Round"}
-            </h2>
-            {rounds.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label htmlFor="round-select" className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Round:
-                </label>
-                <select
-                  id="round-select"
-                  value={selectedRoundId || ""}
-                  onChange={(e) => setSelectedRoundId(e.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
-                >
-                  {rounds.map((round) => (
-                    <option key={round.id} value={round.id}>
-                      Round {round.round_number}
-                    </option>
-                  ))}
-                </select>
+        <div className="mb-8">
+          <div className="mb-4 flex justify-center">
+            <div className="w-full max-w-2xl flex items-center justify-between">
+              <div>
+                {rounds.length > 0 && (
+                  <Select.Root
+                    value={selectedRoundId || undefined}
+                    onValueChange={(value) => setSelectedRoundId(value)}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        // Scroll to top when dropdown opens
+                        setTimeout(() => {
+                          const viewport = document.querySelector('[data-radix-select-viewport]');
+                          if (viewport) {
+                            viewport.scrollTop = 0;
+                          }
+                        }, 0);
+                      }
+                    }}
+                  >
+                    <Select.Trigger
+                      id="round-select"
+                      className="cursor-pointer rounded-md border border-[#004165] bg-[#004165] px-4 py-2 text-base font-semibold text-white transition-all hover:bg-[#003554] hover:border-[#003554] focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 inline-flex items-center justify-between gap-2 min-w-[140px]"
+                    >
+                      <Select.Value placeholder="Select round" />
+                      <Select.Icon className="text-white">
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </Select.Icon>
+                    </Select.Trigger>
+                    <Select.Portal>
+                      <Select.Content
+                        className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900 z-50 min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+                        side="bottom"
+                        align="start"
+                        sideOffset={6}
+                        avoidCollisions={false}
+                        collisionPadding={12}
+                        position="popper"
+                      >
+                        <Select.Viewport 
+                          className="p-1 max-h-[320px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-100 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600 dark:[&::-webkit-scrollbar-track]:bg-zinc-800" 
+                          style={{ scrollbarGutter: 'stable', scrollbarWidth: 'thin' }}
+                          data-radix-select-viewport
+                        >
+                          {rounds.map((round) => (
+                            <Select.Item
+                              key={round.id}
+                              value={round.id}
+                              className="relative flex items-center rounded-sm px-3 py-2 text-sm text-black outline-none cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
+                            >
+                              <Select.ItemText>Round {round.round_number}</Select.ItemText>
+                            </Select.Item>
+                          ))}
+                        </Select.Viewport>
+                      </Select.Content>
+                    </Select.Portal>
+                  </Select.Root>
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-2">
+                {selectedRoundId && (
+                  <>
+                    <Link
+                      href={`/print/round/${selectedRoundId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
+                    >
+                      Print Picks (Blank)
+                    </Link>
+                    <Link
+                      href={`/print/round/${selectedRoundId}/team/${participantId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
+                    >
+                      Print Picks (My Picks)
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {nextRoundFixtures.length === 0 ? (
-            <p className="text-zinc-600 dark:text-zinc-400">
+            <p className="text-center text-zinc-600 dark:text-zinc-400">
               No upcoming games scheduled yet.
             </p>
           ) : (
@@ -699,38 +814,37 @@ export default function TeamHomePage() {
                 const selectedWinner = selectedWinnerByFixtureId[fixture.id] || "";
                 const selectedMargin = selectedMarginByFixtureId[fixture.id] || "";
                 const existingPick = picks[fixture.id];
+                const hasExistingPick = !!picks[fixture.id];
+                const isEditing = editingByMatchId[fixture.id] ?? !hasExistingPick; // Default: editing if no saved pick
+                const isLockedPick = hasExistingPick && !isEditing;
                 const effectiveWinner = selectedWinner || existingPick?.picked_team || null;
                 const isDraw = effectiveWinner === "DRAW";
                 const isSaved = savedFixtureIds.has(fixture.id);
                 const isSaving = savingFixtureId === fixture.id;
-                const hasExistingPick = !!picks[fixture.id];
 
                 return (
                   <div key={fixture.id} className="flex justify-center">
                     <div
-                      className={`w-full max-w-2xl rounded-xl border bg-white shadow-sm p-5 dark:border-zinc-800 dark:bg-zinc-900 ${isLocked ? "opacity-75" : ""}`}
+                      className={`w-full max-w-2xl rounded-md border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900 ${isLocked ? "opacity-75" : ""}`}
                     >
-                      {/* Card Header - Centered */}
-                      <div className="mb-4 flex flex-col items-center text-center">
-                        <div className="font-medium text-black dark:text-zinc-50 mb-2">
-                          {homeName} vs {awayName}
-                        </div>
-                        <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                          {kickoffStr}
-                        </div>
-                        <div className="flex items-center gap-2">
+                      {/* Card Header - Compact */}
+                      <div className="mb-3 flex flex-col items-center text-center">
+                        <div className="mb-1 flex items-center gap-2">
+                          <div className="font-medium text-black dark:text-zinc-50">
+                            {homeName} vs {awayName}
+                          </div>
                           {isLocked && (
-                            <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
+                            <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                               Locked
                             </span>
                           )}
                           <span
-                            className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            className={`rounded border px-1.5 py-0.5 text-xs font-medium ${
                               status === "open"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                ? "border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-200"
                                 : status === "locked"
-                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                                ? "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200"
+                                : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
                             }`}
                           >
                             {status === "open"
@@ -740,35 +854,123 @@ export default function TeamHomePage() {
                               : "Not open yet"}
                           </span>
                         </div>
+                        <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                          {kickoffStr}
+                        </div>
                       </div>
 
                     {/* Error Message */}
                     {pickErrors[fixture.id] && (
-                      <div className="mb-4 rounded-md bg-red-100 p-2 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
+                      <div className="mb-2 rounded-md bg-red-100 p-1.5 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
                         {pickErrors[fixture.id]}
                       </div>
                     )}
 
                     {/* Locked Pick Display */}
                     {isLocked && existingPick && (
-                      <div className="mb-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                      <div className="mb-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
                         Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} by {existingPick.margin}
                       </div>
                     )}
 
+                    {/* Locked Summary View */}
+                    {!isLocked && isLockedPick && (
+                      <div className="mb-3 mx-auto w-full max-w-3xl flex items-center justify-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
+                        {/* Left: Logo + Summary Text Grouped */}
+                        <div className="flex items-center gap-3">
+                          {existingPick?.picked_team === "DRAW" ? (
+                            <ArrowsRightLeftIcon className="h-8 w-8 text-[#004165]" aria-hidden="true" />
+                          ) : (
+                            <>
+                              {(() => {
+                                const pickedTeam = teams[existingPick?.picked_team || ""];
+                                const pickedTeamCode = existingPick?.picked_team || "";
+                                return pickedTeam?.logo_path ? (
+                                  <img
+                                    src={getTeamLogoUrl(pickedTeam.logo_path) || `/teams/${pickedTeamCode}.svg`}
+                                    alt={pickedTeam.name || TEAM_NAMES[pickedTeamCode] || pickedTeamCode}
+                                    className="h-8 w-8 object-contain"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
+                                    {pickedTeamCode}
+                                  </span>
+                                );
+                              })()}
+                            </>
+                          )}
+                          <span className="font-semibold text-[#004165]">
+                            {existingPick?.picked_team === "DRAW" ? (
+                              "Draw"
+                            ) : (
+                              <>
+                                {teams[existingPick?.picked_team || ""]?.name || TEAM_NAMES[existingPick?.picked_team || ""] || existingPick?.picked_team || ""}
+                                {existingPick && existingPick.margin > 0 && (
+                                  <> {existingPick.margin >= 1 && existingPick.margin <= 12 ? "1–12" : "13+"}</>
+                                )}
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        {/* Right: Lock Icon + Edit Button */}
+                        <div className="flex items-center gap-3">
+                          <LockClosedIcon className="h-5 w-5 text-[#004165]" aria-hidden="true" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Enter edit mode
+                              setEditingByMatchId((prev) => ({
+                                ...prev,
+                                [fixture.id]: true,
+                              }));
+                              // Prefill selections if not already set
+                              if (!selectedWinner && existingPick) {
+                                setSelectedWinnerByFixtureId((prev) => ({
+                                  ...prev,
+                                  [fixture.id]: existingPick.picked_team,
+                                }));
+                              }
+                              if (!selectedMargin && existingPick) {
+                                // Convert margin to band
+                                let marginBand = "";
+                                if (existingPick.margin >= 1 && existingPick.margin <= 12) {
+                                  marginBand = "1-12";
+                                } else if (existingPick.margin >= 13) {
+                                  marginBand = "13+";
+                                }
+                                if (marginBand) {
+                                  setSelectedMarginByFixtureId((prev) => ({
+                                    ...prev,
+                                    [fixture.id]: marginBand,
+                                  }));
+                                }
+                              }
+                            }}
+                            className="rounded-md border border-[#004165] bg-white px-3 py-1 text-sm font-medium text-[#004165] transition-colors hover:bg-blue-50"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Centered Matchup Selection Row */}
-                    {!isLocked && (
-                      <div className="flex items-center justify-center gap-4 flex-wrap mb-4">
-                        <div className="flex flex-col items-center gap-1">
+                    {!isLocked && !isLockedPick && (
+                      <div className="flex items-center justify-center gap-2.5 flex-wrap mb-3">
+                        <div className="flex flex-col items-center gap-0.5">
                           <button
                             type="button"
                             onClick={() => handleSetWinner(fixture.id, fixture.home_team_code)}
                             disabled={isSaving || isLocked}
                             aria-label={`Pick ${homeName}`}
-                            className={`relative h-28 w-28 sm:h-24 sm:w-24 flex items-center justify-center rounded-xl border bg-white shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border border-zinc-300 bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 p-2 ${
                               effectiveWinner === fixture.home_team_code
-                                ? "border-blue-600 ring-4 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
-                                : "border-zinc-300 hover:border-zinc-400 hover:shadow-md dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
+                                ? "border-blue-600 ring-2 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
+                                : "hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
                             } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                           >
                             {homeTeam?.logo_path ? (
@@ -794,24 +996,24 @@ export default function TeamHomePage() {
                           onClick={() => handleSetWinner(fixture.id, "DRAW")}
                           disabled={isSaving || isLocked}
                           aria-label="Pick Draw"
-                          className={`relative h-28 w-20 sm:h-24 sm:w-16 flex items-center justify-center rounded-xl border bg-white shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                          className={`relative h-24 w-16 sm:h-20 sm:w-14 flex items-center justify-center rounded-md border border-zinc-300 bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                             effectiveWinner === "DRAW"
-                              ? "border-blue-600 ring-4 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
-                              : "border-zinc-300 hover:border-zinc-400 hover:shadow-md dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
+                              ? "border-blue-600 ring-2 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
+                              : "hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
                           } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                         >
                           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Draw</span>
                         </button>
-                        <div className="flex flex-col items-center gap-1">
+                        <div className="flex flex-col items-center gap-0.5">
                           <button
                             type="button"
                             onClick={() => handleSetWinner(fixture.id, fixture.away_team_code)}
                             disabled={isSaving || isLocked}
                             aria-label={`Pick ${awayName}`}
-                            className={`relative h-28 w-28 sm:h-24 sm:w-24 flex items-center justify-center rounded-xl border bg-white shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border border-zinc-300 bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 p-2 ${
                               effectiveWinner === fixture.away_team_code
-                                ? "border-blue-600 ring-4 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
-                                : "border-zinc-300 hover:border-zinc-400 hover:shadow-md dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
+                                ? "border-blue-600 ring-2 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
+                                : "hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
                             } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                           >
                             {awayTeam?.logo_path ? (
@@ -836,17 +1038,17 @@ export default function TeamHomePage() {
                     )}
 
                     {/* Margin + Save Controls Row */}
-                    {!isLocked && (
-                      <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
+                    {!isLocked && !isLockedPick && (
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
                         <select
                           value={selectedMargin}
                           onChange={(e) => handleSetMargin(fixture.id, e.target.value)}
                           disabled={isDraw || !effectiveWinner || isSaving || isLocked}
-                          className={`rounded-md border px-3 py-1.5 text-sm text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${
+                          className={`rounded-md border px-2.5 py-1 text-sm text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${
                             isDraw || !effectiveWinner || isSaving || isLocked
                               ? "cursor-not-allowed opacity-50 bg-zinc-100 border-zinc-300 dark:bg-zinc-900"
                               : hasExistingPick && selectedMargin
-                              ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                              ? "border-[#004165] bg-blue-50 dark:bg-blue-900/20"
                               : "border-zinc-300"
                           }`}
                         >
@@ -854,23 +1056,66 @@ export default function TeamHomePage() {
                           <option value="1-12">1-12</option>
                           <option value="13+">13+</option>
                         </select>
-                        {hasExistingPick && (
-                          <span className="rounded-full bg-green-100 px-3 py-1.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Saved ✓
-                          </span>
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Cancel: revert to existing pick
+                                if (existingPick) {
+                                  setSelectedWinnerByFixtureId((prev) => ({
+                                    ...prev,
+                                    [fixture.id]: existingPick.picked_team,
+                                  }));
+                                  // Convert margin to band
+                                  let marginBand = "";
+                                  if (existingPick.margin >= 1 && existingPick.margin <= 12) {
+                                    marginBand = "1-12";
+                                  } else if (existingPick.margin >= 13) {
+                                    marginBand = "13+";
+                                  }
+                                  setSelectedMarginByFixtureId((prev) => ({
+                                    ...prev,
+                                    [fixture.id]: marginBand,
+                                  }));
+                                }
+                                // Exit edit mode
+                                setEditingByMatchId((prev) => ({
+                                  ...prev,
+                                  [fixture.id]: false,
+                                }));
+                              }}
+                              className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSavePick(fixture)}
+                              disabled={isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
+                              className={`rounded-md border px-3 py-1 text-sm text-white transition-colors ${
+                                isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
+                                  ? "cursor-not-allowed opacity-50 border-zinc-400 bg-zinc-400"
+                                  : "border-[#004165] bg-[#004165] hover:bg-[#003554] hover:border-[#003554]"
+                              }`}
+                            >
+                              {isSaving ? "Saving..." : "Save"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSavePick(fixture)}
+                            disabled={isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
+                            className={`rounded-md border px-3 py-1 text-sm text-white transition-colors ${
+                              isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
+                                ? "cursor-not-allowed opacity-50 border-zinc-400 bg-zinc-400"
+                                : "border-[#004165] bg-[#004165] hover:bg-[#003554] hover:border-[#003554]"
+                            }`}
+                          >
+                            {isSaving ? "Saving..." : "Save"}
+                          </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleSavePick(fixture)}
-                          disabled={isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
-                          className={`rounded-md px-4 py-1.5 text-sm text-white transition-colors ${
-                            isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
-                              ? "cursor-not-allowed opacity-50 bg-zinc-400"
-                              : "bg-green-600 hover:bg-green-700"
-                          }`}
-                        >
-                          {isSaving ? "Saving..." : isSaved ? "Saved" : hasExistingPick ? "Update Pick" : "Save"}
-                        </button>
                       </div>
                     )}
                     </div>
@@ -882,7 +1127,7 @@ export default function TeamHomePage() {
         </div>
 
         {/* Team Details Section */}
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="rounded-md border border-zinc-300 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
           <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
             Team Details
           </h2>
@@ -942,6 +1187,7 @@ export default function TeamHomePage() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

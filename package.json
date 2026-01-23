@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "echo \"Skipping build during dev (use pnpm run build:real when needed)\"",
-    "build:real": "next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "check": "pnpm lint"

@@ -184,3 +184,5 @@ vite.config.ts.timestamp-*
 *.docx
 *.key
 .env*
+
+.vscode/

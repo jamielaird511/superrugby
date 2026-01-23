@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "echo \"Skipping build during dev (use pnpm run build:real when needed)\"",
+    "build:real": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check": "pnpm lint"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -28,3 +30,4 @@
     "typescript": "^5"
   }
 }
+

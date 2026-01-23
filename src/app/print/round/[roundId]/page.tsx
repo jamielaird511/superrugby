@@ -13,6 +13,7 @@ type Round = {
 type Team = {
   code: string;
   name: string;
+  logo_path: string | null;
 };
 
 type Fixture = {
@@ -31,6 +32,7 @@ export default function PrintRoundPage() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -44,6 +46,8 @@ export default function PrintRoundPage() {
 
   const fetchData = async () => {
     try {
+      setErrorMsg(null);
+
       // Fetch round
       const { data: roundData, error: roundError } = await supabase
         .from("rounds")
@@ -66,8 +70,8 @@ export default function PrintRoundPage() {
 
       // Fetch teams
       const { data: teamsData, error: teamsError } = await supabase
-        .from("teams")
-        .select("code, name");
+        .from("super_rugby_teams")
+        .select("code, name, logo_path");
 
       if (teamsError) throw teamsError;
       const teamsMap: Record<string, Team> = {};
@@ -76,7 +80,16 @@ export default function PrintRoundPage() {
       });
       setTeams(teamsMap);
     } catch (err) {
-      console.error("Error fetching data:", err);
+      const anyErr = err as any;
+      const msg =
+        anyErr?.message ||
+        anyErr?.error_description ||
+        anyErr?.details ||
+        (typeof anyErr === "string" ? anyErr : null) ||
+        JSON.stringify(anyErr);
+      console.error("Error fetching data:", anyErr);
+      console.error("Error details:", { message: anyErr?.message, code: anyErr?.code, details: anyErr?.details, hint: anyErr?.hint });
+      setErrorMsg(msg ?? "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -104,6 +117,14 @@ export default function PrintRoundPage() {
     return `${weekday} - ${datePart}, ${timePart}`;
   };
 
+  const getTeamLogoUrl = (logoPath: string | null, teamCode: string): string => {
+    if (!logoPath) return `/teams/${teamCode}.svg`;
+    // If logo_path starts with /, treat as public path
+    if (logoPath.startsWith("/")) return logoPath;
+    // Otherwise, assume it's a relative path from public
+    return logoPath.startsWith("teams/") ? `/${logoPath}` : `/teams/${logoPath}`;
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -127,26 +148,49 @@ export default function PrintRoundPage() {
           .no-print {
             display: none !important;
           }
+          .print-hidden {
+            display: none !important;
+          }
           body {
             padding: 0 !important;
             margin: 0 !important;
+            background: white !important;
+            color: black !important;
           }
           .print-container {
             max-width: 100%;
             padding: 0;
+            background: white !important;
           }
           .print-content {
             max-width: 180mm;
             margin: 0 auto;
             padding: 15mm 10mm;
+            background: white !important;
+            color: black !important;
           }
           .match-card {
             page-break-inside: avoid;
             break-inside: avoid;
+            background: white !important;
+            color: black !important;
+          }
+          .match-card * {
+            color: black !important;
+          }
+          h1, h2, h3, p, span, div, label, input {
+            color: black !important;
+          }
+          body, .print-container, .print-content, .match-card {
+            background: white !important;
+          }
+          div:not(.match-card) {
+            background: transparent !important;
           }
           @page {
             margin: 15mm;
             size: A4;
+            background: white;
           }
         }
         @media screen {
@@ -168,6 +212,12 @@ export default function PrintRoundPage() {
             </button>
           </div>
 
+          {errorMsg && (
+            <div className="print-hidden mb-4 rounded-lg border-2 border-red-500 bg-red-50 p-4">
+              <p className="font-semibold text-red-800">Couldn't load print data: {errorMsg}</p>
+            </div>
+          )}
+
           <div className="mb-8">
             <div className="flex items-center justify-center gap-6 mb-3">
               <img src="/brand/anz.svg" alt="ANZ" className="h-12 w-auto" style={{ height: "48px", width: "auto" }} />
@@ -188,8 +238,8 @@ export default function PrintRoundPage() {
             const homeName = homeTeam?.name || fixture.home_team_code;
             const awayName = awayTeam?.name || fixture.away_team_code;
             const kickoffStr = formatKickoff(fixture.kickoff_at);
-            const homeLogoPath = `/teams/${fixture.home_team_code}.svg`;
-            const awayLogoPath = `/teams/${fixture.away_team_code}.svg`;
+            const homeLogoPath = getTeamLogoUrl(homeTeam?.logo_path || null, fixture.home_team_code);
+            const awayLogoPath = getTeamLogoUrl(awayTeam?.logo_path || null, fixture.away_team_code);
 
             return (
               <div key={fixture.id} className="border-2 border-black p-4 match-card">

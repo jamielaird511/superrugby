@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const CATEGORIES = [
   { label: "Accountant", value: "accountant" },
@@ -226,16 +227,17 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+    <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md px-4">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">
+        <div className="rounded-lg border border-[#D6E3EC] bg-white p-6 shadow-sm">
+          <Link href="/" className="mb-3 inline-flex items-center gap-2 h-10 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+            ← Back to login
+          </Link>
+          <h1 className="mb-4 text-center text-xl font-semibold text-[#003A5D]">
             Register Your Team
           </h1>
-        </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-2">
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                 Business Name
@@ -249,7 +251,7 @@ export default function RegisterPage() {
                     setFieldErrors((prev) => ({ ...prev, businessName: false }));
                   }
                 }}
-                className={`w-full rounded-md border px-3 py-2 text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                className={`h-10 w-full rounded-md border px-3 py-2 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
                   fieldErrors.businessName
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                     : "border-zinc-300 dark:border-zinc-600"
@@ -271,7 +273,7 @@ export default function RegisterPage() {
                     setFieldErrors((prev) => ({ ...prev, teamName: false }));
                   }
                 }}
-                className={`w-full rounded-md border px-3 py-2 text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                className={`h-10 w-full rounded-md border px-3 py-2 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
                   fieldErrors.teamName
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                     : "border-zinc-300 dark:border-zinc-600"
@@ -292,7 +294,7 @@ export default function RegisterPage() {
                     setFieldErrors((prev) => ({ ...prev, category: false }));
                   }
                 }}
-                className={`w-full rounded-md border px-3 py-2 text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                className={`h-10 w-full rounded-md border px-3 py-2 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
                   fieldErrors.category
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                     : "border-zinc-300 dark:border-zinc-600"
@@ -327,7 +329,7 @@ export default function RegisterPage() {
                           setFieldErrors((prev) => ({ ...prev, contactEmails: false }));
                         }
                       }}
-                      className={`flex-1 rounded-md border px-3 py-2 text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                      className={`h-10 flex-1 rounded-md border px-3 py-2 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
                         fieldErrors.contactEmails
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                           : "border-zinc-300 dark:border-zinc-600"
@@ -359,6 +361,9 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                 Password
               </label>
+              <p className="mt-1 mb-2 text-xs text-gray-500">
+                Note: this is a team password. Don&apos;t use your internet banking password that you then have to share with your colleagues...
+              </p>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -370,7 +375,7 @@ export default function RegisterPage() {
                       setFieldErrors((prev) => ({ ...prev, password: false }));
                     }
                   }}
-                  className={`w-full rounded-md border px-3 py-2 pr-10 text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                  className={`h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
                     fieldErrors.password
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                       : "border-zinc-300 dark:border-zinc-600"
@@ -442,7 +447,7 @@ export default function RegisterPage() {
                       setFieldErrors((prev) => ({ ...prev, confirmPassword: false }));
                     }
                   }}
-                  className={`w-full rounded-md border px-3 py-2 pr-10 text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                  className={`h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
                     fieldErrors.confirmPassword
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                       : "border-zinc-300 dark:border-zinc-600"
@@ -516,7 +521,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-10 w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Registering..." : "Register"}
             </button>

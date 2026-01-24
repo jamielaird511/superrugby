@@ -185,15 +185,16 @@ export default function PrintRoundTeamPage() {
             padding: 0 !important;
             margin: 0 !important;
             font-size: 11px;
+            background: white !important;
           }
           .print-container {
             max-width: 100%;
             padding: 0;
           }
           .print-content {
-            max-width: 180mm;
+            max-width: 100%;
             margin: 0 auto;
-            padding: 8mm 10mm;
+            padding: 8mm 12mm;
           }
           .match-card {
             page-break-inside: avoid;
@@ -207,13 +208,19 @@ export default function PrintRoundTeamPage() {
         }
         @media screen {
           .print-container {
-            max-width: 210mm;
+            max-width: 100%;
             margin: 0 auto;
             padding: 20px;
+            background: white;
+            min-h-screen;
+          }
+          .print-content {
+            max-width: 672px;
+            margin: 0 auto;
           }
         }
       `}</style>
-      <div className="print-container">
+      <div className="print-container bg-white">
         <div className="print-content">
           <div className="mb-6 no-print">
             <button
@@ -224,85 +231,85 @@ export default function PrintRoundTeamPage() {
             </button>
           </div>
 
-          <div className="mb-4 print:mb-3">
-            <div className="flex items-center justify-center gap-4 print:gap-3 mb-2 print:mb-1">
-              <img src="/brand/anz.svg" alt="ANZ" className="h-9 w-auto print:h-7" />
-              <img src="/brand/SUP.svg" alt="Super Rugby" className="h-9 w-auto print:h-7" />
+          {/* Compact Header */}
+          <div className="mb-4 print:mb-2">
+            <div className="flex items-center justify-center gap-3 print:gap-2 mb-1.5 print:mb-1">
+              <img src="/brand/anz.svg" alt="ANZ" className="h-8 w-auto print:h-6" />
+              <img src="/brand/SUP.svg" alt="Super Rugby" className="h-8 w-auto print:h-6" />
             </div>
-            <div className="text-[10px] print:text-[9px] text-gray-400 text-center mb-0.5 print:mb-0">
-              MY PICKS PRINT v2
-            </div>
-            <h1 className="text-xl print:text-lg font-bold text-black text-center leading-tight print:leading-tight mb-0.5 print:mb-0">
+            <h1 className="text-lg print:text-base font-bold text-black text-center leading-tight print:leading-tight mb-0.5 print:mb-0">
               ANZ Super Rugby Picks Competition
             </h1>
-            <div className="text-base print:text-sm text-black mt-0.5 print:mt-0 text-center leading-tight print:leading-tight">
+            <div className="text-sm print:text-xs text-black mt-0.5 print:mt-0 text-center leading-tight print:leading-tight">
               Season {round.season} - Round {round.round_number}
             </div>
-            <div className="text-sm print:text-xs text-black mt-0.5 print:mt-0 text-center leading-tight print:leading-tight">
-              Team: {participant.team_name}
-            </div>
             <div className="text-xs print:text-[10px] text-black mt-0.5 print:mt-0 text-center leading-tight print:leading-tight">
-              Generated: {formatDateGenerated()}
+              Team: {participant.team_name} • Generated: {formatDateGenerated()}
             </div>
           </div>
 
-          <div className="space-y-2 print:space-y-1.5">
-          {fixtures.map((fixture) => {
-            const homeTeam = teams[fixture.home_team_code];
-            const awayTeam = teams[fixture.away_team_code];
-            const homeName = homeTeam?.name || fixture.home_team_code;
-            const awayName = awayTeam?.name || fixture.away_team_code;
-            const kickoffStr = formatKickoff(fixture.kickoff_at);
-            const homeLogoPath = getTeamLogoUrl(homeTeam?.logo_path || null, fixture.home_team_code);
-            const awayLogoPath = getTeamLogoUrl(awayTeam?.logo_path || null, fixture.away_team_code);
-            const pick = picks[fixture.id];
-            const pickedTeam = pick ? teams[pick.picked_team] : null;
-            const pickedTeamCode = pick?.picked_team || "";
-            const marginText = pick && pick.margin > 0 
-              ? (pick.margin >= 1 && pick.margin <= 12 ? "1–12" : "13+")
-              : null;
+          {/* Fixture Cards - Matching Main Picks Page Layout */}
+          <div className="space-y-3 print:space-y-2">
+            {fixtures.map((fixture) => {
+              const homeTeam = teams[fixture.home_team_code];
+              const awayTeam = teams[fixture.away_team_code];
+              const homeName = homeTeam?.name || fixture.home_team_code;
+              const awayName = awayTeam?.name || fixture.away_team_code;
+              const kickoffStr = formatKickoff(fixture.kickoff_at);
+              const pick = picks[fixture.id];
+              const pickedTeam = pick ? teams[pick.picked_team] : null;
+              const pickedTeamCode = pick?.picked_team || "";
+              const marginText = pick && pick.margin > 0 
+                ? (pick.margin >= 1 && pick.margin <= 12 ? "1–12" : "13+")
+                : null;
 
-            return (
-              <div key={fixture.id} className="border border-zinc-300 rounded-md p-2 print:p-1.5 bg-white match-card" style={{ breakInside: "avoid" }}>
-                <div className="grid grid-cols-[1fr_auto] gap-3 print:gap-2 items-center">
-                  {/* LEFT COLUMN: Match Info */}
-                  <div>
-                    <div className="text-sm print:text-[12px] font-semibold print:font-medium text-black leading-tight print:leading-tight">
-                      {homeName} vs {awayName}
-                    </div>
-                    {kickoffStr && (
-                      <div className="text-xs print:text-[10px] text-zinc-600 mt-0.5 print:mt-0 leading-tight print:leading-tight">
-                        {kickoffStr}
+              return (
+                <div key={fixture.id} className="flex justify-center">
+                  <div
+                    className="w-full max-w-2xl rounded-md border border-zinc-300 bg-white p-3 print:p-2 match-card"
+                    style={{ breakInside: "avoid" }}
+                  >
+                    {/* Card Header - Matching Main Picks Page */}
+                    <div className="mb-2 print:mb-1.5 flex flex-col items-center text-center">
+                      <div className="mb-0.5 print:mb-0 font-medium text-black text-sm print:text-xs">
+                        {homeName} vs {awayName}
                       </div>
-                    )}
-                  </div>
+                      {kickoffStr && (
+                        <div className="text-xs print:text-[10px] text-zinc-600">
+                          {kickoffStr}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* RIGHT COLUMN: Pick */}
-                  <div className="flex items-center">
+                    {/* Pick Summary Row - Matching Main Picks Page Locked Summary */}
                     {pick ? (
-                      <div className="flex items-center gap-1.5 print:gap-1 rounded border border-zinc-300 bg-zinc-50 px-2 print:px-1.5 py-1 print:py-0.5 h-7 print:h-6">
-                        {/* Logo/Icon */}
-                        {pick.picked_team === "DRAW" ? (
-                          <span className="text-lg print:text-base font-semibold text-[#004165]" aria-hidden="true">=</span>
-                        ) : (
-                          <>
-                            {pickedTeam?.logo_path ? (
-                              <img
-                                src={getTeamLogoUrl(pickedTeam.logo_path, pickedTeamCode)}
-                                alt={pickedTeam.name || pickedTeamCode}
-                                className="h-5 w-5 print:h-4 print:w-4 object-contain flex-shrink-0"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = "none";
-                                }}
-                              />
-                            ) : (
-                              <span className="text-xs print:text-[10px] font-semibold text-zinc-600 flex-shrink-0">{pickedTeamCode}</span>
-                            )}
-                          </>
-                        )}
-                        {/* Team Name + Margin */}
-                        <span className="text-xs print:text-[10px] font-semibold text-[#004165] whitespace-nowrap">
+                      <div className="mx-auto w-full max-w-3xl flex items-center justify-center gap-3 print:gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-4 print:px-3 py-2 print:py-1.5">
+                        {/* Left: Logo/Icon */}
+                        <div className="flex items-center">
+                          {pick.picked_team === "DRAW" ? (
+                            <span className="text-xl print:text-lg font-semibold text-[#004165]" aria-hidden="true">=</span>
+                          ) : (
+                            <>
+                              {pickedTeam?.logo_path ? (
+                                <img
+                                  src={getTeamLogoUrl(pickedTeam.logo_path, pickedTeamCode)}
+                                  alt={pickedTeam.name || pickedTeamCode}
+                                  className="h-6 w-6 print:h-5 print:w-5 object-contain"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-xs print:text-[10px] font-semibold text-zinc-600">
+                                  {pickedTeamCode}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {/* Right: Team Name + Margin */}
+                        <span className="font-semibold text-[#004165] text-sm print:text-xs">
                           {pick.picked_team === "DRAW" ? (
                             "Draw"
                           ) : (
@@ -314,15 +321,14 @@ export default function PrintRoundTeamPage() {
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-center rounded border border-zinc-300 bg-zinc-50 px-2 print:px-1.5 py-1 print:py-0.5 h-7 print:h-6">
-                        <span className="text-xs print:text-[10px] text-gray-500 italic">No pick</span>
+                      <div className="mx-auto w-full max-w-3xl flex items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 px-4 print:px-3 py-2 print:py-1.5">
+                        <span className="text-sm print:text-xs text-gray-500 italic">No pick</span>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         </div>
       </div>

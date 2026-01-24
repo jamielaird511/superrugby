@@ -198,10 +198,11 @@ export default function PrintRoundPage() {
             max-width: 210mm;
             margin: 0 auto;
             padding: 20px;
+            background: white;
           }
         }
       `}</style>
-      <div className="print-container">
+      <div className="print-container bg-white">
         <div className="print-content">
           <div className="mb-6 no-print">
             <button

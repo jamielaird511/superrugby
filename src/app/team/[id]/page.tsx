@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import * as Select from "@radix-ui/react-select";
 import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, LockClosedIcon, ArrowRightOnRectangleIcon, PrinterIcon } from "@heroicons/react/24/outline";
+import TeamNav from "@/components/TeamNav";
 
 // Table name constants (from project usage)
 const FIXTURES_TABLE = "fixtures";
@@ -621,99 +622,9 @@ export default function TeamHomePage() {
 
   return (
     <div className="min-h-screen font-sans pt-16">
-      {/* Fixed Navigation Bar */}
-      <nav className="fixed top-0 inset-x-0 z-50 border-b border-[#002D47] bg-[#003A5D] shadow-md">
-        <div className="mx-auto h-16 max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16 flex items-center justify-between gap-4">
-          {/* Left: ANZ Logo + Team Name Badge */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <img
-              src="/brand/logo-anz.svg"
-              alt="ANZ"
-              className="h-10 w-auto"
-            />
-            <div className="rounded-lg bg-white px-4 py-2 shadow-sm border border-white/30">
-              <span className="text-sm font-semibold text-[#003A5D] whitespace-nowrap">
-                {participant.team_name || "Team"}
-              </span>
-            </div>
-          </div>
-
-          {/* Right: Action Buttons - Picks, Results, Settings, Logout */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Link
-              href={`/team/${participantId}`}
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
-            >
-              <PencilSquareIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Picks</span>
-            </Link>
-            <Link
-              href={`/team/${participantId}/results`}
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
-            >
-              <ChartBarIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Results</span>
-            </Link>
-            <Link
-              href={`/team/${participantId}/settings`}
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
-            >
-              <Cog6ToothIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Settings</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
-            >
-              <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </nav>
+      <TeamNav teamId={participantId} teamName={participant.team_name} onLogout={handleLogout} />
 
       <div className="py-8 pt-8">
-        {/* Tiles */}
-        <div className="mb-8 mx-auto w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Make Picks Tile */}
-            <Link
-              href={canMakePicks() ? "/picks" : "#"}
-              className={`rounded-lg border border-[#D6E3EC] bg-white px-4 py-4 text-center transition-all ${
-                canMakePicks()
-                  ? "cursor-pointer hover:bg-[#F5FAFD]"
-                  : "cursor-not-allowed opacity-60"
-              }`}
-              onClick={(e) => {
-                if (!canMakePicks()) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <PencilSquareIcon className="mx-auto h-7 w-7 text-[#004165]" />
-              <h3 className="mt-2 text-sm font-semibold text-[#003A5D]">
-                Picks
-              </h3>
-            </Link>
-
-            {/* Results Tile */}
-            <div className="rounded-lg border border-[#D6E3EC] bg-white px-4 py-4 text-center">
-              <ChartBarIcon className="mx-auto h-7 w-7 text-[#004165]" />
-              <h3 className="mt-2 text-sm font-semibold text-[#003A5D]">
-                Results
-              </h3>
-            </div>
-
-            {/* Team Settings Tile */}
-            <div className="rounded-lg border border-[#D6E3EC] bg-white px-4 py-4 text-center">
-              <Cog6ToothIcon className="mx-auto h-7 w-7 text-[#004165]" />
-              <h3 className="mt-2 text-sm font-semibold text-[#003A5D]">
-                Settings
-              </h3>
-            </div>
-          </div>
-        </div>
-
         {/* Next Round Section */}
         <div className="mb-8">
           <div className="mb-4 flex justify-center">
@@ -796,7 +707,7 @@ export default function TeamHomePage() {
                       className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
                     >
                       <PrinterIcon className="h-4 w-4" />
-                      Print Picks (Blank)
+                      Picks (Blank)
                     </Link>
                     <Link
                       href={`/print/round/${selectedRoundId}/team/${participantId}`}
@@ -805,7 +716,7 @@ export default function TeamHomePage() {
                       className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
                     >
                       <PrinterIcon className="h-4 w-4" />
-                      Print Picks (My Picks)
+                      Picks (My Picks)
                     </Link>
                   </>
                 )}

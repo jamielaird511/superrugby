@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import * as Select from "@radix-ui/react-select";
-import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, LockClosedIcon, ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
+import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, LockClosedIcon, ArrowRightOnRectangleIcon, PrinterIcon } from "@heroicons/react/24/outline";
 
 // Table name constants (from project usage)
 const FIXTURES_TABLE = "fixtures";
@@ -623,36 +623,50 @@ export default function TeamHomePage() {
     <div className="min-h-screen font-sans pt-16">
       {/* Fixed Navigation Bar */}
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-[#002D47] bg-[#003A5D] shadow-md">
-        <div className="mx-auto h-16 max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16 flex items-center justify-between">
-          {/* Left: ANZ Logo */}
-          <div className="flex items-center">
+        <div className="mx-auto h-16 max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16 flex items-center justify-between gap-4">
+          {/* Left: ANZ Logo + Team Name Badge */}
+          <div className="flex items-center gap-3 flex-shrink-0">
             <img
               src="/brand/logo-anz.svg"
               alt="ANZ"
               className="h-10 w-auto"
             />
+            <div className="rounded-lg bg-white px-4 py-2 shadow-sm border border-white/30">
+              <span className="text-sm font-semibold text-[#003A5D] whitespace-nowrap">
+                {participant.team_name || "Team"}
+              </span>
+            </div>
           </div>
 
-          {/* Center: Business — Team Name */}
-          <div className="flex-1 text-center">
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
-              {participant.business_name} — {participant.team_name}
-            </h2>
-          </div>
-
-          {/* Right: Home + Logout Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleHome}
-              className="rounded-md border border-white/30 bg-transparent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/15 hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
+          {/* Right: Action Buttons - Picks, Results, Settings, Logout */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              href={`/team/${participantId}`}
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
             >
-              Home
-            </button>
+              <PencilSquareIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">Picks</span>
+            </Link>
+            <Link
+              href={`/team/${participantId}/results`}
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
+            >
+              <ChartBarIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">Results</span>
+            </Link>
+            <Link
+              href={`/team/${participantId}/settings`}
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
+            >
+              <Cog6ToothIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">Settings</span>
+            </Link>
             <button
               onClick={handleLogout}
-              className="rounded-md border border-white bg-white px-4 py-1.5 text-sm font-medium text-[#003A5D] transition-colors hover:bg-zinc-50 hover:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-white transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#003A5D]"
             >
-              Logout
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">Logout</span>
             </button>
           </div>
         </div>
@@ -779,16 +793,18 @@ export default function TeamHomePage() {
                       href={`/print/round/${selectedRoundId}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
+                      className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
                     >
+                      <PrinterIcon className="h-4 w-4" />
                       Print Picks (Blank)
                     </Link>
                     <Link
                       href={`/print/round/${selectedRoundId}/team/${participantId}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
+                      className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
                     >
+                      <PrinterIcon className="h-4 w-4" />
                       Print Picks (My Picks)
                     </Link>
                   </>
@@ -879,7 +895,7 @@ export default function TeamHomePage() {
                         {/* Left: Logo + Summary Text Grouped */}
                         <div className="flex items-center gap-3">
                           {existingPick?.picked_team === "DRAW" ? (
-                            <ArrowsRightLeftIcon className="h-8 w-8 text-[#004165]" aria-hidden="true" />
+                            <span className="text-2xl font-semibold text-[#004165]" aria-hidden="true">=</span>
                           ) : (
                             <>
                               {(() => {
@@ -967,10 +983,10 @@ export default function TeamHomePage() {
                             onClick={() => handleSetWinner(fixture.id, fixture.home_team_code)}
                             disabled={isSaving || isLocked}
                             aria-label={`Pick ${homeName}`}
-                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border border-zinc-300 bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 p-2 ${
+                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 p-2 ${
                               effectiveWinner === fixture.home_team_code
-                                ? "border-blue-600 ring-2 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
-                                : "hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
+                                ? "border-[#004165] ring-1 ring-inset ring-[#004165] bg-blue-50 dark:bg-blue-900/30 dark:border-[#004165] dark:ring-[#004165]"
+                                : "border-zinc-300 bg-white hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
                             } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                           >
                             {homeTeam?.logo_path ? (
@@ -991,29 +1007,32 @@ export default function TeamHomePage() {
                           </button>
                           <span className="text-xs text-zinc-500 dark:text-zinc-400 text-center">Home</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSetWinner(fixture.id, "DRAW")}
-                          disabled={isSaving || isLocked}
-                          aria-label="Pick Draw"
-                          className={`relative h-24 w-16 sm:h-20 sm:w-14 flex items-center justify-center rounded-md border border-zinc-300 bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
-                            effectiveWinner === "DRAW"
-                              ? "border-blue-600 ring-2 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
-                              : "hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
-                          } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-                        >
-                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Draw</span>
-                        </button>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSetWinner(fixture.id, "DRAW")}
+                            disabled={isSaving || isLocked}
+                            aria-label="Pick Draw"
+                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                              effectiveWinner === "DRAW"
+                                ? "border-[#004165] ring-1 ring-inset ring-[#004165] bg-blue-50 dark:bg-blue-900/30 dark:border-[#004165] dark:ring-[#004165]"
+                                : "border-zinc-300 bg-white hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
+                            } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                          >
+                            <span className="text-3xl font-semibold text-zinc-700 dark:text-zinc-300">=</span>
+                          </button>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 text-center">Draw</span>
+                        </div>
                         <div className="flex flex-col items-center gap-0.5">
                           <button
                             type="button"
                             onClick={() => handleSetWinner(fixture.id, fixture.away_team_code)}
                             disabled={isSaving || isLocked}
                             aria-label={`Pick ${awayName}`}
-                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border border-zinc-300 bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 p-2 ${
+                            className={`relative h-24 w-24 sm:h-20 sm:w-20 flex items-center justify-center rounded-md border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 p-2 ${
                               effectiveWinner === fixture.away_team_code
-                                ? "border-blue-600 ring-2 ring-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-500 dark:ring-blue-800"
-                                : "hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
+                                ? "border-[#004165] ring-1 ring-inset ring-[#004165] bg-blue-50 dark:bg-blue-900/30 dark:border-[#004165] dark:ring-[#004165]"
+                                : "border-zinc-300 bg-white hover:border-zinc-400 dark:bg-zinc-800 dark:border-zinc-600 dark:hover:border-zinc-500"
                             } ${isSaving || isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                           >
                             {awayTeam?.logo_path ? (

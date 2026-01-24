@@ -730,13 +730,17 @@ export default function AdminPage() {
                   const isSaved = Boolean(existingResult);
                   const isEditing = editingResultFixtureId === fixture.id;
                   const isDraw = Boolean(entry.winning_team === "DRAW");
-                  const isKickoffLocked = Boolean(fixture.kickoff_at && new Date() >= new Date(fixture.kickoff_at));
                   const isLocked = isSaved && !isEditing;
+                  
+                  // Determine kickoff status for warnings (no lockout)
+                  const kickoffTime = fixture.kickoff_at ? new Date(fixture.kickoff_at) : null;
+                  const now = new Date();
+                  const isKickoffInFuture = kickoffTime ? now < kickoffTime : false;
+                  const isKickoffNull = !fixture.kickoff_at;
                   
                   // Use strict booleans directly (no need for separate Bool variables)
                   const isDrawBool = isDraw;
                   const isSavedBool = isSaved;
-                  const isKickoffLockedBool = isKickoffLocked;
                   return (
                     <div
                       key={fixture.id}
@@ -786,15 +790,21 @@ export default function AdminPage() {
                       <div className="border-t border-zinc-200 pt-3 dark:border-zinc-700">
                         <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                           Result {isSaved && <span className="text-green-600 dark:text-green-400">(Saved)</span>}
-                          {isKickoffLocked && !isSaved && <span className="text-red-600 dark:text-red-400 ml-2">(Locked)</span>}
                         </div>
-                        {isKickoffLocked && !isSaved ? (
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                              This fixture is locked (kickoff has passed). No result can be entered.
+                        {isKickoffNull ? (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-xs text-amber-600 dark:text-amber-400">
+                              Kickoff time not set — cannot enter result.
                             </div>
                           </div>
-                        ) : isLocked ? (
+                        ) : isKickoffInFuture ? (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-xs text-amber-600 dark:text-amber-400">
+                              Kickoff hasn&apos;t happened yet — double-check before saving.
+                            </div>
+                          </div>
+                        ) : null}
+                        {isLocked ? (
                           <div className="flex items-center gap-2">
                             <div className="text-xs text-zinc-600 dark:text-zinc-400">
                               Winner:{" "}
@@ -828,12 +838,12 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, fixture.home_team_code)}
-                                disabled={isKickoffLockedBool && !isSavedBool}
+                                disabled={isKickoffNull}
                                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                                   entry.winning_team === fixture.home_team_code
                                     ? "bg-blue-600 text-white"
                                     : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                                } ${isKickoffLockedBool && !isSavedBool ? "cursor-not-allowed opacity-50" : ""}`}
+                                } ${isKickoffNull ? "cursor-not-allowed opacity-50" : ""}`}
                               >
                                 {homeTeam?.logo_path && (
                                   <img
@@ -847,12 +857,12 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, fixture.away_team_code)}
-                                disabled={isKickoffLockedBool && !isSavedBool}
+                                disabled={isKickoffNull}
                                 className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                                   entry.winning_team === fixture.away_team_code
                                     ? "bg-blue-600 text-white"
                                     : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                                } ${isKickoffLockedBool && !isSavedBool ? "cursor-not-allowed opacity-50" : ""}`}
+                                } ${isKickoffNull ? "cursor-not-allowed opacity-50" : ""}`}
                               >
                                 {awayTeam?.logo_path && (
                                   <img
@@ -866,12 +876,12 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSetWinner(fixture.id, "DRAW")}
-                                disabled={isKickoffLockedBool && !isSavedBool}
+                                disabled={isKickoffNull}
                                 className={`rounded-md px-2 py-1 text-xs transition-colors ${
                                   isDrawBool
                                     ? "bg-blue-600 text-white"
                                     : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                                } ${isKickoffLockedBool && !isSavedBool ? "cursor-not-allowed opacity-50" : ""}`}
+                                } ${isKickoffNull ? "cursor-not-allowed opacity-50" : ""}`}
                               >
                                 Draw
                               </button>
@@ -879,9 +889,9 @@ export default function AdminPage() {
                             <select
                               value={entry.margin_band || ""}
                               onChange={(e) => handleSetMargin(fixture.id, e.target.value === "" ? null : e.target.value)}
-                              disabled={isDrawBool || (isKickoffLockedBool && !isSavedBool)}
+                              disabled={isDrawBool || isKickoffNull}
                               className={`rounded-md border border-zinc-300 px-2 py-1 text-xs text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${
-                                isDrawBool || (isKickoffLockedBool && !isSavedBool)
+                                isDrawBool || isKickoffNull
                                   ? "cursor-not-allowed opacity-50 bg-zinc-100 dark:bg-zinc-900"
                                   : ""
                               }`}
@@ -893,9 +903,9 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => handleSaveResult(fixture.id)}
-                              disabled={isKickoffLockedBool && !isSavedBool}
+                              disabled={isKickoffNull}
                               className={`rounded-md px-3 py-1 text-xs text-white transition-colors ${
-                                isKickoffLockedBool && !isSavedBool
+                                isKickoffNull
                                   ? "cursor-not-allowed opacity-50 bg-zinc-400"
                                   : "bg-green-600 hover:bg-green-700"
                               }`}

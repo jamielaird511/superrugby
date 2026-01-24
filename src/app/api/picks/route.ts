@@ -152,6 +152,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Log pick event before upserting
+    const { error: eventError } = await supabaseAdmin
+      .from("pick_events")
+      .insert({
+        participant_id: participantId,
+        fixture_id: fixtureId,
+        picked_team: pickedTeamCode,
+        margin: margin,
+      });
+
+    if (eventError) {
+      console.error("Error logging pick event:", {
+        message: eventError?.message,
+        details: eventError?.details,
+        hint: eventError?.hint,
+        code: eventError?.code,
+        raw: eventError,
+      });
+      return NextResponse.json(
+        { error: eventError?.message || "Failed to log pick event" },
+        { status: 500 }
+      );
+    }
+
     // Check if pick exists
     const { data: existingPick } = await supabaseAdmin
       .from("picks")

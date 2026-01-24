@@ -87,6 +87,7 @@ export default function TeamHomePage() {
   const [savedFixtureIds, setSavedFixtureIds] = useState<Set<string>>(new Set());
   const [pickErrors, setPickErrors] = useState<Record<string, string>>({});
   const [editingByMatchId, setEditingByMatchId] = useState<Record<string, boolean>>({});
+  const [showOwnTeamNotice, setShowOwnTeamNotice] = useState(false);
   const isInitializingRound = useRef(true);
 
   useEffect(() => {
@@ -95,21 +96,81 @@ export default function TeamHomePage() {
     }
   }, [participantId]);
 
+  // Handle notice query param
+  useEffect(() => {
+    const notice = searchParams.get("notice");
+    if (notice === "own-team") {
+      setShowOwnTeamNotice(true);
+      // Auto-hide after 2 seconds
+      const timer = setTimeout(() => {
+        setShowOwnTeamNotice(false);
+        // Remove query param without full reload
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("notice");
+        const newUrl = params.toString() 
+          ? `/team/${participantId}?${params.toString()}`
+          : `/team/${participantId}`;
+        router.replace(newUrl, { scroll: false });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, participantId, router]);
+
   const fetchTeamData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch participant
+      // First, get the current auth user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        // No user signed in, redirect to login
+        router.push("/");
+        return;
+      }
+
+      // Fetch the signed-in participant record by auth_user_id (NOT by route id)
+      const { data: me, error: meErr } = await supabase
+        .from("participants")
+        .select("id, team_name")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (meErr || !me) {
+        setError("You're signed in but your team link is missing. Please log out and log in again.");
+        setLoading(false);
+        return;
+      }
+
+      // If params.id !== me.id, redirect to their own team page with notice
+      if (params.id !== me.id) {
+        router.replace(`/team/${me.id}?notice=own-team`);
+        return;
+      }
+
+      // Only after passing the check, load team data using the known-good id (me.id)
       const { data: participantData, error: participantError } = await supabase
         .from("participants")
         .select("*")
-        .eq("id", participantId)
-        .single();
+        .eq("id", me.id)
+        .maybeSingle();
 
       if (participantError) {
-        console.error("Error fetching participant:", participantError);
-        setError(`Error loading team: ${participantError.message}`);
+        // Check if it's an unauthorized/tampered access attempt
+        if (participantError.code === "PGRST116" || participantError.message?.includes("coerce") || participantError.message?.includes("0 rows")) {
+          setError("Nice try 😄 You can only view your own team.");
+          // Don't log raw errors for unauthorized access
+        } else {
+          console.error("Error fetching participant:", participantError);
+          setError(`Error loading team: ${participantError.message}`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!participantData) {
+        setError("Team not found. Please log out and log in again.");
         setLoading(false);
         return;
       }
@@ -120,7 +181,7 @@ export default function TeamHomePage() {
       const { data: contactsData, error: contactsError } = await supabase
         .from("participant_contacts")
         .select("id, email")
-        .eq("participant_id", participantId)
+        .eq("participant_id", me.id)
         .order("email", { ascending: true });
 
       if (contactsError) {
@@ -200,7 +261,7 @@ export default function TeamHomePage() {
       await fetchTeams();
 
       // Fetch picks for this participant
-      await fetchPicks();
+      await fetchPicks(me.id);
     } catch (err) {
       console.error("Unexpected error:", err);
       setError(
@@ -233,9 +294,21 @@ export default function TeamHomePage() {
     }
   };
 
-  const fetchPicks = async () => {
+  const fetchPicks = async (teamId?: string) => {
     try {
-      const response = await fetch(`/api/picks?participantId=${participantId}`);
+      // Get the current session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        console.warn("No access token available for fetching picks");
+        return;
+      }
+
+      const idToUse = teamId || participantId;
+      const response = await fetch(`/api/picks?participantId=${idToUse}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!response.ok) {
         const data = await response.json();
         console.warn("Error fetching picks:", data.error);
@@ -368,8 +441,12 @@ export default function TeamHomePage() {
 
       setSavingFixtureId(fixture.id);
 
+      // Get the current session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
       const requestPayload = {
-        participantId,
+        participantId: participant?.id || participantId,
         fixtureId: fixture.id,
         pickedTeamCode: DRAW_VALUE,
         pickedMargin: margin,
@@ -380,6 +457,7 @@ export default function TeamHomePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(requestPayload),
       });
@@ -459,8 +537,12 @@ export default function TeamHomePage() {
 
     setSavingFixtureId(fixture.id);
 
+    // Get the current session token for authentication
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
     const requestPayload = {
-      participantId,
+      participantId: participant?.id || participantId,
       fixtureId: fixture.id,
       pickedTeamCode: winner,
       pickedMargin: margin,
@@ -471,6 +553,7 @@ export default function TeamHomePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(requestPayload),
       });
@@ -622,7 +705,18 @@ export default function TeamHomePage() {
 
   return (
     <div className="min-h-screen font-sans pt-16">
-      <TeamNav teamId={participantId} teamName={participant.team_name} onLogout={handleLogout} />
+      <TeamNav teamId={participant?.id || participantId} teamName={participant?.team_name || ""} onLogout={handleLogout} />
+
+      {/* Own team notice banner */}
+      {showOwnTeamNotice && (
+        <div className="fixed top-16 left-0 right-0 z-40 flex justify-center">
+          <div className="mx-auto max-w-6xl w-full px-6 sm:px-8 lg:px-12 xl:px-16">
+            <div className="bg-blue-50 border border-blue-200 rounded-md px-4 py-3 text-sm text-blue-800 shadow-sm">
+              You can only view your own team 🙂
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="py-8 pt-8">
         {/* Next Round Section */}
@@ -710,7 +804,7 @@ export default function TeamHomePage() {
                       Picks (Blank)
                     </Link>
                     <Link
-                      href={`/print/round/${selectedRoundId}/team/${participantId}`}
+                      href={`/print/round/${selectedRoundId}/team/${participant?.id || participantId}`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"

@@ -104,6 +104,10 @@ function getWindowAroundTeam<T extends { participant_id: string }>(
   };
 }
 
+function formatCategoryLabel(slug: string): string {
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Scoring functions
 function calculateFixturePoints(
   pick: Pick | null,
@@ -192,8 +196,6 @@ export default function ResultsPage() {
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [roundFixtures, setRoundFixtures] = useState<Fixture[]>([]);
   const [allFixtures, setAllFixtures] = useState<Fixture[]>([]);
-  const [roundPicks, setRoundPicks] = useState<Pick[]>([]);
-  const [allPicks, setAllPicks] = useState<Pick[]>([]);
   const [roundResults, setRoundResults] = useState<Record<string, Result>>({});
   const [allResults, setAllResults] = useState<Record<string, Result>>({});
   const [teams, setTeams] = useState<Record<string, Team>>({});
@@ -205,9 +207,13 @@ export default function ResultsPage() {
   // Snapshot round state (independent from main round selector)
   const [snapshotRoundId, setSnapshotRoundId] = useState<string | null>(null);
   const [snapshotRoundFixtures, setSnapshotRoundFixtures] = useState<Fixture[]>([]);
-  const [snapshotRoundPicks, setSnapshotRoundPicks] = useState<Pick[]>([]);
   const [snapshotRoundResults, setSnapshotRoundResults] = useState<Record<string, Result>>({});
   const [snapshotRoundScores, setSnapshotRoundScores] = useState<RoundScore[]>([]);
+
+  // Section view state
+  const [activeView, setActiveView] = useState<"overall" | "rounds" | "categories">("overall");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
 
   // Fun stats state
   const [funStats, setFunStats] = useState<{
@@ -265,65 +271,8 @@ export default function ResultsPage() {
     }
   };
 
-  useEffect(() => {
-    // Calculate round scores when round data changes
-    if (roundFixtures.length > 0 && roundPicks.length > 0) {
-      const scores = calculateRoundScores(roundFixtures, roundPicks, roundResults);
-      // Enrich with participant names and categories
-      const enrichedScores = scores.map((score) => {
-        const p = participants.find((p) => p.id === score.participant_id);
-        return {
-          ...score,
-          team_name: p?.team_name || "Unknown",
-          category: p?.category || null,
-        };
-      });
-      // Use consistent sorting with tie-breakers
-      setRoundScores(sortLeaderboardRows(enrichedScores));
-    } else {
-      setRoundScores([]);
-    }
-  }, [roundFixtures, roundPicks, roundResults, participants]);
 
-  useEffect(() => {
-    // Calculate snapshot round scores when snapshot round data changes
-    if (snapshotRoundFixtures.length > 0 && snapshotRoundPicks.length > 0) {
-      const scores = calculateRoundScores(snapshotRoundFixtures, snapshotRoundPicks, snapshotRoundResults);
-      // Enrich with participant names and categories
-      const enrichedScores = scores.map((score) => {
-        const p = participants.find((p) => p.id === score.participant_id);
-        return {
-          ...score,
-          team_name: p?.team_name || "Unknown",
-          category: p?.category || null,
-        };
-      });
-      // Use consistent sorting with tie-breakers
-      setSnapshotRoundScores(sortLeaderboardRows(enrichedScores));
-    } else {
-      setSnapshotRoundScores([]);
-    }
-  }, [snapshotRoundFixtures, snapshotRoundPicks, snapshotRoundResults, participants]);
 
-  useEffect(() => {
-    // Calculate overall scores when all data changes
-    if (allFixtures.length > 0 && allPicks.length > 0) {
-      const scores = calculateOverallScores(allFixtures, allPicks, allResults);
-      // Enrich with participant names and categories
-      const enrichedScores = scores.map((score) => {
-        const p = participants.find((p) => p.id === score.participant_id);
-        return {
-          ...score,
-          team_name: p?.team_name || "Unknown",
-          category: p?.category || null,
-        };
-      });
-      // Use consistent sorting with tie-breakers
-      setOverallScores(sortLeaderboardRows(enrichedScores));
-    } else {
-      setOverallScores([]);
-    }
-  }, [allFixtures, allPicks, allResults, participants]);
 
   const fetchInitialData = async () => {
     try {
@@ -358,6 +307,19 @@ export default function ResultsPage() {
         }))
       );
 
+      // Fetch all categories from participants_public
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from("participants_public")
+        .select("category")
+        .not("category", "is", null);
+
+      if (!categoriesError) {
+        const options = Array.from(
+          new Set((categoriesData || []).map((r) => r.category).filter(Boolean))
+        ).sort();
+        setCategoryOptions(options);
+      }
+
       // Fetch rounds for current season
       const currentSeason = new Date().getFullYear();
       const { data: roundsData, error: roundsError } = await supabase
@@ -388,22 +350,17 @@ export default function ResultsPage() {
       if (allFixturesError) throw allFixturesError;
       setAllFixtures(allFixturesData || []);
 
-      // Fetch all picks
-      const { data: picksData, error: picksError } = await supabase
-        .from("picks")
-        .select("fixture_id, participant_id, picked_team, margin");
+      // Fetch overall leaderboard
+      const { data: overallLeaderboardData, error: overallLeaderboardError } = await supabase
+        .from("leaderboard_overall_public")
+        .select("participant_id, team_name, category, total_points");
 
-      if (picksError) {
-        console.warn("Error fetching picks:", picksError);
+      if (overallLeaderboardError) {
+        console.warn("Error fetching overall leaderboard:", overallLeaderboardError);
+        setOverallScores([]);
       } else {
-        setAllPicks(
-          (picksData || []).map((p) => ({
-            fixture_id: p.fixture_id,
-            participant_id: p.participant_id,
-            picked_team: p.picked_team,
-            margin: p.margin,
-          }))
-        );
+        const sorted = sortLeaderboardRows(overallLeaderboardData || []);
+        setOverallScores(sorted);
       }
 
       // Fetch all results
@@ -458,29 +415,23 @@ export default function ResultsPage() {
       if (fixturesError) throw fixturesError;
       setRoundFixtures(fixturesData || []);
 
-      // Fetch picks for this round
+      // Fetch round leaderboard
+      const { data: roundLeaderboardData, error: roundLeaderboardError } = await supabase
+        .from("leaderboard_round_public")
+        .select("participant_id, team_name, category, total_points")
+        .eq("round_id", roundId);
+
+      if (roundLeaderboardError) {
+        console.warn("Error fetching round leaderboard:", roundLeaderboardError);
+        setRoundScores([]);
+      } else {
+        const sorted = sortLeaderboardRows(roundLeaderboardData || []);
+        setRoundScores(sorted);
+      }
+
+      // Fetch results for this round (still needed for hasFinalResults check)
       const fixtureIds = (fixturesData || []).map((f) => f.id);
       if (fixtureIds.length > 0) {
-        const { data: picksData, error: picksError } = await supabase
-          .from("picks")
-          .select("fixture_id, participant_id, picked_team, margin")
-          .in("fixture_id", fixtureIds);
-
-        if (picksError) {
-          console.warn("Error fetching round picks:", picksError);
-          setRoundPicks([]);
-        } else {
-          setRoundPicks(
-            (picksData || []).map((p) => ({
-              fixture_id: p.fixture_id,
-              participant_id: p.participant_id,
-              picked_team: p.picked_team,
-              margin: p.margin,
-            }))
-          );
-        }
-
-        // Fetch results for this round
         const { data: resultsData, error: resultsError } = await supabase
           .from("results")
           .select("fixture_id, winning_team, margin_band")
@@ -497,7 +448,6 @@ export default function ResultsPage() {
           setRoundResults(resultsMap);
         }
       } else {
-        setRoundPicks([]);
         setRoundResults({});
       }
     } catch (err) {
@@ -517,29 +467,23 @@ export default function ResultsPage() {
       if (fixturesError) throw fixturesError;
       setSnapshotRoundFixtures(fixturesData || []);
 
-      // Fetch picks for this round
+      // Fetch snapshot round leaderboard
+      const { data: snapshotRoundLeaderboardData, error: snapshotRoundLeaderboardError } = await supabase
+        .from("leaderboard_round_public")
+        .select("participant_id, team_name, category, total_points")
+        .eq("round_id", roundId);
+
+      if (snapshotRoundLeaderboardError) {
+        console.warn("Error fetching snapshot round leaderboard:", snapshotRoundLeaderboardError);
+        setSnapshotRoundScores([]);
+      } else {
+        const sorted = sortLeaderboardRows(snapshotRoundLeaderboardData || []);
+        setSnapshotRoundScores(sorted);
+      }
+
+      // Fetch results for this round (still needed for hasFinalResults check)
       const fixtureIds = (fixturesData || []).map((f) => f.id);
       if (fixtureIds.length > 0) {
-        const { data: picksData, error: picksError } = await supabase
-          .from("picks")
-          .select("fixture_id, participant_id, picked_team, margin")
-          .in("fixture_id", fixtureIds);
-
-        if (picksError) {
-          console.warn("Error fetching snapshot round picks:", picksError);
-          setSnapshotRoundPicks([]);
-        } else {
-          setSnapshotRoundPicks(
-            (picksData || []).map((p) => ({
-              fixture_id: p.fixture_id,
-              participant_id: p.participant_id,
-              picked_team: p.picked_team,
-              margin: p.margin,
-            }))
-          );
-        }
-
-        // Fetch results for this round
         const { data: resultsData, error: resultsError } = await supabase
           .from("results")
           .select("fixture_id, winning_team, margin_band")
@@ -556,7 +500,6 @@ export default function ResultsPage() {
           setSnapshotRoundResults(resultsMap);
         }
       } else {
-        setSnapshotRoundPicks([]);
         setSnapshotRoundResults({});
       }
     } catch (err) {
@@ -573,6 +516,24 @@ export default function ResultsPage() {
   };
 
   const categories = Array.from(new Set(participants.map((p) => p.category).filter((c): c is string => c !== null))).sort();
+
+  // Set default category when Categories view becomes active
+  useEffect(() => {
+    if (activeView === "categories" && categoryOptions.length > 0) {
+      // If no category selected or selected category is no longer valid, set default
+      if (!selectedCategory || !categoryOptions.includes(selectedCategory)) {
+        // Default to participant's category if available, otherwise first category
+        const participantCategory = participant?.category;
+        if (participantCategory && categoryOptions.includes(participantCategory)) {
+          setSelectedCategory(participantCategory);
+        } else {
+          setSelectedCategory(categoryOptions[0]);
+        }
+      }
+    } else if (activeView === "categories" && categoryOptions.length === 0) {
+      setSelectedCategory("");
+    }
+  }, [activeView, categoryOptions, participant, selectedCategory]);
 
   if (loading) {
     return (
@@ -599,7 +560,7 @@ export default function ResultsPage() {
               <div className="rounded-md border border-zinc-300 bg-white p-4">
                 <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Overall Snapshot</h3>
                 <p className="text-xs text-zinc-600 mb-3">5-team context around you</p>
-                {hasFinalResults(allResults) ? (
+                {overallScores.length > 0 ? (
                   (() => {
                     const sorted = sortLeaderboardRows(overallScores);
                     const { windowRows, startRank } = getWindowAroundTeam(sorted, participantId, 5);
@@ -641,7 +602,7 @@ export default function ResultsPage() {
               <div className="rounded-md border border-zinc-300 bg-white p-4">
                 <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Category Snapshot</h3>
                 <p className="text-xs text-zinc-600 mb-3">5-team context around you</p>
-                {hasFinalResults(allResults) && participant?.category ? (
+                {overallScores.length > 0 && participant?.category ? (
                   (() => {
                     const categoryScores = getCategoryScores(participant.category);
                     const sorted = sortLeaderboardRows(categoryScores);
@@ -718,7 +679,7 @@ export default function ResultsPage() {
                   </Select.Root>
                 </div>
                 <p className="text-xs text-zinc-600 mb-3">5-team context around you</p>
-                {hasFinalResults(snapshotRoundResults) ? (
+                {snapshotRoundScores.length > 0 ? (
                   (() => {
                     const sorted = sortLeaderboardRows(snapshotRoundScores);
                     const { windowRows, startRank } = getWindowAroundTeam(sorted, participantId, 5);
@@ -790,8 +751,45 @@ export default function ResultsPage() {
             </div>
           </section>
 
+          {/* Section Switcher */}
+          <section className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button
+                onClick={() => setActiveView("overall")}
+                className={`rounded-md border p-4 text-center transition-colors ${
+                  activeView === "overall"
+                    ? "border-[#004165] bg-[#E6F1F7] text-[#003A5D] font-semibold"
+                    : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                Overall
+              </button>
+              <button
+                onClick={() => setActiveView("rounds")}
+                className={`rounded-md border p-4 text-center transition-colors ${
+                  activeView === "rounds"
+                    ? "border-[#004165] bg-[#E6F1F7] text-[#003A5D] font-semibold"
+                    : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                Rounds
+              </button>
+              <button
+                onClick={() => setActiveView("categories")}
+                className={`rounded-md border p-4 text-center transition-colors ${
+                  activeView === "categories"
+                    ? "border-[#004165] bg-[#E6F1F7] text-[#003A5D] font-semibold"
+                    : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                Categories
+              </button>
+            </div>
+          </section>
+
           {/* Round Results Section */}
-          <section className="mb-8">
+          {activeView === "rounds" && (
+            <section className="mb-8">
             <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Round Results</h2>
             <div className="mb-4">
               <label className="block text-sm font-medium text-zinc-700 mb-2">Select Round</label>
@@ -834,7 +832,7 @@ export default function ResultsPage() {
               )}
             </div>
 
-            {hasFinalResults(roundResults) ? (
+            {roundScores.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300 rounded-md">
                   <thead className="bg-zinc-50">
@@ -867,11 +865,13 @@ export default function ResultsPage() {
               </div>
             )}
           </section>
+          )}
 
           {/* Overall Leaderboard Section */}
-          <section className="mb-8">
+          {activeView === "overall" && (
+            <section className="mb-8">
             <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Overall Leaderboard</h2>
-            {hasFinalResults(allResults) ? (
+            {overallScores.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300 rounded-md">
                   <thead className="bg-zinc-50">
@@ -895,7 +895,7 @@ export default function ResultsPage() {
                       <tr key={score.participant_id} className="hover:bg-zinc-50">
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600">{score.category || "—"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600">{score.category ? formatCategoryLabel(score.category) : "—"}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
                       </tr>
                     ))}
@@ -908,50 +908,93 @@ export default function ResultsPage() {
               </div>
             )}
           </section>
+          )}
 
           {/* Category Leaderboards Section */}
-          {categories.length > 0 && (
+          {activeView === "categories" && categoryOptions.length > 0 && (
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Category Leaderboards</h2>
-              {hasFinalResults(allResults) ? (
-                <div className="space-y-6">
-                  {categories.map((category) => {
-                    const categoryScores = getCategoryScores(category);
-                    if (categoryScores.length === 0) return null;
+              
+              {/* Category Dropdown */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Category</label>
+                <Select.Root value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <Select.Trigger className="inline-flex items-center justify-between rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-[#003A5D] hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 min-w-[200px]">
+                    <Select.Value placeholder="Select a category" />
+                    <Select.Icon className="ml-2">
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 6H11L7.5 10.5L4 6Z" fill="currentColor" />
+                      </svg>
+                    </Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content
+                      position="popper"
+                      side="bottom"
+                      align="start"
+                      sideOffset={6}
+                      avoidCollisions={true}
+                      collisionPadding={12}
+                      className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
+                    >
+                      <Select.Viewport className="p-1 max-h-[300px] overflow-y-auto">
+                        {categoryOptions.map((category) => (
+                          <Select.Item
+                            key={category}
+                            value={category}
+                            className="relative flex items-center rounded-sm py-2 px-8 text-sm text-[#003A5D] hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-pointer"
+                          >
+                            <Select.ItemText>{formatCategoryLabel(category)}</Select.ItemText>
+                          </Select.Item>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+              </div>
 
+              {overallScores.length > 0 && selectedCategory ? (
+                (() => {
+                  const categoryScores = getCategoryScores(selectedCategory);
+                  if (categoryScores.length === 0) {
                     return (
-                      <div key={category}>
-                        <h3 className="text-lg font-medium text-[#003A5D] mb-3">{category}</h3>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300 rounded-md">
-                            <thead className="bg-zinc-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                                  Rank
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                                  Team
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                                  Total Points
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-zinc-200">
-                              {categoryScores.map((score, index) => (
-                                <tr key={score.participant_id} className="hover:bg-zinc-50">
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div className="rounded-md border border-zinc-300 bg-zinc-50 p-4">
+                        <p className="text-sm text-zinc-600">No teams in this category yet.</p>
                       </div>
                     );
-                  })}
-                </div>
+                  }
+
+                  const sortedScores = sortLeaderboardRows(categoryScores);
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300 rounded-md">
+                        <thead className="bg-zinc-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                              Rank
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                              Team
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                              Total Points
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-zinc-200">
+                          {sortedScores.map((score, index) => (
+                            <tr key={score.participant_id} className="hover:bg-zinc-50">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="rounded-md border border-zinc-300 bg-zinc-50 p-4">
                   <p className="text-sm text-zinc-600">No final results entered yet.</p>

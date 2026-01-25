@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 
@@ -34,6 +35,9 @@ type Result = {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
@@ -56,14 +60,51 @@ export default function AdminPage() {
   const [fixtureAwayTeamCode, setFixtureAwayTeamCode] = useState<string>("");
   const [fixtureKickoffAt, setFixtureKickoffAt] = useState<string>("");
 
-  // Fetch rounds and teams on load
+  // Admin gate: check authentication and admin email on load
   useEffect(() => {
-    fetchRounds();
-    fetchTeams();
-  }, []);
+    const checkAdmin = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        router.replace("/");
+        setAuthChecked(true);
+        return;
+      }
 
-  // Fetch fixtures when round is selected
+      // Debug: log signed-in email
+      console.log("[Admin Debug] Signed-in email:", user.email);
+
+      // Check admin email allowlist (case-insensitive)
+      const envString = process.env.NEXT_PUBLIC_ADMIN_EMAILS;
+      console.log("[Admin Debug] NEXT_PUBLIC_ADMIN_EMAILS env string:", envString);
+      
+      const adminEmails = envString?.split(",").map((e) => e.trim().toLowerCase()) || [];
+      const userEmailLower = user.email?.toLowerCase() || "";
+      const userIsAdmin = adminEmails.length > 0 && userEmailLower && adminEmails.includes(userEmailLower);
+      console.log("[Admin Debug] isAdmin (client-side check):", userIsAdmin);
+      
+      if (!userIsAdmin) {
+        router.replace("/");
+        setAuthChecked(true);
+        return;
+      }
+
+      // User is authenticated and verified as admin
+      setIsAdmin(true);
+      setAuthChecked(true);
+      
+      // Only fetch admin data after admin check passes
+      fetchRounds();
+      fetchTeams();
+    };
+
+    checkAdmin();
+  }, [router]);
+
+  // Fetch fixtures when round is selected (only if admin)
   useEffect(() => {
+    if (!isAdmin) return;
+    
     if (selectedRoundId) {
       fetchFixtures(selectedRoundId);
     } else {
@@ -77,7 +118,7 @@ export default function AdminPage() {
       setFixtureAwayTeamCode("");
       setFixtureKickoffAt("");
     }
-  }, [selectedRoundId]);
+  }, [selectedRoundId, isAdmin]);
 
   const fetchRounds = async () => {
     try {
@@ -199,21 +240,72 @@ export default function AdminPage() {
     setMessage(null);
 
     try {
-      const roundData: any = {
-        season: roundSeason,
-        round_number: roundNumber,
-      };
+      // Get session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      const { data, error } = await supabase
-        .from("rounds")
-        .insert([roundData])
-        .select();
+      const response = await fetch("/api/admin/rounds", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          season: roundSeason,
+          round_number: roundNumber,
+        }),
+      });
 
-      if (error) {
-        console.error("Error creating round:", error);
-        setMessage({ type: "error", text: `Error: ${error.message}` });
+      // Handle 409 (duplicate round) with friendly message
+      if (response.status === 409) {
+        setMessage({ type: "error", text: "Round already exists. Select it from the list." });
+        return;
+      }
+
+      // Handle 401/403 with clear message
+      if (response.status === 401 || response.status === 403) {
+        setMessage({ type: "error", text: "Not authorized" });
+        console.error("Error creating round: Not authorized (status", response.status);
+        return;
+      }
+
+      // Read response body safely
+      const contentType = response.headers.get("content-type");
+      let result: any;
+      let responseText: string | null = null;
+
+      if (contentType?.includes("application/json")) {
+        try {
+          result = await response.json();
+        } catch (jsonError) {
+          // If JSON parsing fails, read as text
+          responseText = await response.text().catch(() => null);
+        }
       } else {
-        console.log("Round created:", data);
+        // Not JSON, read as text
+        responseText = await response.text().catch(() => null);
+      }
+
+      if (!response.ok) {
+        // Extract error message in priority order
+        let errorMsg: string;
+        if (result?.error) {
+          errorMsg = result.error;
+        } else if (responseText) {
+          errorMsg = responseText;
+        } else {
+          errorMsg = response.statusText || "Failed to create round";
+        }
+
+        // Log meaningful error (never {})
+        const logData = result && typeof result === "object" && Object.keys(result).length > 0 
+          ? result 
+          : errorMsg;
+        console.error("Error creating round:", logData);
+
+        setMessage({ type: "error", text: `Error: ${errorMsg}` });
+      } else {
+        console.log("Round created:", result?.data || result);
         setMessage({ type: "success", text: "Round created successfully!" });
         setRoundNumber(roundNumber + 1);
         fetchRounds();
@@ -259,42 +351,43 @@ export default function AdminPage() {
         kickoff_at: kickoffAtIso,
       };
 
-      if (editingFixtureId) {
-        // Update existing fixture
-        const { data, error } = await supabase
-          .from("fixtures")
-          .update(fixtureData)
-          .eq("id", editingFixtureId)
-          .select();
+      // Get session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-        if (error) {
-          console.error("Error updating fixture:", error);
-          setMessage({ type: "error", text: `Error: ${error.message}` });
-        } else {
-          console.log("Fixture updated:", data);
-          setMessage({ type: "success", text: "Fixture updated successfully!" });
-          resetFixtureForm();
-          fetchFixtures(selectedRoundId);
-        }
+      const response = await fetch("/api/admin/fixtures", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          id: editingFixtureId || undefined,
+          round_id: selectedRoundId,
+          match_number: fixtureMatchNumber,
+          home_team_code: fixtureHomeTeamCode,
+          away_team_code: fixtureAwayTeamCode,
+          kickoff_at: kickoffAtIso,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Error saving fixture:", result);
+        setMessage({ type: "error", text: `Error: ${result.error || "Failed to save fixture"}` });
       } else {
-        // Insert new fixture
-        const { data, error } = await supabase
-          .from("fixtures")
-          .insert([fixtureData])
-          .select();
-
-        if (error) {
-          console.error("Error creating fixture:", error);
-          setMessage({ type: "error", text: `Error: ${error.message}` });
+        console.log("Fixture saved:", result.data);
+        setMessage({ type: "success", text: editingFixtureId ? "Fixture updated successfully!" : "Fixture created successfully!" });
+        if (editingFixtureId) {
+          resetFixtureForm();
         } else {
-          console.log("Fixture created:", data);
-          setMessage({ type: "success", text: "Fixture created successfully!" });
           setFixtureMatchNumber(fixtureMatchNumber + 1);
           setFixtureHomeTeamCode("");
           setFixtureAwayTeamCode("");
           setFixtureKickoffAt("");
-          fetchFixtures(selectedRoundId);
         }
+        fetchFixtures(selectedRoundId);
       }
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -326,14 +419,22 @@ export default function AdminPage() {
     setMessage(null);
 
     try {
-      const { error } = await supabase
-        .from("fixtures")
-        .delete()
-        .eq("id", fixtureId);
+      // Get session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      if (error) {
-        console.error("Error deleting fixture:", error);
-        setMessage({ type: "error", text: `Error: ${error.message}` });
+      const response = await fetch(`/api/admin/fixtures?id=${fixtureId}`, {
+        method: "DELETE",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Error deleting fixture:", result);
+        setMessage({ type: "error", text: `Error: ${result.error || "Failed to delete fixture"}` });
       } else {
         console.log("Fixture deleted");
         setMessage({ type: "success", text: "Fixture deleted successfully!" });
@@ -405,27 +506,30 @@ export default function AdminPage() {
     setConfirmModalData(null);
 
     try {
-      const resultData: any = {
-        fixture_id: fixtureId,
-        winning_team: entry.winning_team,
-        margin_band: entry.winning_team === "DRAW" ? null : entry.margin_band,
-      };
+      // Get session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      const { data, error } = await supabase
-        .from("results")
-        .upsert(resultData, { onConflict: "fixture_id" })
-        .select();
+      const response = await fetch("/api/admin/results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          fixture_id: fixtureId,
+          winning_team: entry.winning_team,
+          margin_band: entry.winning_team === "DRAW" ? null : entry.margin_band,
+        }),
+      });
 
-      if (error) {
-        console.error("Error saving result:", {
-          message: error?.message,
-          details: error?.details,
-          hint: error?.hint,
-          code: error?.code,
-        });
-        setMessage({ type: "error", text: `Error: ${error.message}` });
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Error saving result:", result);
+        setMessage({ type: "error", text: `Error: ${result.error || "Failed to save result"}` });
       } else {
-        console.log("Result saved:", data);
+        console.log("Result saved:", result.data);
         setMessage({ type: "success", text: "Result saved successfully!" });
         setEditingResultFixtureId(null);
         if (selectedRoundId) {
@@ -464,19 +568,22 @@ export default function AdminPage() {
     setDeleteModalData(null);
 
     try {
-      const { error } = await supabase
-        .from("results")
-        .delete()
-        .eq("fixture_id", fixtureId);
+      // Get session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      if (error) {
-        console.error("Error deleting result:", {
-          message: error?.message,
-          details: error?.details,
-          hint: error?.hint,
-          code: error?.code,
-        });
-        setMessage({ type: "error", text: `Error: ${error.message}` });
+      const response = await fetch(`/api/admin/results?fixtureId=${fixtureId}`, {
+        method: "DELETE",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Error deleting result:", result);
+        setMessage({ type: "error", text: `Error: ${result.error || "Failed to delete result"}` });
       } else {
         console.log("Result deleted");
         setMessage({ type: "success", text: "Result deleted" });
@@ -499,6 +606,22 @@ export default function AdminPage() {
       setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
     }
   };
+
+  // Show "Checking access..." while auth check is in progress
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-zinc-700 dark:text-zinc-300">Checking access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If auth check completed but user is not admin, render nothing (redirect already happened)
+  if (authChecked && !isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">

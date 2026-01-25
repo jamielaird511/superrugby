@@ -47,6 +47,7 @@ export default function PrintRoundTeamPage() {
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [picks, setPicks] = useState<Record<string, Pick>>({});
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -60,6 +61,16 @@ export default function PrintRoundTeamPage() {
 
   const fetchData = async () => {
     try {
+      // Get the current session token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        setAuthError(true);
+        setLoading(false);
+        return;
+      }
+
       // Fetch participant
       const { data: participantData, error: participantError } = await supabase
         .from("participants")
@@ -90,8 +101,10 @@ export default function PrintRoundTeamPage() {
       if (fixturesError) throw fixturesError;
       setFixtures(fixturesData || []);
 
-      // Fetch picks for this team and round
-      const picksResponse = await fetch(`/api/picks?participantId=${teamId}`);
+      // Fetch picks for this team and round using authenticated API
+      const picksResponse = await fetch(`/api/print?roundId=${roundId}&participantId=${teamId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (picksResponse.ok) {
         const picksData = await picksResponse.json();
         const picksMap: Record<string, Pick> = {};
@@ -162,6 +175,14 @@ export default function PrintRoundTeamPage() {
     return (
       <div className="p-8">
         <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="p-8">
+        <p>Please login to view/print picks.</p>
       </div>
     );
   }

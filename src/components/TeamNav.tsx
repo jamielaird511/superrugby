@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, ArrowRightOnRectangleIcon, TrophyIcon } from "@heroicons/react/24/outline";
+import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 type TeamNavProps = {
   teamId: string;
@@ -53,17 +53,6 @@ export default function TeamNav({ teamId, teamName, onLogout }: TeamNavProps) {
           >
             <ChartBarIcon className="h-4 w-4" />
             <span>Results</span>
-          </Link>
-          <Link
-            href="/leaderboard"
-            className={`inline-flex items-center gap-2 h-10 px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-              pathname === "/leaderboard"
-                ? "bg-[#005A84] text-white font-semibold"
-                : "text-white/90 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            <TrophyIcon className="h-4 w-4" />
-            <span>Leaderboard</span>
           </Link>
           <Link
             href={`/team/${teamId}/settings`}

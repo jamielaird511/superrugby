@@ -19,8 +19,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
 
   const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem("participant_id");
-    router.push("/");
+    window.location.href = "/";
   };
 
   useEffect(() => {

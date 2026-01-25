@@ -7,6 +7,7 @@ import Link from "next/link";
 import * as Select from "@radix-ui/react-select";
 import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, LockClosedIcon, ArrowRightOnRectangleIcon, PrinterIcon } from "@heroicons/react/24/outline";
 import TeamNav from "@/components/TeamNav";
+import { calculatePickScore } from "@/lib/scoring";
 
 // Table name constants (from project usage)
 const FIXTURES_TABLE = "fixtures";
@@ -66,6 +67,11 @@ type Round = {
   round_number: number;
 };
 
+type FixtureResult = {
+  winning_team: string;
+  margin_band: string | null;
+};
+
 export default function TeamHomePage() {
   const params = useParams();
   const router = useRouter();
@@ -88,6 +94,7 @@ export default function TeamHomePage() {
   const [pickErrors, setPickErrors] = useState<Record<string, string>>({});
   const [editingByMatchId, setEditingByMatchId] = useState<Record<string, boolean>>({});
   const [showOwnTeamNotice, setShowOwnTeamNotice] = useState(false);
+  const [fixtureResults, setFixtureResults] = useState<Record<string, FixtureResult>>({});
   const isInitializingRound = useRef(true);
 
   useEffect(() => {
@@ -250,11 +257,28 @@ export default function TeamHomePage() {
         if (fixturesRes.error) {
           console.warn("Error fetching fixtures for round:", fixturesRes.error);
           setNextRoundFixtures([]);
+          setFixtureResults({});
         } else {
-          setNextRoundFixtures(fixturesRes.data || []);
+          const fixtures = fixturesRes.data || [];
+          setNextRoundFixtures(fixtures);
+          const fixtureIds = fixtures.map((f: Fixture) => f.id);
+          if (fixtureIds.length > 0) {
+            const { data: resultsData } = await supabase
+              .from("fixture_results_public")
+              .select("fixture_id, winning_team, margin_band")
+              .in("fixture_id", fixtureIds);
+            const resultsMap: Record<string, FixtureResult> = {};
+            (resultsData || []).forEach((r: { fixture_id: string; winning_team: string; margin_band: string | null }) => {
+              resultsMap[r.fixture_id] = { winning_team: r.winning_team, margin_band: r.margin_band };
+            });
+            setFixtureResults(resultsMap);
+          } else {
+            setFixtureResults({});
+          }
         }
       } else {
         setNextRoundFixtures([]);
+        setFixtureResults({});
       }
 
       // Fetch teams for logos
@@ -392,8 +416,24 @@ export default function TeamHomePage() {
         if (fixturesRes.error) {
           console.warn("Error fetching fixtures for round:", fixturesRes.error);
           setNextRoundFixtures([]);
+          setFixtureResults({});
         } else {
-          setNextRoundFixtures(fixturesRes.data || []);
+          const fixtures = fixturesRes.data || [];
+          setNextRoundFixtures(fixtures);
+          const fixtureIds = fixtures.map((f: Fixture) => f.id);
+          if (fixtureIds.length > 0) {
+            const { data: resultsData } = await supabase
+              .from("fixture_results_public")
+              .select("fixture_id, winning_team, margin_band")
+              .in("fixture_id", fixtureIds);
+            const resultsMap: Record<string, FixtureResult> = {};
+            (resultsData || []).forEach((r: { fixture_id: string; winning_team: string; margin_band: string | null }) => {
+              resultsMap[r.fixture_id] = { winning_team: r.winning_team, margin_band: r.margin_band };
+            });
+            setFixtureResults(resultsMap);
+          } else {
+            setFixtureResults({});
+          }
         }
       };
 
@@ -696,10 +736,9 @@ export default function TeamHomePage() {
   }
 
   const handleLogout = async () => {
-    // Clear localStorage
+    await supabase.auth.signOut();
     localStorage.removeItem("participant_id");
-    // Redirect to home
-    router.push("/");
+    window.location.href = "/";
   };
 
   const handleHome = () => {
@@ -850,39 +889,67 @@ export default function TeamHomePage() {
                 return (
                   <div key={fixture.id} className="flex justify-center">
                     <div
-                      className={`w-full max-w-2xl rounded-md border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900 ${isLocked ? "opacity-75" : ""}`}
+                      className={`w-full max-w-2xl rounded-md border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900 ${fixtureResults[fixture.id] ? "p-3" : "p-4"} ${isLocked ? "opacity-75" : ""}`}
                     >
                       {/* Card Header - Compact */}
-                      <div className="mb-3 flex flex-col items-center text-center">
-                        <div className="mb-1 flex items-center gap-2">
-                          <div className="font-medium text-black dark:text-zinc-50">
-                            {homeName} vs {awayName}
+                      {(() => {
+                        const hasResult = !!fixtureResults[fixture.id];
+                        const isCompleted = hasResult;
+                        return (
+                          <div className={isCompleted ? "mb-1.5 flex flex-col items-center text-center" : "mb-3 flex flex-col items-center text-center"}>
+                            <div className="mb-1 flex items-center gap-2">
+                              <div className="font-medium text-black dark:text-zinc-50">
+                                {homeName} vs {awayName}
+                              </div>
+                              {hasResult ? (
+                                <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                  Final
+                                </span>
+                              ) : (
+                                <span
+                                  className={`rounded border px-1.5 py-0.5 text-xs font-medium ${
+                                    status === "open"
+                                      ? "border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-200"
+                                      : status === "locked"
+                                      ? "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200"
+                                      : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
+                                  }`}
+                                >
+                                  {status === "open" ? "Open" : status === "locked" ? "Locked" : "Not open yet"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                              {kickoffStr}
+                            </div>
                           </div>
-                          {isLocked && (
-                            <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                              Locked
+                        );
+                      })()}
+
+                    {/* Final result + points (only when result exists) */}
+                    {fixtureResults[fixture.id] && (() => {
+                      const res = fixtureResults[fixture.id];
+                      const winLabel = res.winning_team === "DRAW" ? "Draw" : (teams[res.winning_team]?.name || TEAM_NAMES[res.winning_team] || res.winning_team);
+                      const marginStr = res.margin_band ? ` ${res.margin_band}` : "";
+                      const points = !existingPick ? 0 : calculatePickScore(existingPick.picked_team, existingPick.margin, { winning_team: res.winning_team, margin_band: res.margin_band }).totalPoints;
+                      return (
+                        <div className="mb-1.5 space-y-1">
+                          <div className="flex items-center justify-center gap-2 flex-wrap">
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                              Final: {winLabel}{marginStr}{!existingPick ? " · No pick" : ""}
                             </span>
+                            <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+                              {points} pts
+                            </span>
+                          </div>
+                          {existingPick && (
+                            <div className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+                              Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} {formatMarginBand(existingPick.picked_team, existingPick.margin)}
+                            </div>
                           )}
-                          <span
-                            className={`rounded border px-1.5 py-0.5 text-xs font-medium ${
-                              status === "open"
-                                ? "border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-200"
-                                : status === "locked"
-                                ? "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200"
-                                : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
-                            }`}
-                          >
-                            {status === "open"
-                              ? "Open"
-                              : status === "locked"
-                              ? "Locked"
-                              : "Not open yet"}
-                          </span>
                         </div>
-                        <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                          {kickoffStr}
-                        </div>
-                      </div>
+                      );
+                    })()}
 
                     {/* Error Message */}
                     {pickErrors[fixture.id] && (
@@ -891,8 +958,8 @@ export default function TeamHomePage() {
                       </div>
                     )}
 
-                    {/* Locked Pick Display */}
-                    {isLocked && existingPick && (
+                    {/* Locked Pick Display (only when locked, has pick, and no result) */}
+                    {isLocked && existingPick && !fixtureResults[fixture.id] && (
                       <div className="mb-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
                         Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} {formatMarginBand(existingPick.picked_team, existingPick.margin)}
                       </div>

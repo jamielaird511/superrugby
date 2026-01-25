@@ -120,7 +120,7 @@ export default function LeaderboardPage() {
             onClick={async () => {
               await supabase.auth.signOut();
               localStorage.removeItem("participant_id");
-              router.push("/");
+              window.location.href = "/";
             }}
             className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >

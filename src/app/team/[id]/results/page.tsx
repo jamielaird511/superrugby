@@ -229,8 +229,9 @@ export default function ResultsPage() {
   } | null>(null);
 
   const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem("participant_id");
-    router.push("/");
+    window.location.href = "/";
   };
 
   useEffect(() => {

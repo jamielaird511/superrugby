@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [teamName, setTeamName] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [leagueCode, setLeagueCode] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [contactEmails, setContactEmails] = useState<string[]>([""]);
@@ -32,6 +33,7 @@ export default function RegisterPage() {
     contactEmails?: boolean;
     password?: boolean;
     confirmPassword?: boolean;
+    leagueCode?: boolean;
   }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -102,6 +104,14 @@ export default function RegisterPage() {
         }
       }
 
+      // Validate league code
+      if (!leagueCode.trim()) {
+        errors.leagueCode = true;
+        if (Object.keys(errors).length === 0) {
+          setMessage({ type: "error", text: "League code is required" });
+        }
+      }
+
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         setIsSubmitting(false);
@@ -110,111 +120,50 @@ export default function RegisterPage() {
 
       setPasswordError(null);
 
-      // Create participant
-      const { data: participant, error: participantError } = await supabase
-        .from("participants")
-        .insert([
-          {
-            name: `${businessName.trim()} — ${teamName.trim()}`,
-            business_name: businessName.trim(),
-            team_name: teamName.trim(),
-            category: businessCategory,
-          },
-        ])
-        .select()
-        .single();
-
-      if (participantError) {
-        console.error("Error creating participant:", participantError);
-        setMessage({
-          type: "error",
-          text: `Error creating participant: ${participantError.message}`,
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Create participant contacts
-      const contactsToInsert = validEmails.map((email) => ({
-        participant_id: participant.id,
-        email: email.trim(),
-      }));
-
-      const { error: contactsError } = await supabase
-        .from("participant_contacts")
-        .insert(contactsToInsert);
-
-      if (contactsError) {
-        console.error("Error creating participant contacts:", contactsError);
-        setMessage({
-          type: "error",
-          text: `Error creating contacts: ${contactsError.message}`,
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Set password via API
-      const setPasswordResponse = await fetch("/api/auth/set-password", {
+      // Call registration API
+      const registerResponse = await fetch("/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          participantId: participant.id,
+          businessName: businessName.trim(),
+          teamName: teamName.trim(),
+          category: businessCategory,
+          emails: validEmails,
           password: password,
+          leagueCode: leagueCode.trim(),
         }),
       });
 
-      // Safely parse response
-      const contentType = setPasswordResponse.headers.get("content-type") || "";
-      let setPasswordData;
+      const registerData = await registerResponse.json();
 
-      if (contentType.includes("application/json")) {
-        try {
-          setPasswordData = await setPasswordResponse.json();
-        } catch (jsonError) {
-          console.error("Error parsing JSON response:", jsonError);
-          setMessage({
-            type: "error",
-            text: "Set password failed (invalid JSON response). Check /api/auth/set-password route.",
-          });
-          setIsSubmitting(false);
-          return;
-        }
-      } else {
-        const textResponse = await setPasswordResponse.text();
-        console.error("Non-JSON response from set-password API:", textResponse);
+      if (!registerResponse.ok) {
         setMessage({
           type: "error",
-          text: "Set password failed (server returned non-JSON). Check /api/auth/set-password route.",
+          text: registerData.error || "Registration failed",
         });
         setIsSubmitting(false);
         return;
       }
 
-      if (!setPasswordResponse.ok) {
-        console.error("Error setting password:", setPasswordData);
+      // Sign in with Supabase Auth
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: registerData.authEmail,
+        password: password,
+      });
+
+      if (signInError) {
         setMessage({
           type: "error",
-          text: `Error setting password: ${setPasswordData.error || "Failed to set password"}`,
+          text: signInError.message || "Failed to sign in after registration",
         });
         setIsSubmitting(false);
         return;
       }
 
-      setMessage({ type: "success", text: "Registration successful!" });
-      // Reset form
-      setBusinessName("");
-      setBusinessCategory("");
-      setTeamName("");
-      setPassword("");
-      setConfirmPassword("");
-      setPasswordError(null);
-      setContactEmails([""]);
-      
-      // Redirect to team home page
-      router.push(`/team/${participant.id}`);
+      // On success: redirect to team page
+      router.push(`/team/${registerData.participantId}`);
     } catch (err) {
       console.error("Unexpected error:", err);
       setMessage({
@@ -308,6 +257,29 @@ export default function RegisterPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                League Code
+              </label>
+              <input
+                type="text"
+                value={leagueCode}
+                onChange={(e) => {
+                  setLeagueCode(e.target.value);
+                  if (fieldErrors.leagueCode) {
+                    setFieldErrors((prev) => ({ ...prev, leagueCode: false }));
+                  }
+                }}
+                className={`h-10 w-full rounded-md border px-3 py-2 text-sm text-black dark:bg-zinc-800 dark:text-zinc-50 ${
+                  fieldErrors.leagueCode
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "border-zinc-300 dark:border-zinc-600"
+                }`}
+                required
+                placeholder="Enter league code"
+              />
             </div>
 
             <div>

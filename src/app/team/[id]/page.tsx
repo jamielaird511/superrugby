@@ -322,11 +322,10 @@ export default function TeamHomePage() {
       (data.picks || []).forEach((pick: Pick) => {
         picksMap[pick.fixture_id] = pick;
         winnerMap[pick.fixture_id] = pick.picked_team;
-        // Convert integer margin to margin band: 1-12 -> "1-12", 13+ -> "13+"
-        if (pick.margin >= 1 && pick.margin <= 12) {
-          marginMap[pick.fixture_id] = "1-12";
-        } else if (pick.margin >= 13) {
-          marginMap[pick.fixture_id] = "13+";
+        // Convert encoded margin to margin band: 1 -> "1-12", 13 -> "13+"
+        if (pick.picked_team !== "DRAW") {
+          if (pick.margin === 1) marginMap[pick.fixture_id] = "1-12";
+          if (pick.margin === 13) marginMap[pick.fixture_id] = "13+";
         }
       });
       
@@ -403,6 +402,14 @@ export default function TeamHomePage() {
   }, [selectedRoundId, hasInitialFetch]);
 
   const DRAW_VALUE = "DRAW";
+
+  // Helper to format margin band for display
+  const formatMarginBand = (pickedTeam: string, margin: number | null | undefined) => {
+    if (pickedTeam === "DRAW") return "DRAW";
+    if (margin === 13) return "13+";
+    if (margin === 1) return "1–12";
+    return "";
+  };
 
   const handleSetWinner = (fixtureId: string, teamCode: string) => {
     setSelectedWinnerByFixtureId((prev) => ({
@@ -527,13 +534,10 @@ export default function TeamHomePage() {
       return; // Validation will be handled by API, but basic check here
     }
 
-    // Convert margin band to integer: "1-12" -> 6, "13+" -> 13
+    // Convert margin band to encoded integer: "1-12" -> 1, "13+" -> 13
     let margin = 0;
-    if (marginBand === "1-12") {
-      margin = 6; // Use middle of range
-    } else if (marginBand === "13+") {
-      margin = 13;
-    }
+    if (marginBand === "1-12") margin = 1;
+    else if (marginBand === "13+") margin = 13;
 
     setSavingFixtureId(fixture.id);
 
@@ -890,7 +894,7 @@ export default function TeamHomePage() {
                     {/* Locked Pick Display */}
                     {isLocked && existingPick && (
                       <div className="mb-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                        Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} by {existingPick.margin}
+                        Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} {formatMarginBand(existingPick.picked_team, existingPick.margin)}
                       </div>
                     )}
 
@@ -930,8 +934,8 @@ export default function TeamHomePage() {
                             ) : (
                               <>
                                 {teams[existingPick?.picked_team || ""]?.name || TEAM_NAMES[existingPick?.picked_team || ""] || existingPick?.picked_team || ""}
-                                {existingPick && existingPick.margin > 0 && (
-                                  <> {existingPick.margin >= 1 && existingPick.margin <= 12 ? "1–12" : "13+"}</>
+                                {existingPick?.picked_team !== "DRAW" && (
+                                  <> {formatMarginBand(existingPick.picked_team, existingPick.margin)}</>
                                 )}
                               </>
                             )}
@@ -958,11 +962,8 @@ export default function TeamHomePage() {
                               if (!selectedMargin && existingPick) {
                                 // Convert margin to band
                                 let marginBand = "";
-                                if (existingPick.margin >= 1 && existingPick.margin <= 12) {
-                                  marginBand = "1-12";
-                                } else if (existingPick.margin >= 13) {
-                                  marginBand = "13+";
-                                }
+                                if (existingPick.margin === 1) marginBand = "1-12";
+                                else if (existingPick.margin === 13) marginBand = "13+";
                                 if (marginBand) {
                                   setSelectedMarginByFixtureId((prev) => ({
                                     ...prev,
@@ -1093,11 +1094,8 @@ export default function TeamHomePage() {
                                   }));
                                   // Convert margin to band
                                   let marginBand = "";
-                                  if (existingPick.margin >= 1 && existingPick.margin <= 12) {
-                                    marginBand = "1-12";
-                                  } else if (existingPick.margin >= 13) {
-                                    marginBand = "13+";
-                                  }
+                                  if (existingPick.margin === 1) marginBand = "1-12";
+                                  else if (existingPick.margin === 13) marginBand = "13+";
                                   setSelectedMarginByFixtureId((prev) => ({
                                     ...prev,
                                     [fixture.id]: marginBand,

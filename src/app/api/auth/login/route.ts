@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import bcrypt from "bcryptjs";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error(
-    "Missing Supabase environment variables. Please ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set."
-  );
-}
-
-// Create Supabase client with service role key (bypasses RLS)
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,10 +13,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch participant with password_hash
-    const { data: participant, error } = await supabase
+    // Fetch participant with auth_email and auth_user_id
+    const { data: participant, error } = await supabaseAdmin
       .from("participants")
-      .select("id, password_hash")
+      .select("id, auth_email, auth_user_id")
       .eq("id", participantId)
       .single();
 
@@ -40,26 +27,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if password_hash is null
-    if (!participant.password_hash) {
+    // Check if auth_user_id is null (password not set)
+    if (!participant.auth_user_id) {
       return NextResponse.json(
-        { error: "This team needs to register again." },
+        { error: "NO_PASSWORD_SET" },
         { status: 401 }
       );
     }
 
-    // Verify password
-    const isValid = await bcrypt.compare(password, participant.password_hash);
-
-    if (!isValid) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
-
-    // Return success with participantId
-    return NextResponse.json({ participantId: participant.id });
+    // Return success with participantId and authEmail
+    return NextResponse.json({ 
+      participantId: participant.id, 
+      authEmail: participant.auth_email 
+    });
   } catch (err) {
     console.error("Login error:", err);
     return NextResponse.json(

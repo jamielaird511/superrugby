@@ -25,7 +25,7 @@ export default function Home() {
   const fetchParticipants = async () => {
     try {
       const { data, error } = await supabase
-        .from("participants")
+        .from("participants_public")
         .select("id, team_name")
         .order("team_name", { ascending: true });
 
@@ -61,21 +61,26 @@ export default function Home() {
         return;
       }
 
-      // First, check if participant has a password_hash
-      const { data: participant, error: fetchError } = await supabase
-        .from("participants")
-        .select("id, password_hash")
-        .eq("id", selectedParticipantId)
-        .single();
+      // POST to /api/auth/login
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          participantId: selectedParticipantId,
+          password: password,
+        }),
+      });
 
-      if (fetchError || !participant) {
-        setMessage("Team not found");
-        setLoading(false);
-        return;
-      }
+      const data = await response.json();
 
-      // If password_hash is NULL, treat this as setting a new password
-      if (!participant.password_hash) {
+      let authEmail: string;
+
+      if (response.ok) {
+        // Extract authEmail from response
+        authEmail = data.authEmail;
+      } else if (data.error === "NO_PASSWORD_SET" || data.error?.includes("NO_PASSWORD_SET")) {
         // Validate password length
         if (password.length < 6) {
           setMessage("Password must be at least 6 characters");
@@ -103,40 +108,29 @@ export default function Home() {
           return;
         }
 
-        // After setting password, automatically log in
-        // Store participant_id in localStorage
-        localStorage.setItem("participant_id", setPasswordData.participantId);
-
-        // Redirect to team home page
-        router.push(`/team/${setPasswordData.participantId}`);
-        return;
-      }
-
-      // If password_hash exists, call login API
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          participantId: selectedParticipantId,
-          password: password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
+        // Extract authEmail from response
+        authEmail = setPasswordData.authEmail;
+      } else {
+        // Otherwise show the returned error
         setMessage(data.error || "Login failed");
         setLoading(false);
         return;
       }
 
-      // Store participant_id in localStorage
-      localStorage.setItem("participant_id", data.participantId);
+      // Sign in with Supabase Auth
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: password,
+      });
 
-      // Redirect to team home page
-      router.push(`/team/${data.participantId}`);
+      if (signInError) {
+        setMessage(signInError.message || "Failed to sign in");
+        setLoading(false);
+        return;
+      }
+
+      // On success: redirect to team page
+      router.push(`/team/${selectedParticipantId}`);
     } catch (err) {
       console.error("Unexpected error:", err);
       setMessage(
@@ -212,7 +206,7 @@ export default function Home() {
           </div>
           <div className="mt-3 text-center">
             <Link
-              href="/admin/login"
+              href="/admin-login"
               className="inline-flex items-center justify-center rounded-md bg-[#007DBA] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#005F8E]"
             >
               Admin login

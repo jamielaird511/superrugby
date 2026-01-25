@@ -555,7 +555,7 @@ export default function ResultsPage() {
 
           {/* Summary Section */}
           <section className="mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Overall Snapshot */}
               <div className="rounded-md border border-zinc-300 bg-white p-4">
                 <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Overall Snapshot</h3>

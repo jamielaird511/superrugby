@@ -25,13 +25,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.className} ${geistMono.variable} antialiased dark:bg-black`}
+        className={`${inter.className} ${geistMono.variable} antialiased dark:bg-black min-h-screen flex flex-col`}
       >
-        <div className="min-h-screen bg-[#EEF6FB]">
-          <main className="mx-auto max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16">
+        <main className="flex-1 bg-[#EEF6FB]">
+          <div className="mx-auto max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16">
             {children}
-          </main>
-        </div>
+          </div>
+        </main>
+        <footer className="border-t border-slate-200 py-3 px-4 text-center text-sm font-medium text-slate-700">
+          <span className="font-semibold">Disclaimer:</span> Unofficial picks tool built for a private competition. Not affiliated with ANZ, Super Rugby, SANZAAR, or any teams.
+        </footer>
       </body>
     </html>
   );

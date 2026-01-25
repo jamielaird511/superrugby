@@ -1215,68 +1215,6 @@ export default function TeamHomePage() {
           )}
         </div>
 
-        {/* Team Details Section */}
-        <div className="rounded-md border border-zinc-300 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
-          <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
-            Team Details
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Team Information
-              </h3>
-              <div className="space-y-1 text-sm">
-                <div>
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                    Business Name:
-                  </span>{" "}
-                  <span className="text-zinc-900 dark:text-zinc-50">
-                    {participant.business_name}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                    Team Name:
-                  </span>{" "}
-                  <span className="text-zinc-900 dark:text-zinc-50">
-                    {participant.team_name}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                    Category:
-                  </span>{" "}
-                  <span className="text-zinc-900 dark:text-zinc-50">
-                    {participant.category}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Contact Emails
-              </h3>
-              {contacts.length === 0 ? (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  No contact emails registered
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {contacts.map((contact) => (
-                    <li
-                      key={contact.id}
-                      className="text-sm text-zinc-900 dark:text-zinc-50"
-                    >
-                      {contact.email}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );

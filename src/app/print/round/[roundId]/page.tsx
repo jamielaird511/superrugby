@@ -152,6 +152,12 @@ export default function PrintRoundPage() {
           .print-hidden {
             display: none !important;
           }
+          footer {
+            display: none !important;
+          }
+          button {
+            display: none !important;
+          }
           body {
             padding: 0 !important;
             margin: 0 !important;
@@ -162,17 +168,35 @@ export default function PrintRoundPage() {
             max-width: 100%;
             padding: 0;
             background: white !important;
+            width: 100%;
           }
           .print-content {
-            max-width: 180mm;
+            width: 100%;
+            max-width: 190mm;
             margin: 0 auto;
-            padding: 15mm 10mm;
+            padding: 6mm 10mm;
             background: white !important;
             color: black !important;
           }
+          .print-compact-header h1 {
+            font-size: 15px !important;
+            line-height: 1.2 !important;
+          }
+          .print-compact-header .print-sub {
+            font-size: 12px !important;
+            margin-top: 1px !important;
+          }
+          .print-compact-header .print-logo-row {
+            gap: 6px !important;
+            margin-bottom: 2px !important;
+          }
+          .print-compact-header .print-logo-row img {
+            height: 22px !important;
+            width: auto !important;
+          }
           .match-card {
-            page-break-inside: avoid;
-            break-inside: avoid;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
             background: white !important;
             color: black !important;
           }
@@ -189,7 +213,7 @@ export default function PrintRoundPage() {
             background: transparent !important;
           }
           @page {
-            margin: 15mm;
+            margin: 10mm;
             size: A4;
             background: white;
           }
@@ -220,20 +244,20 @@ export default function PrintRoundPage() {
             </div>
           )}
 
-          <div className="mb-8">
-            <div className="flex items-center justify-center gap-6 mb-3">
-              <img src="/brand/anz.svg" alt="ANZ" className="h-12 w-auto" style={{ height: "48px", width: "auto" }} />
-              <img src="/brand/SUP.svg" alt="Super Rugby" className="h-12 w-auto" style={{ height: "48px", width: "auto" }} />
+          <div className="print-compact-header mb-8 print:mb-3">
+            <div className="print-logo-row flex items-center justify-center gap-6 mb-3">
+              <img src="/brand/anz.svg" alt="ANZ" className="h-12 w-auto" />
+              <img src="/brand/SUP.svg" alt="Super Rugby" className="h-12 w-auto" />
             </div>
             <h1 className="text-2xl font-bold text-black text-center">
               ANZ Super Rugby Picks Competition
             </h1>
-            <div className="text-lg text-black mt-1 text-center">
+            <div className="print-sub text-lg text-black mt-1 text-center">
               Season {round.season} - Round {round.round_number}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 print:gap-1.5">
           {fixtures.map((fixture) => {
             const homeTeam = teams[fixture.home_team_code];
             const awayTeam = teams[fixture.away_team_code];
@@ -244,13 +268,13 @@ export default function PrintRoundPage() {
             const awayLogoPath = getTeamLogoUrl(awayTeam?.logo_path || null, fixture.away_team_code);
 
             return (
-              <div key={fixture.id} className="border-2 border-black p-4 match-card">
+              <div key={fixture.id} className="border-2 border-black p-4 print:py-3 print:px-4 match-card" style={{ breakInside: "avoid" }}>
                 {kickoffStr && (
-                  <div className="text-center mb-3 font-bold text-base text-black">
+                  <div className="text-center mb-3 print:mb-1.5 font-bold text-base print:text-sm text-black">
                     {kickoffStr}
                   </div>
                 )}
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 print:mb-2">
                   <div className="flex flex-col items-center flex-1">
                     <img
                       src={homeLogoPath}
@@ -277,8 +301,8 @@ export default function PrintRoundPage() {
                     <input type="checkbox" className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="border-t border-black pt-2">
-                  <div className="text-xs font-semibold text-black mb-1">Margin:</div>
+                <div className="border-t border-black pt-2 print:pt-1.5">
+                  <div className="text-xs font-semibold text-black mb-1 print:mb-0.5">Margin:</div>
                   <div className="flex justify-around">
                     <label className="flex items-center gap-1 text-xs text-black">
                       <input type="checkbox" className="w-4 h-4" />

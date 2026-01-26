@@ -41,6 +41,20 @@ export default function SettingsPage() {
   const [primaryEmail, setPrimaryEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
 
+  // Helper to get auth header
+  const getAuthHeader = async (): Promise<Record<string, string>> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        return { Authorization: `Bearer ${token}` };
+      }
+    } catch (err) {
+      console.error("Error getting session:", err);
+    }
+    return {};
+  };
+
   useEffect(() => {
     if (participantId) {
       fetchInitialData();
@@ -77,7 +91,18 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/settings");
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setMessage({ type: "error", text: "Please log in again" });
+        return;
+      }
+
+      const response = await fetch("/api/settings", {
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch settings");
       }
@@ -103,9 +128,19 @@ export default function SettingsPage() {
       setSaving(true);
       setMessage(null);
 
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setMessage({ type: "error", text: "Please log in again" });
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           team_name: teamName.trim(),
           business_name: businessName.trim(),
@@ -132,9 +167,19 @@ export default function SettingsPage() {
       setSaving(true);
       setMessage(null);
 
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setMessage({ type: "error", text: "Please log in again" });
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           primary_email: primaryEmail.trim(),
         }),
@@ -162,9 +207,19 @@ export default function SettingsPage() {
       setSaving(true);
       setMessage(null);
 
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setMessage({ type: "error", text: "Please log in again" });
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           add_email: newEmail.trim(),
         }),
@@ -191,9 +246,19 @@ export default function SettingsPage() {
       setSaving(true);
       setMessage(null);
 
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setMessage({ type: "error", text: "Please log in again" });
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           update_contact: {
             contact_id: contactId,
@@ -223,9 +288,19 @@ export default function SettingsPage() {
       setSaving(true);
       setMessage(null);
 
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setMessage({ type: "error", text: "Please log in again" });
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           delete_contact_id: contactId,
         }),

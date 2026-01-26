@@ -161,22 +161,34 @@ export async function PATCH(req: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     // Update participant fields
+    let updatedParticipant: { id: string; team_name: string; business_name: string | null; category: string | null } | null = null;
     if (team_name !== undefined || business_name !== undefined) {
       const updateData: { team_name?: string; business_name?: string } = {};
       if (team_name !== undefined) updateData.team_name = team_name.trim();
       if (business_name !== undefined) updateData.business_name = business_name.trim();
 
-      const { error: updateError } = await supabase
+      const { data: updated, error: updateError } = await supabase
         .from("participants")
         .update(updateData)
-        .eq("id", participant.id);
+        .eq("auth_user_id", user.id)
+        .select("id, team_name, business_name, category")
+        .maybeSingle();
 
       if (updateError) {
         return NextResponse.json(
-          { error: "Failed to update participant" },
+          { error: updateError.message },
           { status: 500 }
         );
       }
+
+      if (!updated) {
+        return NextResponse.json(
+          { error: `NO_UPDATE (0 rows updated or multiple rows returned). user.id: ${user.id}, participant.id: ${participant.id}` },
+          { status: 403 }
+        );
+      }
+
+      updatedParticipant = updated;
     }
 
     // Update primary email
@@ -387,7 +399,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, participant: updatedParticipant ?? null });
   } catch (err) {
     console.error("Settings PATCH error:", err);
     return NextResponse.json(

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scrollbar-gutter: stable both-edges;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -20,7 +24,14 @@
 }
 
 body {
+  width: 100% !important;
+  overflow-x: hidden;
   background: var(--background);
   color: var(--foreground);
   font-family: inherit;
+}
+
+html, body {
+  background: #EEF6FB;
+  overflow-x: hidden;
 }

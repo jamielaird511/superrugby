@@ -58,6 +58,7 @@ type OverallScore = {
   team_name: string;
   category: string | null;
   total_points: number;
+  business_name?: string;
 };
 
 // Helper functions for leaderboard windows
@@ -214,6 +215,7 @@ export default function ResultsPage() {
   const [activeView, setActiveView] = useState<"overall" | "rounds" | "categories">("overall");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [businessNamesByParticipant, setBusinessNamesByParticipant] = useState<Record<string, string>>({});
 
   // Fun stats state
   const [funStats, setFunStats] = useState<{
@@ -356,6 +358,21 @@ export default function ResultsPage() {
           new Set((categoriesData || []).map((r) => r.category).filter(Boolean))
         ).sort();
         setCategoryOptions(options);
+      }
+
+      // Fetch business names from participants_public
+      const { data: businessData, error: businessError } = await supabase
+        .from("participants_public")
+        .select("id, business_name");
+
+      if (businessError) {
+        console.warn("Error fetching business names:", businessError);
+      } else if (businessData) {
+        const map: Record<string, string> = {};
+        businessData.forEach((r) => {
+          if (r.id) map[r.id] = r.business_name ?? "";
+        });
+        setBusinessNamesByParticipant(map);
       }
 
       // Fetch rounds for current season
@@ -588,12 +605,12 @@ export default function ResultsPage() {
       <TeamNav teamId={participantId} teamName={participant?.team_name || "Team"} onLogout={handleLogout} />
 
       <div className="py-8 pt-8">
-        <div className="mx-auto max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16">
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 xl:px-16">
           <h1 className="text-3xl font-semibold text-[#003A5D] mb-6">Results</h1>
 
           {/* Summary Section */}
           <section className="mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {/* Overall Snapshot */}
               <div className="lg:col-span-1 rounded-md border border-zinc-300 bg-white p-4">
                 <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Overall Snapshot</h3>
@@ -621,7 +638,9 @@ export default function ResultsPage() {
                                   className={isMyTeam ? "bg-blue-50 font-semibold" : ""}
                                 >
                                   <td className="py-1.5 text-sm text-zinc-900">{startRank + idx}</td>
-                                  <td className="py-1.5 text-sm text-zinc-900">{score.team_name}</td>
+                                  <td className="py-1.5 text-sm text-zinc-900 max-w-[220px]">
+                                    <span className="block truncate">{score.team_name}</span>
+                                  </td>
                                   <td className="py-1.5 text-sm text-zinc-900 text-right">{score.total_points}</td>
                                 </tr>
                               );
@@ -667,7 +686,9 @@ export default function ResultsPage() {
                                   className={isMyTeam ? "bg-blue-50 font-semibold" : ""}
                                 >
                                   <td className="py-1.5 text-sm text-zinc-900">{startRank + idx}</td>
-                                  <td className="py-1.5 text-sm text-zinc-900">{score.team_name}</td>
+                                  <td className="py-1.5 text-sm text-zinc-900 max-w-[220px]">
+                                    <span className="block truncate">{score.team_name}</span>
+                                  </td>
                                   <td className="py-1.5 text-sm text-zinc-900 text-right">{score.total_points}</td>
                                 </tr>
                               );
@@ -740,7 +761,9 @@ export default function ResultsPage() {
                                   className={isMyTeam ? "bg-blue-50 font-semibold" : ""}
                                 >
                                   <td className="py-1.5 text-sm text-zinc-900">{startRank + idx}</td>
-                                  <td className="py-1.5 text-sm text-zinc-900">{score.team_name}</td>
+                                  <td className="py-1.5 text-sm text-zinc-900 max-w-[220px]">
+                                    <span className="block truncate">{score.team_name}</span>
+                                  </td>
                                   <td className="py-1.5 text-sm text-zinc-900 text-right">{score.total_points}</td>
                                 </tr>
                               );
@@ -996,13 +1019,12 @@ export default function ResultsPage() {
           {/* Round Results Section */}
           {activeView === "rounds" && (
             <section className="mb-8">
-            <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Round Results</h2>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Select Round</label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <h2 className="text-xl font-semibold text-[#003A5D]">Round Results</h2>
               {rounds.length > 0 ? (
                 <Select.Root value={selectedRoundId || undefined} onValueChange={setSelectedRoundId}>
-                  <Select.Trigger className="inline-flex items-center justify-between rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-[#003A5D] hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 min-w-[200px]">
-                    <Select.Value placeholder="Select a round" />
+                  <Select.Trigger className="inline-flex items-center justify-between rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-[#003A5D] hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 min-w-[180px]">
+                    <Select.Value placeholder="Round" />
                     <Select.Icon className="ml-2">
                       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M4 6H11L7.5 10.5L4 6Z" fill="currentColor" />
@@ -1013,13 +1035,16 @@ export default function ResultsPage() {
                     <Select.Content
                       position="popper"
                       side="bottom"
-                      align="start"
+                      align="end"
                       sideOffset={6}
                       avoidCollisions={true}
                       collisionPadding={12}
                       className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
                     >
-                      <Select.Viewport className="p-1 max-h-[300px] overflow-y-auto">
+                      <Select.Viewport
+                        className="p-1 max-h-[240px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+                        style={{ scrollbarWidth: "thin" }}
+                      >
                         {rounds.map((round) => (
                           <Select.Item
                             key={round.id}
@@ -1049,19 +1074,35 @@ export default function ResultsPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
                         Team
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                        Business
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-zinc-300">
+                        Category
+                      </th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
                         Points
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-zinc-200">
-                    {roundScores.map((score, index) => (
-                      <tr key={score.participant_id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right">{score.total_points}</td>
-                      </tr>
-                    ))}
+                    {roundScores.map((score, index) => {
+                      const business = businessNamesByParticipant[score.participant_id] || "—";
+                      const category = score.category ? formatCategoryLabel(score.category) : "—";
+                      return (
+                        <tr key={score.participant_id} className="hover:bg-zinc-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 max-w-[260px]">
+                            <span className="block truncate" title={business}>{business}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500 max-w-[140px]">
+                            <span className="block truncate" title={category}>{category}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1089,6 +1130,9 @@ export default function ResultsPage() {
                         Team
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                        Business
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-zinc-300">
                         Category
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
@@ -1097,14 +1141,23 @@ export default function ResultsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-zinc-200">
-                    {overallScores.map((score, index) => (
-                      <tr key={score.participant_id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600">{score.category ? formatCategoryLabel(score.category) : "—"}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
-                      </tr>
-                    ))}
+                    {overallScores.map((score, index) => {
+                      const business = businessNamesByParticipant[score.participant_id] || "—";
+                      const category = score.category ? formatCategoryLabel(score.category) : "—";
+                      return (
+                        <tr key={score.participant_id} className="hover:bg-zinc-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 max-w-[260px]">
+                            <span className="block truncate" title={business}>{business}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500 max-w-[140px]">
+                            <span className="block truncate" title={category}>{category}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

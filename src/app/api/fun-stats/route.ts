@@ -103,12 +103,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         mode,
         fixtures_scored: 0,
+        picksChanged: 0,
+        initialRight: 0,
+        finalRight: 0,
+        noEffect: 0,
+        pointsGained: 0,
+        pointsLost: 0,
+        netPoints: 0,
+        totalChanges: 0,
+        totalEdits: 0,
         gutFeelWins: 0,
         secondGuessWins: 0,
         unchanged: 0,
-        pointsGained: 0,
-        pointsLost: 0,
-        totalChanges: 0,
         mostIndecisive: null,
       });
     }
@@ -134,12 +140,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         mode,
         fixtures_scored: 0,
+        picksChanged: 0,
+        initialRight: 0,
+        finalRight: 0,
+        noEffect: 0,
+        pointsGained: 0,
+        pointsLost: 0,
+        netPoints: 0,
+        totalChanges: 0,
+        totalEdits: 0,
         gutFeelWins: 0,
         secondGuessWins: 0,
         unchanged: 0,
-        pointsGained: 0,
-        pointsLost: 0,
-        totalChanges: 0,
         mostIndecisive: null,
       });
     }
@@ -195,12 +207,14 @@ export async function GET(req: NextRequest) {
 
     // Process each fixture with a result
     let fixturesScored = 0;
-    let gutFeelWins = 0;
-    let secondGuessWins = 0;
-    let unchanged = 0;
+    let picksChanged = 0;
+    let initialRight = 0;
+    let finalRight = 0;
+    let noEffect = 0;
     let pointsGained = 0;
     let pointsLost = 0;
-    let totalChanges = 0;
+    let totalEdits = 0;
+    let netPoints = 0;
     let mostIndecisive: {
       fixture_id: string;
       changes: number;
@@ -257,25 +271,37 @@ export async function GET(req: NextRequest) {
       });
       const finalPoints = finalScore.totalPoints;
       const delta = finalPoints - firstPoints;
-      const changes = events.length - 1;
+      const edits = Math.max(events.length - 1, 0);
 
-      totalChanges += changes;
+      totalEdits += edits;
 
-      if (delta > 0) {
-        secondGuessWins++;
-        pointsGained += delta;
-      } else if (delta < 0) {
-        gutFeelWins++;
-        pointsLost += Math.abs(delta);
-      } else {
-        unchanged++;
+      // Check if pick actually changed (team or margin)
+      const firstKey = `${firstPick.picked_team}|${firstPick.margin}`;
+      const finalKey = `${finalPick.picked_team}|${finalPick.margin}`;
+      const didChange = firstKey !== finalKey;
+
+      // Only update gauge buckets if pick changed
+      if (didChange) {
+        picksChanged++;
+
+        if (delta > 0) {
+          finalRight++;
+          pointsGained += delta;
+        } else if (delta < 0) {
+          initialRight++;
+          pointsLost += Math.abs(delta);
+        } else {
+          noEffect++;
+        }
+
+        netPoints += delta;
       }
 
       // Track most indecisive
-      if (!mostIndecisive || changes > mostIndecisive.changes) {
+      if (!mostIndecisive || edits > mostIndecisive.changes) {
         mostIndecisive = {
           fixture_id: fixtureId,
-          changes,
+          changes: edits,
           first_pick: {
             picked_team: firstPick.picked_team,
             margin: firstPick.margin,
@@ -318,12 +344,19 @@ export async function GET(req: NextRequest) {
     const response: {
       mode: string;
       fixtures_scored: number;
+      picksChanged: number;
+      initialRight: number;
+      finalRight: number;
+      noEffect: number;
+      pointsGained: number;
+      pointsLost: number;
+      netPoints: number;
+      totalChanges: number;
+      totalEdits: number;
+      // Backward compatibility fields
       gutFeelWins: number;
       secondGuessWins: number;
       unchanged: number;
-      pointsGained: number;
-      pointsLost: number;
-      totalChanges: number;
       mostIndecisive: {
         fixture_id: string;
         changes: number;
@@ -348,12 +381,19 @@ export async function GET(req: NextRequest) {
     } = {
       mode,
       fixtures_scored: fixturesScored,
-      gutFeelWins,
-      secondGuessWins,
-      unchanged,
+      picksChanged,
+      initialRight,
+      finalRight,
+      noEffect,
       pointsGained,
       pointsLost,
-      totalChanges,
+      netPoints,
+      totalChanges: picksChanged, // Backward compatibility: UI currently uses this for "Picks Changed" display
+      totalEdits, // Total edit events across all fixtures
+      // Backward compatibility
+      gutFeelWins: initialRight,
+      secondGuessWins: finalRight,
+      unchanged: noEffect,
       mostIndecisive,
     };
 

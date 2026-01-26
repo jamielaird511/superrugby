@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import TeamNav from "@/components/TeamNav";
 import * as Select from "@radix-ui/react-select";
@@ -235,6 +235,9 @@ export default function ResultsPage() {
       delta: number;
     } | null;
   } | null>(null);
+  const [gutScope, setGutScope] = useState<"season" | "round">("season");
+  const [selectedGutRoundId, setSelectedGutRoundId] = useState<string | null>(null);
+  const gutDefaultHasBeenSet = useRef(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -244,6 +247,7 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (participantId) {
+      gutDefaultHasBeenSet.current = false;
       fetchInitialData();
     }
   }, [participantId]);
@@ -260,15 +264,40 @@ export default function ResultsPage() {
     }
   }, [snapshotRoundId]);
 
+  // Default gut scope to last completed round (highest round_number with >=1 result) after data loads
   useEffect(() => {
-    if (participantId) {
-      fetchFunStats();
+    if (gutDefaultHasBeenSet.current || rounds.length === 0) return;
+    const roundsWithResultIds = new Set<string>();
+    allFixtures.forEach((f) => {
+      if (allResults[f.id]) roundsWithResultIds.add(f.round_id);
+    });
+    const completed = rounds.filter((r) => roundsWithResultIds.has(r.id));
+    const lastCompleted = completed.length > 0
+      ? [...completed].sort((a, b) => b.round_number - a.round_number)[0]
+      : null;
+    if (lastCompleted) {
+      setGutScope("round");
+      setSelectedGutRoundId(lastCompleted.id);
+    } else {
+      setGutScope("season");
+      setSelectedGutRoundId(rounds[0]?.id ?? null);
     }
-  }, [participantId]);
+    gutDefaultHasBeenSet.current = true;
+  }, [rounds, allFixtures, allResults]);
+
+  useEffect(() => {
+    if (!participantId) return;
+    if (gutScope === "round" && !selectedGutRoundId) return;
+    fetchFunStats();
+  }, [participantId, gutScope, selectedGutRoundId]);
 
   const fetchFunStats = async () => {
     try {
-      const response = await fetch(`/api/fun-stats?participantId=${participantId}&mode=season`);
+      let url = `/api/fun-stats?participantId=${participantId}&mode=${gutScope}`;
+      if (gutScope === "round" && selectedGutRoundId) {
+        url += `&roundId=${selectedGutRoundId}`;
+      }
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setFunStats(data);
@@ -564,9 +593,9 @@ export default function ResultsPage() {
 
           {/* Summary Section */}
           <section className="mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Overall Snapshot */}
-              <div className="rounded-md border border-zinc-300 bg-white p-4">
+              <div className="lg:col-span-1 rounded-md border border-zinc-300 bg-white p-4">
                 <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Overall Snapshot</h3>
                 <p className="text-xs text-zinc-600 mb-3">5-team context around you</p>
                 {overallScores.length > 0 ? (
@@ -608,7 +637,7 @@ export default function ResultsPage() {
               </div>
 
               {/* Category Snapshot */}
-              <div className="rounded-md border border-zinc-300 bg-white p-4">
+              <div className="lg:col-span-1 rounded-md border border-zinc-300 bg-white p-4">
                 <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Category Snapshot</h3>
                 <p className="text-xs text-zinc-600 mb-3">5-team context around you</p>
                 {overallScores.length > 0 && participant?.category ? (
@@ -656,7 +685,7 @@ export default function ResultsPage() {
               </div>
 
               {/* Round Snapshot */}
-              <div className="rounded-md border border-zinc-300 bg-white p-4">
+              <div className="lg:col-span-1 rounded-md border border-zinc-300 bg-white p-4">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="text-lg font-semibold text-[#003A5D]">Round Snapshot</h3>
                 </div>
@@ -726,36 +755,204 @@ export default function ResultsPage() {
                 )}
               </div>
 
-              {/* Gut Feel Stats */}
-              <div className="rounded-md border border-zinc-300 bg-white p-4">
-                <h3 className="text-lg font-semibold text-[#003A5D] mb-1">Gut Feel</h3>
-                <p className="text-xs text-zinc-600 mb-3">First instinct vs final pick</p>
+              {/* Trust Your Gut Gauge */}
+              <div className="md:col-span-2 lg:col-span-3">
                 {funStats && funStats.fixtures_scored > 0 ? (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-zinc-600">Points gained:</span>
-                      <span className="font-semibold text-green-600">{funStats.pointsGained}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-zinc-600">Points lost:</span>
-                      <span className="font-semibold text-red-600">{funStats.pointsLost}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-zinc-600">Gut feel wins:</span>
-                      <span className="font-semibold text-zinc-900">{funStats.gutFeelWins}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-zinc-600">Second guess wins:</span>
-                      <span className="font-semibold text-zinc-900">{funStats.secondGuessWins}</span>
-                    </div>
-                    <div className="flex justify-between text-xs pt-1 border-t border-zinc-200">
-                      <span className="text-zinc-600">Total changes:</span>
-                      <span className="font-semibold text-zinc-900">{funStats.totalChanges}</span>
+                  <div className="rounded-lg border border-sky-200 bg-white ring-1 ring-sky-100 p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-xl font-bold">Trust Your Gut Gauge</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setGutScope("season")}
+                        className={`inline-flex items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1 ${
+                          gutScope === "season"
+                            ? "bg-[#003A5D] text-white border-[#003A5D]"
+                            : "bg-white text-[#003A5D] border-[#BFD9EA] hover:bg-[#E6F1F7]"
+                        }`}
+                      >
+                        Season
+                      </button>
+                      <Select.Root
+                        value={selectedGutRoundId || undefined}
+                        onValueChange={(value) => {
+                          setGutScope("round");
+                          setSelectedGutRoundId(value);
+                        }}
+                      >
+                        <Select.Trigger
+                          className={`inline-flex items-center justify-between gap-2 rounded-md border-2 px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1 min-w-[100px] max-w-[140px] ${
+                            gutScope === "round"
+                              ? "bg-[#003A5D] text-white border-[#003A5D]"
+                              : "bg-white text-[#003A5D] border-[#BFD9EA] hover:bg-[#E6F1F7]"
+                          }`}
+                        >
+                          <Select.Value placeholder="Round" />
+                          <Select.Icon>
+                            <svg width="10" height="10" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M4 6H11L7.5 10.5L4 6Z" fill="currentColor" />
+                            </svg>
+                          </Select.Icon>
+                        </Select.Trigger>
+                        <Select.Portal>
+                          <Select.Content
+                            position="popper"
+                            side="bottom"
+                            align="end"
+                            sideOffset={6}
+                            avoidCollisions={false}
+                            className="max-h-[240px] overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
+                          >
+                            <Select.Viewport
+                              className="p-1 pr-1 max-h-[220px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+                              style={{ scrollbarWidth: "thin" }}
+                            >
+                              {rounds.map((round) => (
+                                <Select.Item
+                                  key={round.id}
+                                  value={round.id}
+                                  className="relative flex items-center rounded-sm py-1.5 px-4 text-xs text-[#003A5D] hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-pointer"
+                                >
+                                  <Select.ItemText>Round {round.round_number}</Select.ItemText>
+                                </Select.Item>
+                              ))}
+                            </Select.Viewport>
+                          </Select.Content>
+                        </Select.Portal>
+                      </Select.Root>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-zinc-600 italic">No scored fixtures yet.</p>
-                )}
+                  <div className="text-sm text-slate-600 mt-1">
+                    Calculated only when you edit a pick. Compares your first pick to your final pick (locked at kickoff).
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+                    {/* Net Impact */}
+                    <div className="rounded-md border border-sky-200 bg-white p-5">
+                      <div className="grid grid-cols-2 gap-4 items-center">
+                        {/* Left: Net */}
+                        <div className="flex flex-col items-center justify-center h-[120px]">
+                          <div className="text-xs text-slate-500">Net Points</div>
+                          <div className={`mt-2 text-6xl font-extrabold leading-none ${(funStats.pointsGained - funStats.pointsLost) > 0 ? "text-green-600" : (funStats.pointsGained - funStats.pointsLost) < 0 ? "text-red-600" : "text-slate-900"}`}>
+                            {(funStats.pointsGained - funStats.pointsLost) > 0 ? "+" : ""}{funStats.pointsGained - funStats.pointsLost}
+                          </div>
+                        </div>
+
+                        {/* Right: Breakdown */}
+                        <div className="text-sm">
+                          <div className="text-xs text-slate-500 mb-2">Breakdown</div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Gained</span>
+                            <span className="font-bold text-green-700">+{funStats.pointsGained}</span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-slate-600">Lost</span>
+                            <span className="font-bold text-red-700">-{funStats.pointsLost}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Changes */}
+                    <div className="rounded-md border border-sky-200 bg-white p-5">
+                      <div className="grid grid-cols-2 gap-4 items-center">
+                        {/* Left: total changes */}
+                        <div className="flex flex-col items-center justify-center h-[120px]">
+                          <div className="text-xs text-slate-500">Picks Changed</div>
+                          <div className="mt-2 text-6xl font-extrabold leading-none text-slate-900">
+                            {funStats.totalChanges}
+                          </div>
+                        </div>
+
+                        {/* Right: breakdown */}
+                        <div className="text-sm">
+                          <div className="text-xs text-slate-500 mb-2">Change Outcome</div>
+                          <div className="grid grid-cols-[1fr_auto] items-center">
+                            <span className="text-slate-600">Initial Right</span>
+                            <span className="font-bold tabular-nums text-right min-w-[2ch]">{funStats.gutFeelWins}</span>
+                          </div>
+                          <div className="grid grid-cols-[1fr_auto] items-center mt-1">
+                            <span className="text-slate-600">Final Right</span>
+                            <span className="font-bold tabular-nums text-right min-w-[2ch]">{funStats.secondGuessWins}</span>
+                          </div>
+                          <div className="grid grid-cols-[1fr_auto] items-center mt-1">
+                            <span className="text-slate-600">No Effect</span>
+                            <span className="font-bold tabular-nums text-right min-w-[2ch]">{funStats.totalChanges - funStats.gutFeelWins - funStats.secondGuessWins}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-sky-200 bg-white ring-1 ring-sky-100 p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-xl font-bold">Trust Your Gut Gauge</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setGutScope("season")}
+                        className={`inline-flex items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1 ${
+                          gutScope === "season"
+                            ? "bg-[#003A5D] text-white border-[#003A5D]"
+                            : "bg-white text-[#003A5D] border-[#BFD9EA] hover:bg-[#E6F1F7]"
+                        }`}
+                      >
+                        Season
+                      </button>
+                      <Select.Root
+                        value={selectedGutRoundId || undefined}
+                        onValueChange={(value) => {
+                          setGutScope("round");
+                          setSelectedGutRoundId(value);
+                        }}
+                      >
+                        <Select.Trigger
+                          className={`inline-flex items-center justify-between gap-2 rounded-md border-2 px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1 min-w-[100px] max-w-[140px] ${
+                            gutScope === "round"
+                              ? "bg-[#003A5D] text-white border-[#003A5D]"
+                              : "bg-white text-[#003A5D] border-[#BFD9EA] hover:bg-[#E6F1F7]"
+                          }`}
+                        >
+                          <Select.Value placeholder="Round" />
+                          <Select.Icon>
+                            <svg width="10" height="10" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M4 6H11L7.5 10.5L4 6Z" fill="currentColor" />
+                            </svg>
+                          </Select.Icon>
+                        </Select.Trigger>
+                        <Select.Portal>
+                          <Select.Content
+                            position="popper"
+                            side="bottom"
+                            align="end"
+                            sideOffset={6}
+                            avoidCollisions={false}
+                            className="max-h-[240px] overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
+                          >
+                            <Select.Viewport
+                              className="p-1 pr-1 max-h-[220px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+                              style={{ scrollbarWidth: "thin" }}
+                            >
+                              {rounds.map((round) => (
+                                <Select.Item
+                                  key={round.id}
+                                  value={round.id}
+                                  className="relative flex items-center rounded-sm py-1.5 px-4 text-xs text-[#003A5D] hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-pointer"
+                                >
+                                  <Select.ItemText>Round {round.round_number}</Select.ItemText>
+                                </Select.Item>
+                              ))}
+                            </Select.Viewport>
+                          </Select.Content>
+                        </Select.Portal>
+                      </Select.Root>
+                    </div>
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1">
+                    Calculated only when you edit a pick. Compares your first pick to your final pick (locked at kickoff).
+                  </div>
+                  <p className="text-xs text-zinc-600 italic mt-4">No scored fixtures yet.</p>
+                </div>
+              )}
               </div>
             </div>
           </section>

@@ -935,8 +935,47 @@ export default function TeamHomePage() {
 
                     {/* Locked Pick Display (only when locked, has pick, and no result) */}
                     {isLocked && existingPick && !fixtureResults[fixture.id] && (
-                      <div className="mb-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                        Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} {formatMarginBand(existingPick.picked_team, existingPick.margin)}
+                      <div className="mb-3 mx-auto w-full max-w-xl flex items-center justify-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
+                        {/* Left: Logo + Pick text (no Lock/Edit) */}
+                        <div className="flex items-center gap-3">
+                          {existingPick.picked_team === "DRAW" ? (
+                            <span className="text-2xl font-semibold text-[#004165]" aria-hidden="true">=</span>
+                          ) : (
+                            <>
+                              {(() => {
+                                const pickedTeam = teams[existingPick.picked_team || ""];
+                                const pickedTeamCode = existingPick.picked_team || "";
+                                return pickedTeam?.logo_path ? (
+                                  <img
+                                    src={getTeamLogoUrl(pickedTeam.logo_path) || `/teams/${pickedTeamCode}.svg`}
+                                    alt={pickedTeam.name || TEAM_NAMES[pickedTeamCode] || pickedTeamCode}
+                                    className="h-8 w-8 object-contain"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
+                                    {pickedTeamCode}
+                                  </span>
+                                );
+                              })()}
+                            </>
+                          )}
+                          <span className="font-semibold text-[#004165]">
+                            {existingPick.picked_team === "DRAW" ? (
+                              "Draw"
+                            ) : (
+                              <>
+                                {teams[existingPick.picked_team || ""]?.name || TEAM_NAMES[existingPick.picked_team || ""] || existingPick.picked_team || ""}
+                                {existingPick.picked_team !== "DRAW" && (
+                                  <> {formatMarginBand(existingPick.picked_team, existingPick.margin)}</>
+                                )}
+                              </>
+                            )}
+                          </span>
+                        </div>
                       </div>
                     )}
 
@@ -964,9 +1003,9 @@ export default function TeamHomePage() {
   const pickedTeam = pickedTeamCode ? teams[pickedTeamCode] : null;
 
   return (
-    <div className="mb-3 mx-auto w-full max-w-3xl flex items-start justify-between gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
+    <div className="mb-3 mx-auto w-full max-w-xl grid grid-cols-[1fr_auto] items-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
       {/* Left: Pick + Final result */}
-      <div className="flex min-w-0 flex-1 items-start gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         {/* Pick logo / draw indicator */}
         {existingPick ? (
           existingPick.picked_team === "DRAW" ? (
@@ -1015,7 +1054,7 @@ export default function TeamHomePage() {
       </div>
 
       {/* Right: Points badge */}
-      <div className="flex flex-shrink-0 flex-col items-center justify-center rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-800/50 w-14">
+      <div className="w-14 flex flex-col items-center justify-center rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-800/50">
         <span className="text-lg font-bold leading-none text-zinc-900 dark:text-zinc-100">
           {points}
         </span>
@@ -1029,7 +1068,7 @@ export default function TeamHomePage() {
 
                     {/* Locked Summary View */}
                     {!isLocked && isLockedPick && !fixtureResults[fixture.id] && (
-                      <div className="mb-3 mx-auto w-full max-w-3xl flex items-center justify-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
+                      <div className="mb-3 mx-auto w-full max-w-xl flex items-center justify-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
                         {/* Left: Logo + Summary Text Grouped */}
                         <div className="flex items-center gap-3">
                           {existingPick?.picked_team === "DRAW" ? (

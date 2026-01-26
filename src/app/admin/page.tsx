@@ -639,12 +639,20 @@ export default function AdminPage() {
       <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">Admin - Rounds & Fixtures</h1>
-          <Link
-            href="/"
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
-          >
-            ← Back to Home
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/admin/emails"
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            >
+              Emails
+            </Link>
+            <Link
+              href="/"
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            >
+              ← Back to Home
+            </Link>
+          </div>
         </div>
 
         {message && (

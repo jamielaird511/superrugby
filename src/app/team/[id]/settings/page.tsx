@@ -521,7 +521,7 @@ export default function SettingsPage() {
             <div className="rounded-lg border border-zinc-300 bg-white p-6">
               <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Rules</h2>
               <div className="space-y-2 text-sm text-zinc-700">
-                <p>Scoring: 5 points for correct winner + 3 points for correct margin band.</p>
+                <p>Scoring: 5 pts correct winner + 3 pts correct margin band. Draw pick = 24 pts.</p>
                 <p>Picks lock at kickoff.</p>
                 <p>You can update picks until kickoff.</p>
                 <p>Leaderboard updates once results are entered.</p>

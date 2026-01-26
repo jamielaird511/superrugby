@@ -933,49 +933,57 @@ export default function TeamHomePage() {
                       </div>
                     )}
 
-                    {/* Locked Pick Display (only when locked, has pick, and no result) */}
-                    {isLocked && existingPick && !fixtureResults[fixture.id] && (
+                    {/* Locked Pick Display (locked game, no result - with or without pick) */}
+                    {isLocked && !fixtureResults[fixture.id] && (
                       <div className="mb-3 mx-auto w-full max-w-xl flex items-center justify-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
-                        {/* Left: Logo + Pick text (no Lock/Edit) */}
-                        <div className="flex items-center gap-3">
-                          {existingPick.picked_team === "DRAW" ? (
-                            <span className="text-2xl font-semibold text-[#004165]" aria-hidden="true">=</span>
-                          ) : (
-                            <>
-                              {(() => {
-                                const pickedTeam = teams[existingPick.picked_team || ""];
-                                const pickedTeamCode = existingPick.picked_team || "";
-                                return pickedTeam?.logo_path ? (
-                                  <img
-                                    src={getTeamLogoUrl(pickedTeam.logo_path) || `/teams/${pickedTeamCode}.svg`}
-                                    alt={pickedTeam.name || TEAM_NAMES[pickedTeamCode] || pickedTeamCode}
-                                    className="h-8 w-8 object-contain"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = "none";
-                                    }}
-                                  />
-                                ) : (
-                                  <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
-                                    {pickedTeamCode}
-                                  </span>
-                                );
-                              })()}
-                            </>
-                          )}
-                          <span className="font-semibold text-[#004165]">
+                        {existingPick ? (
+                          /* Left: Logo + Pick text (no Lock/Edit) */
+                          <div className="flex items-center gap-3">
                             {existingPick.picked_team === "DRAW" ? (
-                              "Draw"
+                              <span className="text-2xl font-semibold text-[#004165]" aria-hidden="true">=</span>
                             ) : (
                               <>
-                                {teams[existingPick.picked_team || ""]?.name || TEAM_NAMES[existingPick.picked_team || ""] || existingPick.picked_team || ""}
-                                {existingPick.picked_team !== "DRAW" && (
-                                  <> {formatMarginBand(existingPick.picked_team, existingPick.margin)}</>
-                                )}
+                                {(() => {
+                                  const pickedTeam = teams[existingPick.picked_team || ""];
+                                  const pickedTeamCode = existingPick.picked_team || "";
+                                  return pickedTeam?.logo_path ? (
+                                    <img
+                                      src={getTeamLogoUrl(pickedTeam.logo_path) || `/teams/${pickedTeamCode}.svg`}
+                                      alt={pickedTeam.name || TEAM_NAMES[pickedTeamCode] || pickedTeamCode}
+                                      className="h-8 w-8 object-contain"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = "none";
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
+                                      {pickedTeamCode}
+                                    </span>
+                                  );
+                                })()}
                               </>
                             )}
-                          </span>
-                        </div>
+                            <span className="font-semibold text-[#004165]">
+                              {existingPick.picked_team === "DRAW" ? (
+                                "Draw"
+                              ) : (
+                                <>
+                                  {teams[existingPick.picked_team || ""]?.name || TEAM_NAMES[existingPick.picked_team || ""] || existingPick.picked_team || ""}
+                                  {existingPick.picked_team !== "DRAW" && (
+                                    <> {formatMarginBand(existingPick.picked_team, existingPick.margin)}</>
+                                  )}
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          /* No pick made */
+                          <div className="text-center">
+                            <div className="font-semibold text-zinc-700 dark:text-zinc-300">No Pick Made</div>
+                            <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Pick Window Closed</div>
+                          </div>
+                        )}
                       </div>
                     )}
 

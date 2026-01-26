@@ -1080,7 +1080,7 @@ export default function ResultsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-zinc-300">
                         Category
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                      <th className="px-4 py-3 w-[110px] text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
                         Points
                       </th>
                     </tr>
@@ -1099,7 +1099,7 @@ export default function ResultsPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500 max-w-[140px]">
                             <span className="block truncate" title={category}>{category}</span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
+                          <td className="px-4 py-3 whitespace-nowrap w-[110px] text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
                         </tr>
                       );
                     })}
@@ -1135,8 +1135,8 @@ export default function ResultsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-zinc-300">
                         Category
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                        Total Points
+                      <th className="px-4 py-3 w-[110px] text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
+                        Points
                       </th>
                     </tr>
                   </thead>
@@ -1154,7 +1154,7 @@ export default function ResultsPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500 max-w-[140px]">
                             <span className="block truncate" title={category}>{category}</span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
+                          <td className="px-4 py-3 whitespace-nowrap w-[110px] text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
                         </tr>
                       );
                     })}

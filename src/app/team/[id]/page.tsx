@@ -893,8 +893,20 @@ export default function TeamHomePage() {
                       <div className="text-[10px] tracking-wide text-slate-600 dark:text-zinc-400">TOTAL</div>
                     </div>
                     <details ref={printDetailsRef} className="relative">
-                      <summary className="list-none cursor-pointer inline-flex items-center justify-center rounded-lg w-[76px] h-[56px] bg-[#004165] text-white hover:bg-[#003554] transition-colors [&::-webkit-details-marker]:hidden">
-                        <PrinterIcon className="h-7 w-7" />
+                      <summary className="list-none cursor-pointer [&::-webkit-details-marker]:hidden">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (printDetailsRef.current) {
+                              printDetailsRef.current.open = !printDetailsRef.current.open;
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#003A5D] border border-[#003A5D] rounded-md bg-white hover:bg-[#E6F1F7] transition-colors"
+                        >
+                          <PrinterIcon className="h-4 w-4" />
+                          Print
+                        </button>
                       </summary>
                       <div className="absolute right-0 mt-2 w-56 rounded-md border border-zinc-300 bg-white shadow-lg p-1 z-50 dark:border-zinc-700 dark:bg-zinc-900">
                         <Link

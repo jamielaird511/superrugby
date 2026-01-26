@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
+import PrintButton from "@/components/PrintButton";
 
 type Round = {
   id: string;
@@ -230,12 +231,7 @@ export default function PrintRoundPage() {
       <div className="print-container bg-white">
         <div className="print-content">
           <div className="mb-6 no-print">
-            <button
-              onClick={() => window.print()}
-              className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
-              Print
-            </button>
+            <PrintButton onClick={() => window.print()} />
           </div>
 
           {errorMsg && (

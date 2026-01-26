@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import TeamNav from "@/components/TeamNav";
 import * as Select from "@radix-ui/react-select";
 import { calculatePickScore } from "@/lib/scoring";
+import PrintButton from "@/components/PrintButton";
 
 type Participant = {
   id: string;
@@ -721,8 +722,18 @@ export default function ResultsPage() {
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50">
-                        <Select.Viewport className="p-1 max-h-[200px] overflow-y-auto">
+                      <Select.Content
+                        position="popper"
+                        side="bottom"
+                        align="end"
+                        sideOffset={6}
+                        avoidCollisions={false}
+                        className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
+                      >
+                        <Select.Viewport
+                          className="p-1 max-h-[240px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+                          style={{ scrollbarWidth: "thin" }}
+                        >
                           {rounds.map((round) => (
                             <Select.Item
                               key={round.id}
@@ -786,7 +797,10 @@ export default function ResultsPage() {
                     <div className="text-xl font-bold">Trust Your Gut Gauge</div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setGutScope("season")}
+                        onClick={() => {
+                          setGutScope("season");
+                          setSelectedGutRoundId(null);
+                        }}
                         className={`inline-flex items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1 ${
                           gutScope === "season"
                             ? "bg-[#003A5D] text-white border-[#003A5D]"
@@ -796,7 +810,7 @@ export default function ResultsPage() {
                         Season
                       </button>
                       <Select.Root
-                        value={selectedGutRoundId || undefined}
+                        value={selectedGutRoundId ?? ""}
                         onValueChange={(value) => {
                           setGutScope("round");
                           setSelectedGutRoundId(value);
@@ -912,7 +926,10 @@ export default function ResultsPage() {
                     <div className="text-xl font-bold">Trust Your Gut Gauge</div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setGutScope("season")}
+                        onClick={() => {
+                          setGutScope("season");
+                          setSelectedGutRoundId(null);
+                        }}
                         className={`inline-flex items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1 ${
                           gutScope === "season"
                             ? "bg-[#003A5D] text-white border-[#003A5D]"
@@ -922,7 +939,7 @@ export default function ResultsPage() {
                         Season
                       </button>
                       <Select.Root
-                        value={selectedGutRoundId || undefined}
+                        value={selectedGutRoundId ?? ""}
                         onValueChange={(value) => {
                           setGutScope("round");
                           setSelectedGutRoundId(value);
@@ -1019,10 +1036,11 @@ export default function ResultsPage() {
           {/* Round Results Section */}
           {activeView === "rounds" && (
             <section className="mb-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-[#003A5D]">Round Results</h2>
-              {rounds.length > 0 ? (
-                <Select.Root value={selectedRoundId || undefined} onValueChange={setSelectedRoundId}>
+              <div className="flex items-center gap-3">
+                {rounds.length > 0 ? (
+                  <Select.Root value={selectedRoundId || undefined} onValueChange={setSelectedRoundId}>
                   <Select.Trigger className="inline-flex items-center justify-between rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-[#003A5D] hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 min-w-[180px]">
                     <Select.Value placeholder="Round" />
                     <Select.Icon className="ml-2">
@@ -1037,8 +1055,7 @@ export default function ResultsPage() {
                       side="bottom"
                       align="end"
                       sideOffset={6}
-                      avoidCollisions={true}
-                      collisionPadding={12}
+                      avoidCollisions={false}
                       className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
                     >
                       <Select.Viewport
@@ -1058,9 +1075,15 @@ export default function ResultsPage() {
                     </Select.Content>
                   </Select.Portal>
                 </Select.Root>
-              ) : (
-                <p className="text-sm text-zinc-600">No rounds available</p>
-              )}
+                ) : (
+                  <p className="text-sm text-zinc-600">No rounds available</p>
+                )}
+                {selectedRoundId && (
+                  <PrintButton
+                    onClick={() => window.open(`/print/leaderboard/round/${selectedRoundId}`, "_blank", "noopener,noreferrer")}
+                  />
+                )}
+              </div>
             </div>
 
             {roundScores.length > 0 ? (
@@ -1117,7 +1140,12 @@ export default function ResultsPage() {
           {/* Overall Leaderboard Section */}
           {activeView === "overall" && (
             <section className="mb-8">
-            <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Overall Leaderboard</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-[#003A5D]">Overall Leaderboard</h2>
+              <PrintButton
+                onClick={() => window.open("/print/leaderboard/overall", "_blank", "noopener,noreferrer")}
+              />
+            </div>
             {overallScores.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300 rounded-md">
@@ -1172,44 +1200,47 @@ export default function ResultsPage() {
           {/* Category Leaderboards Section */}
           {activeView === "categories" && categoryOptions.length > 0 && (
             <section className="mb-8">
-              <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Category Leaderboards</h2>
-              
-              {/* Category Dropdown */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Category</label>
-                <Select.Root value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <Select.Trigger className="inline-flex items-center justify-between rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-[#003A5D] hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 min-w-[200px]">
-                    <Select.Value placeholder="Select a category" />
-                    <Select.Icon className="ml-2">
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 6H11L7.5 10.5L4 6Z" fill="currentColor" />
-                      </svg>
-                    </Select.Icon>
-                  </Select.Trigger>
-                  <Select.Portal>
-                    <Select.Content
-                      position="popper"
-                      side="bottom"
-                      align="start"
-                      sideOffset={6}
-                      avoidCollisions={true}
-                      collisionPadding={12}
-                      className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
-                    >
-                      <Select.Viewport className="p-1 max-h-[300px] overflow-y-auto">
-                        {categoryOptions.map((category) => (
-                          <Select.Item
-                            key={category}
-                            value={category}
-                            className="relative flex items-center rounded-sm py-2 px-8 text-sm text-[#003A5D] hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-pointer"
-                          >
-                            <Select.ItemText>{formatCategoryLabel(category)}</Select.ItemText>
-                          </Select.Item>
-                        ))}
-                      </Select.Viewport>
-                    </Select.Content>
-                  </Select.Portal>
-                </Select.Root>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-[#003A5D]">Category Leaderboards</h2>
+                <div className="flex items-center gap-3">
+                  <Select.Root value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <Select.Trigger className="inline-flex items-center justify-between rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-[#003A5D] hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 w-[240px]">
+                      <Select.Value placeholder="Select a category" />
+                      <Select.Icon className="ml-2">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 6H11L7.5 10.5L4 6Z" fill="currentColor" />
+                        </svg>
+                      </Select.Icon>
+                    </Select.Trigger>
+                    <Select.Portal>
+                      <Select.Content
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                        sideOffset={6}
+                        avoidCollisions={false}
+                        className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-lg z-50"
+                      >
+                        <Select.Viewport className="p-1 max-h-[300px] overflow-y-auto">
+                          {categoryOptions.map((category) => (
+                            <Select.Item
+                              key={category}
+                              value={category}
+                              className="relative flex items-center rounded-sm py-2 px-8 text-sm text-[#003A5D] hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-pointer"
+                            >
+                              <Select.ItemText>{formatCategoryLabel(category)}</Select.ItemText>
+                            </Select.Item>
+                          ))}
+                        </Select.Viewport>
+                      </Select.Content>
+                    </Select.Portal>
+                  </Select.Root>
+                  {selectedCategory && (
+                    <PrintButton
+                      onClick={() => window.open(`/print/leaderboard/category/${encodeURIComponent(selectedCategory)}`, "_blank", "noopener,noreferrer")}
+                    />
+                  )}
+                </div>
               </div>
 
               {overallScores.length > 0 && selectedCategory ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
@@ -451,6 +451,22 @@ export default function TeamHomePage() {
     return "";
   };
 
+  // Calculate round total points (sum of points for finalized games in selected round)
+  const roundTotalPoints = useMemo(() => {
+    if (!selectedRoundId || nextRoundFixtures.length === 0) return 0;
+    return nextRoundFixtures.reduce((total, fixture) => {
+      const result = fixtureResults[fixture.id];
+      if (!result) return total; // Only count finalized games
+      const existingPick = picks[fixture.id];
+      if (!existingPick) return total; // No pick = 0 points
+      const points = calculatePickScore(existingPick.picked_team, existingPick.margin, {
+        winning_team: result.winning_team,
+        margin_band: result.margin_band,
+      }).totalPoints;
+      return total + points;
+    }, 0);
+  }, [selectedRoundId, nextRoundFixtures, fixtureResults, picks]);
+
   const handleSetWinner = (fixtureId: string, teamCode: string) => {
     setSelectedWinnerByFixtureId((prev) => ({
       ...prev,
@@ -766,7 +782,7 @@ export default function TeamHomePage() {
         <div className="mb-8">
           <div className="mb-4 flex justify-center">
             <div className="w-full max-w-2xl flex items-center justify-between">
-              <div>
+              <div className="flex items-center gap-3">
                 {rounds.length > 0 && (
                   <Select.Root
                     value={selectedRoundId || undefined}
@@ -832,6 +848,11 @@ export default function TeamHomePage() {
                       </Select.Content>
                     </Select.Portal>
                   </Select.Root>
+                )}
+                {selectedRoundId && (
+                  <div className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                    Round total: {roundTotalPoints} pts
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-2">

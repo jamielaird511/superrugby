@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
 import { calculatePickScore } from "@/lib/scoring";
@@ -210,6 +210,22 @@ export default function PrintRoundTeamPage() {
     return new Date() >= new Date(kickoffAt);
   };
 
+  // Calculate round total points (sum of points for finalized games in this round)
+  const roundTotalPoints = useMemo(() => {
+    if (fixtures.length === 0) return 0;
+    return fixtures.reduce((total, fixture) => {
+      const result = resultsMap[fixture.id];
+      if (!result) return total; // Only count finalized games
+      const pick = picks[fixture.id];
+      if (!pick) return total; // No pick = 0 points
+      const points = calculatePickScore(pick.picked_team, pick.margin, {
+        winning_team: result.winning_team,
+        margin_band: result.margin_band,
+      }).totalPoints;
+      return total + points;
+    }, 0);
+  }, [fixtures, resultsMap, picks]);
+
   if (loading) {
     return (
       <div className="p-8">
@@ -315,25 +331,34 @@ export default function PrintRoundTeamPage() {
             </button>
           </div>
 
-          {/* Compact Header */}
-          <div className="print-compact-header mb-4 print:mb-1.5">
-            <div className="print-logo-row flex items-center justify-center gap-3 print:gap-2 mb-1.5 print:mb-0">
-              <img src="/brand/anz.svg" alt="ANZ" className="h-8 w-auto print:h-5" />
-              <img src="/brand/SUP.svg" alt="Super Rugby" className="h-8 w-auto print:h-5" />
+          {/* Shared wrapper: header + fixtures (same max-w, TOTAL anchored to right) */}
+          <div className="max-w-3xl mx-auto px-4">
+            <div className="relative print-compact-header mb-4 print:mb-1.5">
+              <div className="text-center">
+                <div className="print-logo-row flex items-center justify-center gap-3 print:gap-2 mb-1.5 print:mb-0">
+                  <img src="/brand/anz.svg" alt="ANZ" className="h-8 w-auto print:h-5" />
+                  <img src="/brand/SUP.svg" alt="Super Rugby" className="h-8 w-auto print:h-5" />
+                </div>
+                <h1 className="text-lg print:text-sm font-bold text-black leading-tight mb-0.5 print:mb-0">
+                  ANZ Super Rugby Picks Competition
+                </h1>
+                <div className="print-sub text-sm print:text-xs text-black mt-0.5 leading-tight">
+                  Season {round.season} - Round {round.round_number}
+                </div>
+                <div className="print-sub text-xs print:text-[10px] text-black mt-0.5 leading-tight">
+                  Team: {participant.team_name} • Generated: {formatDateGenerated()}
+                </div>
+              </div>
+              <div className="absolute right-0 top-0 mt-0.5 w-14 flex flex-col items-center justify-center rounded-md border-2 border-slate-300 bg-slate-50 px-2 py-1.5 print:py-1">
+                <span className="text-lg font-bold leading-none text-zinc-900 print:text-base">
+                  {roundTotalPoints}
+                </span>
+                <span className="text-[10px] tracking-wide text-slate-600">TOTAL</span>
+              </div>
             </div>
-            <h1 className="text-lg print:text-sm font-bold text-black text-center leading-tight mb-0.5 print:mb-0">
-              ANZ Super Rugby Picks Competition
-            </h1>
-            <div className="print-sub text-sm print:text-xs text-black mt-0.5 text-center leading-tight">
-              Season {round.season} - Round {round.round_number}
-            </div>
-            <div className="print-sub text-xs print:text-[10px] text-black mt-0.5 text-center leading-tight">
-              Team: {participant.team_name} • Generated: {formatDateGenerated()}
-            </div>
-          </div>
 
-          {/* Fixture Cards - Audit sheet: FINAL / LOCKED / OPEN */}
-          <div className="space-y-3 print:space-y-0.5">
+            {/* Fixture Cards - Audit sheet: FINAL / LOCKED / OPEN */}
+            <div className="space-y-3 print:space-y-0.5">
             {fixtures.map((fixture) => {
               const homeTeam = teams[fixture.home_team_code];
               const awayTeam = teams[fixture.away_team_code];
@@ -456,6 +481,7 @@ export default function PrintRoundTeamPage() {
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       </div>

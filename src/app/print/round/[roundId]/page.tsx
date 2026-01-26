@@ -80,15 +80,16 @@ export default function PrintRoundPage() {
       });
       setTeams(teamsMap);
     } catch (err) {
-      const anyErr = err as any;
+      const unknownErr = err as unknown;
+      const errObj = unknownErr && typeof unknownErr === "object" ? unknownErr as { message?: string; error_description?: string; details?: string; code?: string; hint?: string } : null;
       const msg =
-        anyErr?.message ||
-        anyErr?.error_description ||
-        anyErr?.details ||
-        (typeof anyErr === "string" ? anyErr : null) ||
-        JSON.stringify(anyErr);
-      console.error("Error fetching data:", anyErr);
-      console.error("Error details:", { message: anyErr?.message, code: anyErr?.code, details: anyErr?.details, hint: anyErr?.hint });
+        errObj?.message ||
+        errObj?.error_description ||
+        errObj?.details ||
+        (typeof unknownErr === "string" ? unknownErr : null) ||
+        JSON.stringify(unknownErr);
+      console.error("Error fetching data:", unknownErr);
+      console.error("Error details:", { message: errObj?.message, code: errObj?.code, details: errObj?.details, hint: errObj?.hint });
       setErrorMsg(msg ?? "Unknown error");
     } finally {
       setLoading(false);
@@ -215,7 +216,7 @@ export default function PrintRoundPage() {
 
           {errorMsg && (
             <div className="print-hidden mb-4 rounded-lg border-2 border-red-500 bg-red-50 p-4">
-              <p className="font-semibold text-red-800">Couldn't load print data: {errorMsg}</p>
+              <p className="font-semibold text-red-800">Couldn&apos;t load print data: {errorMsg}</p>
             </div>
           )}
 

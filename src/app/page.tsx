@@ -18,11 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchParticipants();
-  }, []);
-
-  const fetchParticipants = async () => {
+  async function fetchParticipants() {
     try {
       const { data, error } = await supabase
         .from("participants_public")
@@ -41,7 +37,13 @@ export default function Home() {
         `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}`
       );
     }
-  };
+  }
+
+  useEffect(() => {
+    (async () => {
+      await fetchParticipants();
+    })();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

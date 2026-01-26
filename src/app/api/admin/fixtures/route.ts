@@ -87,7 +87,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const fixtureData: any = {
+    const fixtureData: {
+      round_id: string;
+      match_number: number;
+      home_team_code: string;
+      away_team_code: string;
+      kickoff_at: string | null;
+    } = {
       round_id,
       match_number,
       home_team_code,

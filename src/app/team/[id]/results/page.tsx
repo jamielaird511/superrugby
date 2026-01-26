@@ -91,7 +91,7 @@ function getWindowAroundTeam<T extends { participant_id: string }>(
   // Calculate window bounds (centered on my team, clamped at ends)
   const halfWindow = Math.floor(windowSize / 2);
   let startIndex = Math.max(0, myIndex - halfWindow);
-  let endIndex = Math.min(sortedRows.length, startIndex + windowSize);
+  const endIndex = Math.min(sortedRows.length, startIndex + windowSize);
 
   // Adjust if we hit the end
   if (endIndex - startIndex < windowSize) {
@@ -225,7 +225,15 @@ export default function ResultsPage() {
     pointsGained: number;
     pointsLost: number;
     totalChanges: number;
-    mostIndecisive: any;
+    mostIndecisive: {
+      fixture_id: string;
+      changes: number;
+      first_pick: { picked_team: string; margin: number };
+      final_pick: { picked_team: string; margin: number };
+      first_points: number;
+      final_points: number;
+      delta: number;
+    } | null;
   } | null>(null);
 
   const handleLogout = async () => {

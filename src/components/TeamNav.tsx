@@ -23,8 +23,8 @@ export default function TeamNav({ teamId, teamName, onLogout }: TeamNavProps) {
             alt="ANZ"
             className="h-10 w-auto"
           />
-          <div className="rounded-lg bg-white px-4 py-2 shadow-sm border border-white/30">
-            <span className="text-sm font-semibold text-[#003A5D] whitespace-nowrap">
+          <div className="rounded-sm border border-white/50 bg-transparent px-4 py-2">
+            <span className="text-sm font-semibold text-white whitespace-nowrap">
               {teamName || "Team"}
             </span>
           </div>
@@ -34,10 +34,10 @@ export default function TeamNav({ teamId, teamName, onLogout }: TeamNavProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link
             href={`/team/${teamId}`}
-            className={`inline-flex items-center gap-2 h-10 px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            className={`inline-flex items-center justify-center gap-2 h-10 w-32 px-0 rounded-md text-sm font-semibold transition-all duration-150 border bg-white text-[#003A5D] hover:-translate-y-[1px] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
               pathname === `/team/${teamId}`
-                ? "bg-[#005A84] text-white font-semibold"
-                : "text-white/90 hover:bg-white/10 hover:text-white"
+                ? "border-[#004165] border-2"
+                : "border-slate-200 hover:bg-slate-50"
             }`}
           >
             <PencilSquareIcon className="h-4 w-4" />
@@ -45,10 +45,10 @@ export default function TeamNav({ teamId, teamName, onLogout }: TeamNavProps) {
           </Link>
           <Link
             href={`/team/${teamId}/results`}
-            className={`inline-flex items-center gap-2 h-10 px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            className={`inline-flex items-center justify-center gap-2 h-10 w-32 px-0 rounded-md text-sm font-semibold transition-all duration-150 border bg-white text-[#003A5D] hover:-translate-y-[1px] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
               pathname === `/team/${teamId}/results`
-                ? "bg-[#005A84] text-white font-semibold"
-                : "text-white/90 hover:bg-white/10 hover:text-white"
+                ? "border-[#004165] border-2"
+                : "border-slate-200 hover:bg-slate-50"
             }`}
           >
             <ChartBarIcon className="h-4 w-4" />
@@ -56,10 +56,10 @@ export default function TeamNav({ teamId, teamName, onLogout }: TeamNavProps) {
           </Link>
           <Link
             href={`/team/${teamId}/settings`}
-            className={`inline-flex items-center gap-2 h-10 px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            className={`inline-flex items-center justify-center gap-2 h-10 w-32 px-0 rounded-md text-sm font-semibold transition-all duration-150 border bg-white text-[#003A5D] hover:-translate-y-[1px] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
               pathname === `/team/${teamId}/settings`
-                ? "bg-[#005A84] text-white font-semibold"
-                : "text-white/90 hover:bg-white/10 hover:text-white"
+                ? "border-[#004165] border-2"
+                : "border-slate-200 hover:bg-slate-50"
             }`}
           >
             <Cog6ToothIcon className="h-4 w-4" />
@@ -67,7 +67,8 @@ export default function TeamNav({ teamId, teamName, onLogout }: TeamNavProps) {
           </Link>
           <button
             onClick={onLogout}
-            className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md bg-[#00A3E0] text-white text-sm font-medium transition-colors hover:bg-[#0096CF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            type="button"
+            className="inline-flex items-center justify-center gap-2 h-10 w-32 px-0 rounded-md text-sm font-semibold transition-all duration-150 border border-transparent bg-cyan-700 text-white hover:bg-cyan-600 hover:-translate-y-[1px] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
             <ArrowRightOnRectangleIcon className="h-4 w-4" />
             <span>Logout</span>

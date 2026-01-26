@@ -25,15 +25,12 @@ export default function LeaderboardPage() {
       return a.team_name.localeCompare(b.team_name);
     });
 
-    let lastPts: number | null = null;
-    let lastRank = 0;
-
-    return sorted.map((r, idx) => {
-      const rank = lastPts === r.round_points ? lastRank : idx + 1;
-      lastPts = r.round_points;
-      lastRank = rank;
-      return { ...r, rank };
-    });
+    return sorted.reduce<Array<Row & { rank: number }>>((acc, r, idx) => {
+      const lastItem = acc[acc.length - 1];
+      const rank = lastItem && lastItem.round_points === r.round_points ? lastItem.rank : idx + 1;
+      acc.push({ ...r, rank });
+      return acc;
+    }, []);
   }, [rows]);
 
   useEffect(() => {

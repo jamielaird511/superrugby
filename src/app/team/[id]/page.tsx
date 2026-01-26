@@ -926,31 +926,6 @@ export default function TeamHomePage() {
                         );
                       })()}
 
-                    {/* Final result + points (only when result exists) */}
-                    {fixtureResults[fixture.id] && (() => {
-                      const res = fixtureResults[fixture.id];
-                      const winLabel = res.winning_team === "DRAW" ? "Draw" : (teams[res.winning_team]?.name || TEAM_NAMES[res.winning_team] || res.winning_team);
-                      const marginStr = res.margin_band ? ` ${res.margin_band}` : "";
-                      const points = !existingPick ? 0 : calculatePickScore(existingPick.picked_team, existingPick.margin, { winning_team: res.winning_team, margin_band: res.margin_band }).totalPoints;
-                      return (
-                        <div className="mb-1.5 space-y-1">
-                          <div className="flex items-center justify-center gap-2 flex-wrap">
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                              Final: {winLabel}{marginStr}{!existingPick ? " · No pick" : ""}
-                            </span>
-                            <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
-                              {points} pts
-                            </span>
-                          </div>
-                          {existingPick && (
-                            <div className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-                              Your pick: {teams[existingPick.picked_team]?.name || TEAM_NAMES[existingPick.picked_team] || existingPick.picked_team} {formatMarginBand(existingPick.picked_team, existingPick.margin)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
                     {/* Error Message */}
                     {pickErrors[fixture.id] && (
                       <div className="mb-2 rounded-md bg-red-100 p-1.5 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
@@ -965,8 +940,95 @@ export default function TeamHomePage() {
                       </div>
                     )}
 
+                    {/* Final Game Pick Row (when result exists) */}
+{fixtureResults[fixture.id] && (() => {
+  const res = fixtureResults[fixture.id];
+
+  const winLabel =
+    res.winning_team === "DRAW"
+      ? "Draw"
+      : (teams[res.winning_team]?.name ||
+          TEAM_NAMES[res.winning_team] ||
+          res.winning_team);
+
+  const marginStr = res.margin_band ? ` ${res.margin_band}` : "";
+
+  const points = !existingPick
+    ? 0
+    : calculatePickScore(existingPick.picked_team, existingPick.margin, {
+        winning_team: res.winning_team,
+        margin_band: res.margin_band,
+      }).totalPoints;
+
+  const pickedTeamCode = existingPick?.picked_team || "";
+  const pickedTeam = pickedTeamCode ? teams[pickedTeamCode] : null;
+
+  return (
+    <div className="mb-3 mx-auto w-full max-w-3xl flex items-start justify-between gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
+      {/* Left: Pick + Final result */}
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        {/* Pick logo / draw indicator */}
+        {existingPick ? (
+          existingPick.picked_team === "DRAW" ? (
+            <span className="text-2xl font-semibold text-[#004165]" aria-hidden="true">
+              =
+            </span>
+          ) : pickedTeam?.logo_path ? (
+            <img
+              src={getTeamLogoUrl(pickedTeam.logo_path) || `/teams/${pickedTeamCode}.svg`}
+              alt={pickedTeam.name || TEAM_NAMES[pickedTeamCode] || pickedTeamCode}
+              className="h-8 w-8 flex-shrink-0 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+              }}
+            />
+          ) : (
+            <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
+              {pickedTeamCode}
+            </span>
+          )
+        ) : null}
+
+        {/* Text */}
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-[#004165]">
+            {!existingPick ? (
+              "No pick"
+            ) : existingPick.picked_team === "DRAW" ? (
+              "Draw"
+            ) : (
+              <>
+                {teams[pickedTeamCode]?.name || TEAM_NAMES[pickedTeamCode] || pickedTeamCode}
+                {pickedTeamCode !== "DRAW" && (
+                  <> {formatMarginBand(existingPick.picked_team, existingPick.margin)}</>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Final result: {winLabel}
+            {marginStr}
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Points badge */}
+      <div className="flex flex-shrink-0 flex-col items-center justify-center rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-800/50 w-14">
+        <span className="text-lg font-bold leading-none text-zinc-900 dark:text-zinc-100">
+          {points}
+        </span>
+        <span className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          PTS
+        </span>
+      </div>
+    </div>
+  );
+})()}
+
                     {/* Locked Summary View */}
-                    {!isLocked && isLockedPick && (
+                    {!isLocked && isLockedPick && !fixtureResults[fixture.id] && (
                       <div className="mb-3 mx-auto w-full max-w-3xl flex items-center justify-center gap-6 rounded-md border border-zinc-200 bg-zinc-50 px-6 py-3">
                         {/* Left: Logo + Summary Text Grouped */}
                         <div className="flex items-center gap-3">

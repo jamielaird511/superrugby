@@ -60,6 +60,122 @@ export default function AdminPage() {
   const [fixtureAwayTeamCode, setFixtureAwayTeamCode] = useState<string>("");
   const [fixtureKickoffAt, setFixtureKickoffAt] = useState<string>("");
 
+  // Fetch functions (hoisted as function declarations)
+  async function fetchRounds() {
+    try {
+      const { data, error } = await supabase
+        .from("rounds")
+        .select("*")
+        .order("season", { ascending: true })
+        .order("round_number", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching rounds:", error);
+        setMessage({ type: "error", text: `Error fetching rounds: ${error.message}` });
+      } else {
+        setRounds(data || []);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching rounds:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  }
+
+  async function fetchTeams() {
+    const TEAMS_TABLE = "super_rugby_teams";
+    try {
+      const { data, error } = await supabase
+        .from(TEAMS_TABLE)
+        .select("*")
+        .order("sort_order", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching teams:", {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+          raw: error
+        });
+        setMessage({ type: "error", text: `Error fetching teams: ${error?.message ?? JSON.stringify(error)}` });
+      } else {
+        setTeams(data || []);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching teams:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  }
+
+  async function fetchFixtures(roundId: string) {
+    try {
+      const { data, error } = await supabase
+        .from("fixtures")
+        .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
+        .eq("round_id", roundId)
+        .order("match_number", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching fixtures:", error);
+        setMessage({ type: "error", text: `Error fetching fixtures: ${error.message}` });
+      } else {
+        setFixtures(data || []);
+        if (data && data.length > 0) {
+          fetchResults(data.map((f) => f.id));
+        } else {
+          setResults({});
+          setResultEntries({});
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching fixtures:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  }
+
+  async function fetchResults(fixtureIds: string[]) {
+    try {
+      const { data, error } = await supabase
+        .from("results")
+        .select("fixture_id, winning_team, margin_band")
+        .in("fixture_id", fixtureIds);
+
+      if (error) {
+        console.error("Error fetching results:", {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+        });
+        setMessage({ type: "error", text: `Error fetching results: ${error.message}` });
+      } else {
+        const resultsMap: Record<string, Result> = {};
+        const entriesMap: Record<string, { winning_team: string; margin_band: string | null }> = {};
+        (data || []).forEach((result) => {
+          resultsMap[result.fixture_id] = result;
+          entriesMap[result.fixture_id] = {
+            winning_team: result.winning_team,
+            margin_band: result.margin_band,
+          };
+        });
+        // Initialize entries for fixtures without results
+        fixtureIds.forEach((fixtureId) => {
+          if (!entriesMap[fixtureId]) {
+            entriesMap[fixtureId] = {
+              winning_team: "",
+              margin_band: null,
+            };
+          }
+        });
+        setResults(resultsMap);
+        setResultEntries(entriesMap);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching results:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+    }
+  }
+
   // Admin gate: check authentication and admin email on load
   useEffect(() => {
     const checkAdmin = async () => {
@@ -106,8 +222,11 @@ export default function AdminPage() {
     if (!isAdmin) return;
     
     if (selectedRoundId) {
-      fetchFixtures(selectedRoundId);
+      (async () => {
+        await fetchFixtures(selectedRoundId);
+      })();
     } else {
+      // Reset form state when no round is selected
       setFixtures([]);
       setResults({});
       setResultEntries({});
@@ -118,122 +237,8 @@ export default function AdminPage() {
       setFixtureAwayTeamCode("");
       setFixtureKickoffAt("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoundId, isAdmin]);
-
-  const fetchRounds = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("rounds")
-        .select("*")
-        .order("season", { ascending: true })
-        .order("round_number", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching rounds:", error);
-        setMessage({ type: "error", text: `Error fetching rounds: ${error.message}` });
-      } else {
-        setRounds(data || []);
-      }
-    } catch (err) {
-      console.error("Unexpected error fetching rounds:", err);
-      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
-    }
-  };
-
-  const fetchTeams = async () => {
-    const TEAMS_TABLE = "super_rugby_teams";
-    try {
-      const { data, error } = await supabase
-        .from(TEAMS_TABLE)
-        .select("*")
-        .order("sort_order", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching teams:", {
-          message: error?.message,
-          details: error?.details,
-          hint: error?.hint,
-          code: error?.code,
-          raw: error
-        });
-        setMessage({ type: "error", text: `Error fetching teams: ${error?.message ?? JSON.stringify(error)}` });
-      } else {
-        setTeams(data || []);
-      }
-    } catch (err) {
-      console.error("Unexpected error fetching teams:", err);
-      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
-    }
-  };
-
-  const fetchFixtures = async (roundId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("fixtures")
-        .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
-        .eq("round_id", roundId)
-        .order("match_number", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching fixtures:", error);
-        setMessage({ type: "error", text: `Error fetching fixtures: ${error.message}` });
-      } else {
-        setFixtures(data || []);
-        if (data && data.length > 0) {
-          fetchResults(data.map((f) => f.id));
-        } else {
-          setResults({});
-          setResultEntries({});
-        }
-      }
-    } catch (err) {
-      console.error("Unexpected error fetching fixtures:", err);
-      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
-    }
-  };
-
-  const fetchResults = async (fixtureIds: string[]) => {
-    try {
-      const { data, error } = await supabase
-        .from("results")
-        .select("fixture_id, winning_team, margin_band")
-        .in("fixture_id", fixtureIds);
-
-      if (error) {
-        console.error("Error fetching results:", {
-          message: error?.message,
-          details: error?.details,
-          hint: error?.hint,
-          code: error?.code,
-        });
-        setMessage({ type: "error", text: `Error fetching results: ${error.message}` });
-      } else {
-        const resultsMap: Record<string, Result> = {};
-        const entriesMap: Record<string, { winning_team: string; margin_band: string | null }> = {};
-        (data || []).forEach((result) => {
-          resultsMap[result.fixture_id] = result;
-          entriesMap[result.fixture_id] = {
-            winning_team: result.winning_team,
-            margin_band: result.margin_band,
-          };
-        });
-        // Initialize entries for fixtures without results
-        fixtureIds.forEach((fixtureId) => {
-          if (!entriesMap[fixtureId]) {
-            entriesMap[fixtureId] = {
-              winning_team: "",
-              margin_band: null,
-            };
-          }
-        });
-        setResults(resultsMap);
-        setResultEntries(entriesMap);
-      }
-    } catch (err) {
-      console.error("Unexpected error fetching results:", err);
-      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
-    }
-  };
 
   const handleCreateRound = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,7 +276,7 @@ export default function AdminPage() {
 
       // Read response body safely
       const contentType = response.headers.get("content-type");
-      let result: any;
+      let result: { error?: string; data?: unknown } | null = null;
       let responseText: string | null = null;
 
       if (contentType?.includes("application/json")) {
@@ -343,7 +348,13 @@ export default function AdminPage() {
         ? new Date(fixtureKickoffAt).toISOString()
         : null;
 
-      const fixtureData: any = {
+      const fixtureData: {
+        round_id: string;
+        match_number: number;
+        home_team_code: string;
+        away_team_code: string;
+        kickoff_at: string | null;
+      } = {
         round_id: selectedRoundId,
         match_number: fixtureMatchNumber,
         home_team_code: fixtureHomeTeamCode,

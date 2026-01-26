@@ -315,7 +315,37 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    const response: any = {
+    const response: {
+      mode: string;
+      fixtures_scored: number;
+      gutFeelWins: number;
+      secondGuessWins: number;
+      unchanged: number;
+      pointsGained: number;
+      pointsLost: number;
+      totalChanges: number;
+      mostIndecisive: {
+        fixture_id: string;
+        changes: number;
+        first_pick: { picked_team: string; margin: number };
+        final_pick: { picked_team: string; margin: number };
+        first_points: number;
+        final_points: number;
+        delta: number;
+      } | null;
+      fixtures?: Array<{
+        fixture_id: string;
+        kickoff_at: string | null;
+        winning_team: string;
+        result_margin_band: string | null;
+        events_count: number;
+        first_pick: { team: string; margin_band: string | null; created_at: string };
+        final_pick: { team: string; margin_band: string | null; created_at: string };
+        first_points: number;
+        final_points: number;
+        delta: number;
+      }>;
+    } = {
       mode,
       fixtures_scored: fixturesScored,
       gutFeelWins,

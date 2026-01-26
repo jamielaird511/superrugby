@@ -96,6 +96,7 @@ export default function TeamHomePage() {
   const [showOwnTeamNotice, setShowOwnTeamNotice] = useState(false);
   const [fixtureResults, setFixtureResults] = useState<Record<string, FixtureResult>>({});
   const isInitializingRound = useRef(true);
+  const printDetailsRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
     if (participantId) {
@@ -467,6 +468,37 @@ export default function TeamHomePage() {
     }, 0);
   }, [selectedRoundId, nextRoundFixtures, fixtureResults, picks]);
 
+  // Close Print dropdown when clicking outside, pressing Escape, or scrolling
+  useEffect(() => {
+    const close = () => {
+      const el = printDetailsRef.current;
+      if (el?.open) el.open = false;
+    };
+
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = printDetailsRef.current;
+      if (!el) return;
+      if (el.open && !el.contains(e.target as Node)) {
+        close();
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+
+    const onScroll = () => close();
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, []);
+
   const handleSetWinner = (fixtureId: string, teamCode: string) => {
     setSelectedWinnerByFixtureId((prev) => ({
       ...prev,
@@ -781,8 +813,9 @@ export default function TeamHomePage() {
         {/* Next Round Section */}
         <div className="mb-8">
           <div className="mb-4 flex justify-center">
-            <div className="w-full max-w-2xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="w-full max-w-2xl flex items-center justify-between gap-4">
+              {/* Left: Round dropdown */}
+              <div className="flex items-center gap-2">
                 {rounds.length > 0 && (
                   <Select.Root
                     value={selectedRoundId || undefined}
@@ -849,33 +882,45 @@ export default function TeamHomePage() {
                     </Select.Portal>
                   </Select.Root>
                 )}
-                {selectedRoundId && (
-                  <div className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                    Round total: {roundTotalPoints} pts
-                  </div>
-                )}
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Right: TOTAL stat box + Print button */}
+              <div className="flex items-center gap-3 justify-end">
                 {selectedRoundId && (
                   <>
-                    <Link
-                      href={`/print/round/${selectedRoundId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
-                    >
-                      <PrinterIcon className="h-4 w-4" />
-                      Picks (Blank)
-                    </Link>
-                    <Link
-                      href={`/print/round/${selectedRoundId}/team/${participant?.id || participantId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-md bg-[#004165] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003554]"
-                    >
-                      <PrinterIcon className="h-4 w-4" />
-                      Picks (My Picks)
-                    </Link>
+                    <div className="w-[76px] h-[56px] rounded-lg border-2 border-slate-300 bg-white text-center px-2 py-2 flex flex-col items-center justify-center dark:border-zinc-600 dark:bg-zinc-900">
+                      <div className="text-lg font-extrabold leading-none text-zinc-900 dark:text-zinc-100">{roundTotalPoints}</div>
+                      <div className="text-[10px] tracking-wide text-slate-600 dark:text-zinc-400">TOTAL</div>
+                    </div>
+                    <details ref={printDetailsRef} className="relative">
+                      <summary className="list-none cursor-pointer inline-flex items-center justify-center rounded-lg w-[76px] h-[56px] bg-[#004165] text-white hover:bg-[#003554] transition-colors [&::-webkit-details-marker]:hidden">
+                        <PrinterIcon className="h-7 w-7" />
+                      </summary>
+                      <div className="absolute right-0 mt-2 w-56 rounded-md border border-zinc-300 bg-white shadow-lg p-1 z-50 dark:border-zinc-700 dark:bg-zinc-900">
+                        <Link
+                          href={`/print/round/${selectedRoundId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => {
+                            if (printDetailsRef.current) printDetailsRef.current.open = false;
+                          }}
+                          className="block rounded px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          Blank Picks Sheet
+                        </Link>
+                        <Link
+                          href={`/print/round/${selectedRoundId}/team/${participant?.id || participantId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => {
+                            if (printDetailsRef.current) printDetailsRef.current.open = false;
+                          }}
+                          className="block rounded px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          My Picks Sheet
+                        </Link>
+                      </div>
+                    </details>
                   </>
                 )}
               </div>

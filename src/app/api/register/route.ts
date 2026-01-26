@@ -132,9 +132,11 @@ export async function POST(req: NextRequest) {
 
     // Dedupe emails and insert participant contacts
     const uniqueEmails = Array.from(new Set(validEmails));
-    const contactsToInsert = uniqueEmails.map((email: string) => ({
+    const contactsToInsert = uniqueEmails.map((email: string, index: number) => ({
       participant_id: participantId,
       email: email,
+      is_primary: index === 0, // First email is primary
+      receives_updates: true,
     }));
 
     const { error: contactsError } = await supabaseAdmin

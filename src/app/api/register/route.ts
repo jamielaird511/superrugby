@@ -130,25 +130,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Dedupe emails and insert participant contacts
-    const uniqueEmails = Array.from(new Set(validEmails));
-    const contactsToInsert = uniqueEmails.map((email: string, index: number) => ({
-      participant_id: participantId,
-      email: email,
-      is_primary: index === 0, // First email is primary
-      receives_updates: true,
-    }));
-
-    const { error: contactsError } = await supabaseAdmin
+    // Check if primary contact already exists (prevent duplicates on retry)
+    const { data: existingPrimary, error: checkError } = await supabaseAdmin
       .from("participant_contacts")
-      .insert(contactsToInsert);
+      .select("id")
+      .eq("participant_id", participantId)
+      .eq("is_primary", true)
+      .maybeSingle();
 
-    if (contactsError) {
-      console.error("Error creating participant contacts:", contactsError);
+    if (checkError) {
+      console.error("Error checking existing primary contact:", checkError);
       return NextResponse.json(
-        { error: "Failed to create contacts" },
+        { error: "Failed to check existing contacts" },
         { status: 500 }
       );
+    }
+
+    // Dedupe emails
+    const uniqueEmails = Array.from(new Set(validEmails));
+    const primaryEmail = uniqueEmails[0];
+    const additionalEmails = uniqueEmails.slice(1);
+
+    // Insert primary contact if it doesn't exist
+    if (!existingPrimary) {
+      const { error: primaryContactError } = await supabaseAdmin
+        .from("participant_contacts")
+        .insert([
+          {
+            participant_id: participantId,
+            email: primaryEmail,
+            is_primary: true,
+            receives_updates: true,
+          },
+        ]);
+
+      if (primaryContactError) {
+        console.error("Error creating primary contact:", primaryContactError);
+        return NextResponse.json(
+          { error: "Failed to create primary contact" },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Insert additional contacts (if any)
+    if (additionalEmails.length > 0) {
+      const additionalContactsToInsert = additionalEmails.map((email: string) => ({
+        participant_id: participantId,
+        email: email,
+        is_primary: false,
+        receives_updates: true,
+      }));
+
+      const { error: additionalContactsError } = await supabaseAdmin
+        .from("participant_contacts")
+        .insert(additionalContactsToInsert);
+
+      if (additionalContactsError) {
+        console.error("Error creating additional contacts:", additionalContactsError);
+        return NextResponse.json(
+          { error: "Failed to create additional contacts" },
+          { status: 500 }
+        );
+      }
     }
 
     // Return success with participantId and authEmail

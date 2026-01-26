@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import TeamNav from "@/components/TeamNav";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 type Participant = {
   id: string;
@@ -34,6 +35,9 @@ export default function SettingsPage() {
   const [settingsData, setSettingsData] = useState<SettingsData | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   // Form state
   const [teamName, setTeamName] = useState("");
@@ -60,6 +64,25 @@ export default function SettingsPage() {
       fetchInitialData();
     }
   }, [participantId]);
+
+  // Handle Esc key to close delete modal
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && deleteTarget) {
+        setDeleteTarget(null);
+        setDeleteError(null);
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [deleteTarget]);
+
+  // Focus cancel button when modal opens
+  useEffect(() => {
+    if (deleteTarget && cancelButtonRef.current) {
+      cancelButtonRef.current.focus();
+    }
+  }, [deleteTarget]);
 
   const fetchInitialData = async () => {
     try {
@@ -281,16 +304,26 @@ export default function SettingsPage() {
     }
   };
 
-  const deleteContact = async (contactId: string) => {
-    if (!confirm("Are you sure you want to remove this email recipient?")) return;
+  const handleDeleteClick = (contactId: string, email: string) => {
+    setDeleteTarget({ id: contactId, email });
+    setDeleteError(null);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteTarget(null);
+    setDeleteError(null);
+  };
+
+  const deleteContact = async () => {
+    if (!deleteTarget) return;
 
     try {
       setSaving(true);
-      setMessage(null);
+      setDeleteError(null);
 
       const authHeaders = await getAuthHeader();
       if (!authHeaders.Authorization) {
-        setMessage({ type: "error", text: "Please log in again" });
+        setDeleteError("Please log in again");
         setSaving(false);
         return;
       }
@@ -302,7 +335,7 @@ export default function SettingsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          delete_contact_id: contactId,
+          delete_contact_id: deleteTarget.id,
         }),
       });
 
@@ -312,10 +345,11 @@ export default function SettingsPage() {
       }
 
       setMessage({ type: "success", text: "Email removed successfully" });
+      closeDeleteModal();
       await fetchSettings();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete";
-      setMessage({ type: "error", text: errorMessage });
+      setDeleteError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -442,7 +476,7 @@ export default function SettingsPage() {
                             Receives updates
                           </label>
                           <button
-                            onClick={() => deleteContact(contact.id)}
+                            onClick={() => handleDeleteClick(contact.id, contact.email)}
                             disabled={saving}
                             className="text-xs text-red-600 hover:text-red-700 focus:outline-none disabled:opacity-50"
                           >
@@ -496,6 +530,70 @@ export default function SettingsPage() {
           </section>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={closeDeleteModal}
+        >
+          <div
+            className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={closeDeleteModal}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#004165] rounded-md p-1"
+              disabled={saving}
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+
+            {/* Title */}
+            <h3 className="text-lg font-semibold text-[#003A5D] pr-8">
+              Remove email recipient?
+            </h3>
+
+            {/* Body */}
+            <p className="text-sm text-slate-600 mt-1.5">
+              This email will no longer receive updates for this team.
+            </p>
+
+            {/* Email being removed */}
+            <div className="mt-3">
+              <span className="text-xs font-medium text-slate-500">Removing:</span>
+              <div className="mt-1 inline-flex items-center px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md">
+                <span className="text-sm font-mono text-slate-800">{deleteTarget.email}</span>
+              </div>
+            </div>
+
+            {/* Error message */}
+            {deleteError && (
+              <p className="text-red-600 text-sm mt-3">{deleteError}</p>
+            )}
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                ref={cancelButtonRef}
+                onClick={closeDeleteModal}
+                disabled={saving}
+                className="inline-flex items-center justify-center border border-[#003A5D] text-[#003A5D] bg-white hover:bg-[#E6F1F7] rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteContact}
+                disabled={saving}
+                className="inline-flex items-center justify-center bg-red-600 text-white hover:bg-red-700 rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? "Removing…" : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

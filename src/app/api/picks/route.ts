@@ -259,6 +259,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // If a result already exists for this fixture, picks are permanently locked
+    const { data: existingResult, error: resultError } = await supabaseAdmin
+      .from("results")
+      .select("fixture_id")
+      .eq("fixture_id", fixtureId)
+      .maybeSingle();
+
+    if (resultError) {
+      console.error("Error checking existing result for fixture:", {
+        message: resultError?.message,
+        details: resultError?.details,
+        hint: resultError?.hint,
+        code: resultError?.code,
+        raw: resultError,
+      });
+      return NextResponse.json(
+        { error: "Failed to validate fixture lock state" },
+        { status: 500 }
+      );
+    }
+
+    if (existingResult) {
+      return NextResponse.json(
+        { error: "Fixture is locked (final result recorded)" },
+        { status: 403 }
+      );
+    }
+
     // Check if fixture is locked (kickoff has passed)
     if (fixture.kickoff_at) {
       const kickoffTime = new Date(fixture.kickoff_at);

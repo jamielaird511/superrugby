@@ -983,7 +983,7 @@ export default function TeamHomePage() {
                 const awayName = awayTeam?.name || TEAM_NAMES[fixture.away_team_code] || fixture.away_team_code;
                 const status = getFixtureStatus(fixture);
                 const kickoffStr = formatKickoff(fixture.kickoff_at);
-                const isLocked = isFixtureLocked(fixture.kickoff_at);
+                const isLocked = isFixtureLocked(fixture.kickoff_at) || !!fixtureResults[fixture.id];
                 const selectedWinner = selectedWinnerByFixtureId[fixture.id] || "";
                 const selectedMargin = selectedMarginByFixtureId[fixture.id] || "";
                 const existingPick = picks[fixture.id];

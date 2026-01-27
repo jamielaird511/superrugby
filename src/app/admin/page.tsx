@@ -638,8 +638,16 @@ export default function AdminPage() {
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">Admin - Rounds & Fixtures</h1>
+          <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">
+            Admin - Rounds & Fixtures
+          </h1>
           <div className="flex items-center gap-4">
+            <Link
+              href="/admin/structure"
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            >
+              Structure
+            </Link>
             <Link
               href="/admin/emails"
               className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"

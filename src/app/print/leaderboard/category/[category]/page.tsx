@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
 import PrintButton from "@/components/PrintButton";
@@ -73,7 +72,7 @@ export default function PrintCategoryLeaderboard() {
     };
 
     fetchData();
-  }, [categorySlug, searchParams]);
+  }, [categorySlug]);
 
   if (loading) {
     return <div className="p-8">Loading...</div>;

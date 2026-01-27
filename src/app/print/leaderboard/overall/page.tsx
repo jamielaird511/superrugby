@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import PrintButton from "@/components/PrintButton";
 
@@ -25,8 +24,21 @@ function sortLeaderboardRows<T extends { total_points: number; team_name: string
   });
 }
 
-export default function PrintOverallLeaderboard() {
-  const searchParams = useSearchParams();
+type SearchParams = { [key: string]: string | string[] | undefined };
+
+export default function PrintOverallLeaderboard({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  const leagueIdParamRaw = searchParams?.leagueId;
+  const leagueIdParam =
+    typeof leagueIdParamRaw === "string"
+      ? leagueIdParamRaw
+      : Array.isArray(leagueIdParamRaw)
+      ? leagueIdParamRaw[0]
+      : undefined;
+
   const [scores, setScores] = useState<OverallScore[]>([]);
   const [businessNames, setBusinessNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -35,7 +47,6 @@ export default function PrintOverallLeaderboard() {
     const fetchData = async () => {
       try {
         // Get league_id from query param or default to ANZ2026
-        const leagueIdParam = searchParams.get("leagueId");
         let targetLeagueId: string | null = null;
 
         if (leagueIdParam) {
@@ -90,7 +101,7 @@ export default function PrintOverallLeaderboard() {
     };
 
     fetchData();
-  }, [searchParams]);
+  }, [leagueIdParam]);
 
   if (loading) {
     return <div className="p-8">Loading...</div>;

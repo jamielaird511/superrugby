@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
     // Fetch the participant row for this user
     const { data: participant, error: participantError } = await supabase
       .from("participants")
-      .select("id")
+      .select("id, league_id")
       .eq("auth_user_id", user.id)
       .single();
 
@@ -87,6 +88,25 @@ export async function GET(req: NextRequest) {
         { status: 403 }
       );
     }
+
+    const leagueId = participant.league_id;
+
+    // Look up competition_id for this participant's league
+    const { data: league, error: leagueError } = await supabaseAdmin
+      .from("leagues")
+      .select("competition_id")
+      .eq("id", leagueId)
+      .single();
+
+    if (leagueError || !league) {
+      console.error("Error fetching league for print:", leagueError);
+      return NextResponse.json(
+        { error: "League not found for participant" },
+        { status: 500 }
+      );
+    }
+
+    const competitionId = league.competition_id;
 
     const { searchParams } = new URL(req.url);
     const roundId = searchParams.get("roundId");
@@ -107,11 +127,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch fixtures for this round to get fixture IDs
+    // Fetch fixtures for this round and competition to get fixture IDs
     const { data: fixtures, error: fixturesError } = await supabase
       .from("fixtures")
       .select("id")
-      .eq("round_id", roundId);
+      .eq("round_id", roundId)
+      .eq("competition_id", competitionId);
 
     if (fixturesError) {
       console.error("Error fetching fixtures:", fixturesError);
@@ -127,11 +148,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ picks: [] }, { status: 200 });
     }
 
-    // Query picks for this participant and round (using non-admin client so RLS applies)
+    // Query picks for this participant, round, and league (using non-admin client so RLS applies)
     const { data, error } = await supabase
       .from("picks")
       .select("fixture_id, picked_team, margin")
       .eq("participant_id", participantId)
+      .eq("league_id", leagueId)
       .in("fixture_id", fixtureIds);
 
     if (error) {

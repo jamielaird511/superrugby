@@ -44,22 +44,27 @@ export default function PrintRoundLeaderboard() {
       if (!roundId) return;
 
       try {
-        // Fetch round info
+        // Fetch round info (including league_id)
         const { data: roundData, error: roundError } = await supabase
           .from("rounds")
-          .select("id, season, round_number")
+          .select("id, season, round_number, league_id")
           .eq("id", roundId)
           .single();
 
-        if (!roundError && roundData) {
-          setRound(roundData);
+        if (roundError || !roundData) {
+          console.error("Error fetching round:", roundError);
+          setLoading(false);
+          return;
         }
 
-        // Fetch round leaderboard
+        setRound(roundData);
+
+        // Fetch round leaderboard (filtered by round's league)
         const { data: leaderboardData, error: leaderboardError } = await supabase
           .from("leaderboard_round_public")
           .select("participant_id, team_name, category, total_points")
-          .eq("round_id", roundId);
+          .eq("round_id", roundId)
+          .eq("league_id", roundData.league_id);
 
         if (leaderboardError) {
           console.error("Error fetching leaderboard:", leaderboardError);

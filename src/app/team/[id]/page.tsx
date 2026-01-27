@@ -33,6 +33,8 @@ type Participant = {
   business_name: string;
   team_name: string;
   category: string;
+  league_id?: string;
+  competition_id?: string;
 };
 
 type ParticipantContact = {
@@ -97,6 +99,7 @@ export default function TeamHomePage() {
   const [fixtureResults, setFixtureResults] = useState<Record<string, FixtureResult>>({});
   const isInitializingRound = useRef(true);
   const printDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const [participantCompetitionId, setParticipantCompetitionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (participantId) {
@@ -198,12 +201,36 @@ export default function TeamHomePage() {
         setContacts(contactsData || []);
       }
 
-      // Fetch rounds for current season (default to current year)
+      // Fetch rounds for current season and participant's competition (default to current year)
       const currentSeason = new Date().getFullYear();
+      const participantLeagueId = participantData?.league_id;
+      if (!participantLeagueId) {
+        console.warn("Participant league_id not found");
+        setLoading(false);
+        return;
+      }
+
+      // Look up competition_id for this league
+      const { data: league, error: leagueError } = await supabase
+        .from("leagues")
+        .select("competition_id")
+        .eq("id", participantLeagueId)
+        .maybeSingle();
+
+      if (leagueError || !league) {
+        console.warn("League/competition not found for participant");
+        setLoading(false);
+        return;
+      }
+
+      const competitionId = league.competition_id as string | null;
+      setParticipantCompetitionId(competitionId);
+
       const roundsRes = await supabase
         .from("rounds")
         .select("id, season, round_number")
         .eq("season", currentSeason)
+        .eq("competition_id", competitionId)
         .order("round_number", { ascending: true });
 
       if (roundsRes.error) {
@@ -212,12 +239,13 @@ export default function TeamHomePage() {
         setRounds(roundsRes.data || []);
       }
 
-      // Find next round from fixtures only
+      // Find next round from fixtures only (filtered by competition)
       const nowISO = new Date().toISOString();
       const upcomingFixturesRes = await supabase
         .from(FIXTURES_TABLE)
         .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
         .gt("kickoff_at", nowISO)
+        .eq("competition_id", competitionId)
         .order("kickoff_at", { ascending: true })
         .limit(10);
 
@@ -247,12 +275,13 @@ export default function TeamHomePage() {
         setSelectedRoundId(initialRoundId);
       }
 
-      // Fetch fixtures for selected round
+      // Fetch fixtures for selected round and participant's competition
       if (initialRoundId) {
         const fixturesRes = await supabase
           .from(FIXTURES_TABLE)
           .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
           .eq("round_id", initialRoundId)
+          .eq("competition_id", competitionId)
           .order("kickoff_at", { ascending: true });
 
         if (fixturesRes.error) {
@@ -406,12 +435,14 @@ export default function TeamHomePage() {
         return;
       }
 
-      // Fetch fixtures for selected round
+      // Fetch fixtures for selected round and participant's competition
       const fetchRoundFixtures = async () => {
+        if (!participantCompetitionId) return;
         const fixturesRes = await supabase
           .from(FIXTURES_TABLE)
           .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
           .eq("round_id", selectedRoundId)
+          .eq("competition_id", participantCompetitionId)
           .order("kickoff_at", { ascending: true });
 
         if (fixturesRes.error) {

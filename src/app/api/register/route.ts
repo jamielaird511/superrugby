@@ -14,14 +14,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate league code
-    const expectedLeagueCode = process.env.LEAGUE_CODE;
-    if (!expectedLeagueCode || leagueCode !== expectedLeagueCode) {
+    // Look up league by league_code
+    const { data: league, error: leagueError } = await supabaseAdmin
+      .from("leagues")
+      .select("id")
+      .eq("league_code", leagueCode)
+      .single();
+
+    if (leagueError || !league) {
       return NextResponse.json(
         { error: "Invalid league code" },
         { status: 401 }
       );
     }
+
+    const leagueId = league.id;
 
     // Validate password length
     if (password.length < 6) {
@@ -71,6 +78,7 @@ export async function POST(req: NextRequest) {
           business_name: businessName.trim(),
           team_name: teamName.trim(),
           category: category,
+          league_id: leagueId,
         },
       ])
       .select("id")

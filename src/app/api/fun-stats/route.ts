@@ -45,15 +45,49 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Get participant's league_id
+    const { data: participant, error: participantError } = await supabaseAdmin
+      .from("participants")
+      .select("league_id")
+      .eq("id", participantId)
+      .single();
+
+    if (participantError || !participant) {
+      return NextResponse.json(
+        { error: "Participant not found" },
+        { status: 404 }
+      );
+    }
+
+    const leagueId = participant.league_id;
+
+    // Look up competition_id for this league
+    const { data: league, error: leagueError } = await supabaseAdmin
+      .from("leagues")
+      .select("competition_id")
+      .eq("id", leagueId)
+      .single();
+
+    if (leagueError || !league) {
+      console.error("Error fetching league for fun-stats:", leagueError);
+      return NextResponse.json(
+        { error: "League not found for participant" },
+        { status: 500 }
+      );
+    }
+
+    const competitionId = league.competition_id;
+
     // Determine which fixtures to analyze
     let allFixtureIds: string[] = [];
 
     if (mode === "round" && roundId) {
-      // Fetch fixtures for specific round
+      // Fetch fixtures for specific round within the participant's competition
       const { data: fixturesData, error: fixturesError } = await supabaseAdmin
         .from("fixtures")
         .select("id")
-        .eq("round_id", roundId);
+        .eq("round_id", roundId)
+        .eq("competition_id", competitionId);
 
       if (fixturesError) {
         console.error("Error fetching round fixtures:", fixturesError);
@@ -65,12 +99,13 @@ export async function GET(req: NextRequest) {
 
       allFixtureIds = (fixturesData || []).map((f) => f.id);
     } else {
-      // Fetch fixtures for current season by joining with rounds
+      // Fetch fixtures for current season and competition by joining with rounds
       const currentSeason = new Date().getFullYear();
       const { data: roundsData, error: roundsError } = await supabaseAdmin
         .from("rounds")
         .select("id")
-        .eq("season", currentSeason);
+        .eq("season", currentSeason)
+        .eq("competition_id", competitionId);
 
       if (roundsError) {
         console.error("Error fetching rounds:", roundsError);
@@ -85,7 +120,8 @@ export async function GET(req: NextRequest) {
         const { data: fixturesData, error: fixturesError } = await supabaseAdmin
           .from("fixtures")
           .select("id")
-          .in("round_id", roundIds);
+          .in("round_id", roundIds)
+          .eq("competition_id", competitionId);
 
         if (fixturesError) {
           console.error("Error fetching season fixtures:", fixturesError);
@@ -156,11 +192,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fetch fixtures with kickoff times (only those with results)
+    // Fetch fixtures with kickoff times (only those with results) and filter by competition
     const { data: fixturesData, error: fixturesError } = await supabaseAdmin
       .from("fixtures")
       .select("id, kickoff_at, round_id")
-      .in("id", fixtureIdsWithResults);
+      .in("id", fixtureIdsWithResults)
+      .eq("competition_id", competitionId);
 
     if (fixturesError) {
       console.error("Error fetching fixtures:", fixturesError);
@@ -181,6 +218,8 @@ export async function GET(req: NextRequest) {
     });
 
     // Fetch pick events for this participant and these fixtures (only fixtures with results)
+    // Note: pick_events table doesn't have league_id, but we filter by participant_id and fixture_id
+    // which are already scoped to the league via the fixtures query above
     const { data: eventsData, error: eventsError } = await supabaseAdmin
       .from("pick_events")
       .select("id, participant_id, fixture_id, picked_team, margin, created_at")

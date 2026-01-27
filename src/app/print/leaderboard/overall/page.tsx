@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import PrintButton from "@/components/PrintButton";
 
@@ -25,6 +26,7 @@ function sortLeaderboardRows<T extends { total_points: number; team_name: string
 }
 
 export default function PrintOverallLeaderboard() {
+  const searchParams = useSearchParams();
   const [scores, setScores] = useState<OverallScore[]>([]);
   const [businessNames, setBusinessNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -32,10 +34,33 @@ export default function PrintOverallLeaderboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch overall leaderboard
+        // Get league_id from query param or default to ANZ2026
+        const leagueIdParam = searchParams.get("leagueId");
+        let targetLeagueId: string | null = null;
+
+        if (leagueIdParam) {
+          targetLeagueId = leagueIdParam;
+        } else {
+          // Default to ANZ2026 league
+          const { data: defaultLeague } = await supabase
+            .from("leagues")
+            .select("id")
+            .eq("league_code", "ANZ2026")
+            .single();
+          targetLeagueId = defaultLeague?.id || null;
+        }
+
+        if (!targetLeagueId) {
+          console.error("Could not determine league");
+          setLoading(false);
+          return;
+        }
+
+        // Fetch overall leaderboard (filtered by league)
         const { data: leaderboardData, error: leaderboardError } = await supabase
           .from("leaderboard_overall_public")
-          .select("participant_id, team_name, category, total_points");
+          .select("participant_id, team_name, category, total_points")
+          .eq("league_id", targetLeagueId);
 
         if (leaderboardError) {
           console.error("Error fetching leaderboard:", leaderboardError);
@@ -65,7 +90,7 @@ export default function PrintOverallLeaderboard() {
     };
 
     fetchData();
-  }, []);
+  }, [searchParams]);
 
   if (loading) {
     return <div className="p-8">Loading...</div>;

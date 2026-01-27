@@ -44,11 +44,38 @@ export default function LeaderboardPage() {
         return;
       }
 
+      // Get user's league_id from their participant record
+      const { data: participant } = await supabase
+        .from("participants")
+        .select("league_id")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (!participant?.league_id) {
+        setError("Could not determine league");
+        setLoading(false);
+        return;
+      }
+
+      // Look up competition_id for this league
+      const { data: league, error: leagueError } = await supabase
+        .from("leagues")
+        .select("competition_id")
+        .eq("id", participant.league_id)
+        .maybeSingle();
+
+      if (leagueError || !league) {
+        setError("Could not determine competition");
+        setLoading(false);
+        return;
+      }
+
       const nowISO = new Date().toISOString();
       const { data: upcoming, error: upErr } = await supabase
         .from("fixtures")
         .select("round_id, kickoff_at")
         .gt("kickoff_at", nowISO)
+        .eq("competition_id", league.competition_id)
         .order("kickoff_at", { ascending: true })
         .limit(1);
 
@@ -70,7 +97,8 @@ export default function LeaderboardPage() {
       const { data: lb, error: lbErr } = await supabase
         .from("v_round_leaderboard")
         .select("round_id, participant_id, team_name, business_name, round_points")
-        .eq("round_id", currentRoundId);
+        .eq("round_id", currentRoundId)
+        .eq("league_id", participant.league_id);
 
       if (lbErr) {
         setError(lbErr.message);

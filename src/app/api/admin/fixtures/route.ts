@@ -87,18 +87,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get league/competition from round
+    const { data: round, error: roundError } = await supabaseAdmin
+      .from("rounds")
+      .select("league_id, competition_id")
+      .eq("id", round_id)
+      .single();
+
+    if (roundError || !round) {
+      return NextResponse.json(
+        { error: "Round not found" },
+        { status: 404 }
+      );
+    }
+
     const fixtureData: {
       round_id: string;
       match_number: number;
       home_team_code: string;
       away_team_code: string;
       kickoff_at: string | null;
+      league_id: string;
+      competition_id: string;
     } = {
       round_id,
       match_number,
       home_team_code,
       away_team_code,
       kickoff_at: kickoff_at || null,
+      league_id: round.league_id,
+      competition_id: round.competition_id,
     };
 
     let data;

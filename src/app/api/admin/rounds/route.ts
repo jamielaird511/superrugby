@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { season, round_number } = body;
+    const { season, round_number, leagueCode } = body;
 
     if (!season || !round_number) {
       return NextResponse.json(
@@ -87,10 +87,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Look up league by leagueCode (default to ANZ2026 for backward compatibility)
+    const targetLeagueCode = leagueCode || "ANZ2026";
+    const { data: league, error: leagueError } = await supabaseAdmin
+      .from("leagues")
+      .select("id, competition_id")
+      .eq("league_code", targetLeagueCode)
+      .single();
+
+    if (leagueError || !league) {
+      return NextResponse.json(
+        { error: `League not found: ${targetLeagueCode}` },
+        { status: 404 }
+      );
+    }
+
     // Insert using supabaseAdmin (service role)
     const { data, error } = await supabaseAdmin
       .from("rounds")
-      .insert([{ season, round_number }])
+      .insert([{ season, round_number, league_id: league.id, competition_id: league.competition_id }])
       .select();
 
     if (error) {

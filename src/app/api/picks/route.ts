@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     // Fetch the participant row for this user
     const { data: participant, error: participantError } = await supabase
       .from("participants")
-      .select("id")
+      .select("id, league_id")
       .eq("auth_user_id", user.id)
       .single();
 
@@ -102,11 +102,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Query picks ONLY for participant.id (ignore any other id) - using non-admin client so RLS applies
+    // Query picks ONLY for participant.id and their league - using non-admin client so RLS applies
     const { data, error } = await supabase
       .from("picks")
       .select("fixture_id, picked_team, margin")
-      .eq("participant_id", participant.id);
+      .eq("participant_id", participant.id)
+      .eq("league_id", participant.league_id);
 
     if (error) {
       console.error("Error fetching picks:", error);
@@ -151,7 +152,7 @@ export async function POST(req: NextRequest) {
     // Fetch participant row for this user (their real participant id)
     const { data: me, error: meErr } = await supabase
       .from("participants")
-      .select("id")
+      .select("id, league_id")
       .eq("auth_user_id", user.id)
       .single();
 
@@ -198,10 +199,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch fixture to validate lockout and team codes
+    // Look up competition_id for this participant's league
+    const { data: league, error: leagueError } = await supabaseAdmin
+      .from("leagues")
+      .select("competition_id")
+      .eq("id", me.league_id)
+      .single();
+
+    if (leagueError || !league) {
+      console.error("Error fetching league for picks:", leagueError);
+      return NextResponse.json(
+        { error: "League not found for participant" },
+        { status: 500 }
+      );
+    }
+
+    const competitionId = league.competition_id;
+
+    // Fetch fixture to validate lockout and team codes, and verify competition matches
     const { data: fixture, error: fixtureError } = await supabaseAdmin
       .from("fixtures")
-      .select("id, kickoff_at, home_team_code, away_team_code")
+      .select("id, kickoff_at, home_team_code, away_team_code, competition_id")
       .eq("id", fixtureId)
       .single();
 
@@ -230,6 +248,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Fixture not found" },
         { status: 404 }
+      );
+    }
+
+    // Verify fixture belongs to the same competition as the participant's league
+    if (fixture.competition_id !== competitionId) {
+      return NextResponse.json(
+        { error: "Fixture does not belong to your competition" },
+        { status: 403 }
       );
     }
 
@@ -330,6 +356,7 @@ export async function POST(req: NextRequest) {
           fixture_id: fixtureId,
           picked_team: pickedTeamCode,
           margin: margin,
+          league_id: me.league_id,
         });
 
       if (insertError) {

@@ -241,6 +241,8 @@ export default function ResultsPage() {
   const [gutScope, setGutScope] = useState<"season" | "round">("season");
   const [selectedGutRoundId, setSelectedGutRoundId] = useState<string | null>(null);
   const gutDefaultHasBeenSet = useRef(false);
+  const [participantLeagueId, setParticipantLeagueId] = useState<string | null>(null);
+  const [participantCompetitionId, setParticipantCompetitionId] = useState<string | null>(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -322,7 +324,7 @@ export default function ResultsPage() {
       // Fetch current participant
       const { data: participantData, error: participantError } = await supabase
         .from("participants")
-        .select("id, business_name, team_name, category")
+        .select("id, business_name, team_name, category, league_id")
         .eq("id", participantId)
         .single();
 
@@ -332,6 +334,23 @@ export default function ResultsPage() {
         team_name: participantData.team_name,
         category: participantData.category,
       });
+      setParticipantLeagueId(participantData.league_id);
+
+      // Look up competition_id for this participant's league
+      const { data: league, error: leagueError } = await supabase
+        .from("leagues")
+        .select("competition_id")
+        .eq("id", participantData.league_id)
+        .maybeSingle();
+
+      if (leagueError || !league) {
+        console.error("Error fetching league/competition for results:", leagueError);
+        setLoading(false);
+        return;
+      }
+
+      const competitionId = league.competition_id as string | null;
+      setParticipantCompetitionId(competitionId);
 
       // Fetch all participants
       const { data: allParticipantsData, error: allParticipantsError } = await supabase
@@ -376,12 +395,13 @@ export default function ResultsPage() {
         setBusinessNamesByParticipant(map);
       }
 
-      // Fetch rounds for current season
+      // Fetch rounds for current season and participant's competition
       const currentSeason = new Date().getFullYear();
       const { data: roundsData, error: roundsError } = await supabase
         .from("rounds")
         .select("id, season, round_number")
         .eq("season", currentSeason)
+        .eq("competition_id", competitionId)
         .order("round_number", { ascending: true });
 
       if (roundsError) throw roundsError;
@@ -393,7 +413,7 @@ export default function ResultsPage() {
         setSnapshotRoundId(roundsData[0].id);
       }
 
-      // Fetch all fixtures for current season
+      // Fetch all fixtures for current season and participant's competition
       const { data: allFixturesData, error: allFixturesError } = await supabase
         .from("fixtures")
         .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
@@ -401,15 +421,17 @@ export default function ResultsPage() {
           "round_id",
           (roundsData || []).map((r) => r.id)
         )
+        .eq("competition_id", competitionId)
         .order("kickoff_at", { ascending: true });
 
       if (allFixturesError) throw allFixturesError;
       setAllFixtures(allFixturesData || []);
 
-      // Fetch overall leaderboard
+      // Fetch overall leaderboard (filtered by participant's league)
       const { data: overallLeaderboardData, error: overallLeaderboardError } = await supabase
         .from("leaderboard_overall_public")
-        .select("participant_id, team_name, category, total_points");
+        .select("participant_id, team_name, category, total_points")
+        .eq("league_id", participantData.league_id);
 
       if (overallLeaderboardError) {
         console.warn("Error fetching overall leaderboard:", overallLeaderboardError);
@@ -460,22 +482,25 @@ export default function ResultsPage() {
   };
 
   const fetchRoundData = async (roundId: string) => {
+    if (!participantLeagueId || !participantCompetitionId) return;
     try {
-      // Fetch fixtures for selected round
+      // Fetch fixtures for selected round and participant's competition
       const { data: fixturesData, error: fixturesError } = await supabase
         .from("fixtures")
         .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
         .eq("round_id", roundId)
+        .eq("competition_id", participantCompetitionId)
         .order("match_number", { ascending: true });
 
       if (fixturesError) throw fixturesError;
       setRoundFixtures(fixturesData || []);
 
-      // Fetch round leaderboard
+      // Fetch round leaderboard (filtered by participant's league)
       const { data: roundLeaderboardData, error: roundLeaderboardError } = await supabase
         .from("leaderboard_round_public")
         .select("participant_id, team_name, category, total_points")
-        .eq("round_id", roundId);
+        .eq("round_id", roundId)
+        .eq("league_id", participantLeagueId);
 
       if (roundLeaderboardError) {
         console.warn("Error fetching round leaderboard:", roundLeaderboardError);
@@ -512,22 +537,25 @@ export default function ResultsPage() {
   };
 
   const fetchSnapshotRoundData = async (roundId: string) => {
+    if (!participantLeagueId || !participantCompetitionId) return;
     try {
-      // Fetch fixtures for snapshot round
+      // Fetch fixtures for snapshot round and participant's competition
       const { data: fixturesData, error: fixturesError } = await supabase
         .from("fixtures")
         .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
         .eq("round_id", roundId)
+        .eq("competition_id", participantCompetitionId)
         .order("match_number", { ascending: true });
 
       if (fixturesError) throw fixturesError;
       setSnapshotRoundFixtures(fixturesData || []);
 
-      // Fetch snapshot round leaderboard
+      // Fetch snapshot round leaderboard (filtered by participant's league)
       const { data: snapshotRoundLeaderboardData, error: snapshotRoundLeaderboardError } = await supabase
         .from("leaderboard_round_public")
         .select("participant_id, team_name, category, total_points")
-        .eq("round_id", roundId);
+        .eq("round_id", roundId)
+        .eq("league_id", participantLeagueId);
 
       if (snapshotRoundLeaderboardError) {
         console.warn("Error fetching snapshot round leaderboard:", snapshotRoundLeaderboardError);
@@ -1143,7 +1171,7 @@ export default function ResultsPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-[#003A5D]">Overall Leaderboard</h2>
               <PrintButton
-                onClick={() => window.open("/print/leaderboard/overall", "_blank", "noopener,noreferrer")}
+                onClick={() => window.open(`/print/leaderboard/overall?leagueId=${participantLeagueId || ""}`, "_blank", "noopener,noreferrer")}
               />
             </div>
             {overallScores.length > 0 ? (
@@ -1237,7 +1265,7 @@ export default function ResultsPage() {
                   </Select.Root>
                   {selectedCategory && (
                     <PrintButton
-                      onClick={() => window.open(`/print/leaderboard/category/${encodeURIComponent(selectedCategory)}`, "_blank", "noopener,noreferrer")}
+                      onClick={() => window.open(`/print/leaderboard/category/${encodeURIComponent(selectedCategory)}?leagueId=${participantLeagueId || ""}`, "_blank", "noopener,noreferrer")}
                     />
                   )}
                 </div>

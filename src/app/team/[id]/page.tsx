@@ -92,14 +92,17 @@ export default function TeamHomePage() {
   const [selectedWinnerByFixtureId, setSelectedWinnerByFixtureId] = useState<Record<string, string>>({});
   const [selectedMarginByFixtureId, setSelectedMarginByFixtureId] = useState<Record<string, string>>({});
   const [savingFixtureId, setSavingFixtureId] = useState<string | null>(null);
+  const [savingByFixtureId, setSavingByFixtureId] = useState<Record<string, boolean>>({});
   const [savedFixtureIds, setSavedFixtureIds] = useState<Set<string>>(new Set());
   const [pickErrors, setPickErrors] = useState<Record<string, string>>({});
+  const [saveErrorByFixtureId, setSaveErrorByFixtureId] = useState<Record<string, string | null>>({});
   const [editingByMatchId, setEditingByMatchId] = useState<Record<string, boolean>>({});
   const [showOwnTeamNotice, setShowOwnTeamNotice] = useState(false);
   const [fixtureResults, setFixtureResults] = useState<Record<string, FixtureResult>>({});
   const isInitializingRound = useRef(true);
   const printDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const [participantCompetitionId, setParticipantCompetitionId] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(typeof window !== "undefined" ? navigator.onLine : true);
 
   useEffect(() => {
     if (participantId) {
@@ -126,6 +129,47 @@ export default function TeamHomePage() {
       return () => clearTimeout(timer);
     }
   }, [searchParams, participantId, router]);
+
+  // Track online/offline state
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Auto-clear offline-specific errors when connection returns
+      const offlineMessage = "You're offline — pick not saved. Please reconnect and try again.";
+      setSaveErrorByFixtureId((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((fixtureId) => {
+          if (next[fixtureId] === offlineMessage) {
+            delete next[fixtureId];
+          }
+        });
+        return next;
+      });
+      setPickErrors((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((fixtureId) => {
+          if (next[fixtureId] === offlineMessage) {
+            delete next[fixtureId];
+          }
+        });
+        return next;
+      });
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const fetchTeamData = async () => {
     try {
@@ -314,8 +358,8 @@ export default function TeamHomePage() {
       // Fetch teams for logos
       await fetchTeams();
 
-      // Fetch picks for this participant
-      await fetchPicks(me.id);
+      // Fetch picks for this participant (scoped to current round when known)
+      await fetchPicks(me.id, initialRoundId);
     } catch (err) {
       console.error("Unexpected error:", err);
       setError(
@@ -348,7 +392,7 @@ export default function TeamHomePage() {
     }
   };
 
-  const fetchPicks = async (teamId?: string) => {
+  const fetchPicks = async (teamId?: string, roundId?: string | null) => {
     try {
       // Get the current session token for authentication
       const { data: sessionData } = await supabase.auth.getSession();
@@ -360,7 +404,9 @@ export default function TeamHomePage() {
       }
 
       const idToUse = teamId || participantId;
-      const response = await fetch(`/api/picks?participantId=${idToUse}`, {
+      const params = new URLSearchParams({ participantId: idToUse });
+      if (roundId) params.set("roundId", roundId);
+      const response = await fetch(`/api/picks?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) {
@@ -560,12 +606,47 @@ export default function TeamHomePage() {
       return; // Validation will be handled by API, but basic check here
     }
 
+    // Check offline state before attempting save
+    if (!isOnline) {
+      const offlineMessage = "You're offline — pick not saved. Please reconnect and try again.";
+      setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: offlineMessage }));
+      return;
+    }
+
     // If Draw is selected, margin is not required (will be 0)
     if (winner === DRAW_VALUE) {
       // Draw pick: margin is 0
       const margin = 0;
 
-      setSavingFixtureId(fixture.id);
+      // Capture previous state for rollback
+      const previousPick = picks[fixture.id] || null;
+      const previousWinner = selectedWinnerByFixtureId[fixture.id] || null;
+      const previousMargin = selectedMarginByFixtureId[fixture.id] || null;
+
+      // Optimistic update: apply changes immediately
+      setPicks((prev) => ({
+        ...prev,
+        [fixture.id]: { fixture_id: fixture.id, picked_team: DRAW_VALUE, margin: 0 },
+      }));
+      setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: DRAW_VALUE }));
+      setSelectedMarginByFixtureId((prev) => {
+        const next = { ...prev };
+        delete next[fixture.id];
+        return next;
+      });
+
+      // Set saving state and clear errors
+      setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: true }));
+      setSaveErrorByFixtureId((prev) => {
+        const next = { ...prev };
+        delete next[fixture.id];
+        return next;
+      });
+      setPickErrors((prev) => {
+        const next = { ...prev };
+        delete next[fixture.id];
+        return next;
+      });
 
       // Get the current session token for authentication
       const { data: sessionData } = await supabase.auth.getSession();
@@ -579,16 +660,69 @@ export default function TeamHomePage() {
       };
 
     try {
-      const response = await fetch("/api/picks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(requestPayload),
-      });
+      let response: Response;
+      try {
+        response = await fetch("/api/picks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(requestPayload),
+        });
+      } catch (fetchErr) {
+        // Network error (offline, CORS, etc.) - fetch itself threw
+        const isNetworkError = fetchErr instanceof TypeError && 
+          (fetchErr.message.includes("fetch") || fetchErr.message.includes("network") || fetchErr.message === "Failed to fetch");
+        
+        // Rollback optimistic update
+        if (previousPick) {
+          setPicks((prev) => ({ ...prev, [fixture.id]: previousPick }));
+        } else {
+          setPicks((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+        if (previousWinner) {
+          setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: previousWinner }));
+        } else {
+          setSelectedWinnerByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+        if (previousMargin) {
+          setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: previousMargin }));
+        } else {
+          setSelectedMarginByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
 
-      const data = await response.json();
+        const errorMessage = isNetworkError 
+          ? "You're offline — pick not saved. Please reconnect and try again."
+          : "Failed to save pick. Please try again.";
+        setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
+        setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
+        return;
+      }
+
+      // Safely parse JSON response
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        // Response wasn't valid JSON - treat as error
+        console.error("Failed to parse response as JSON:", parseErr);
+      }
 
       if (!response.ok) {
         console.error("Error saving pick:", {
@@ -597,33 +731,45 @@ export default function TeamHomePage() {
           data,
         });
         console.error("Request payload:", requestPayload);
-        // Show user-friendly error message
-        const errorMessage = data?.error ?? `${response.status} ${response.statusText}`;
-        setPickErrors((prev) => ({
-          ...prev,
-          [fixture.id]: errorMessage,
-        }));
-        // Clear error after 5 seconds
-        setTimeout(() => {
-          setPickErrors((prev) => {
+        
+        // Rollback optimistic update
+        if (previousPick) {
+          setPicks((prev) => ({ ...prev, [fixture.id]: previousPick }));
+        } else {
+          setPicks((prev) => {
             const next = { ...prev };
             delete next[fixture.id];
             return next;
           });
-        }, 5000);
-        setSavingFixtureId(null);
+        }
+        if (previousWinner) {
+          setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: previousWinner }));
+        } else {
+          setSelectedWinnerByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+        if (previousMargin) {
+          setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: previousMargin }));
+        } else {
+          setSelectedMarginByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+
+        // Show user-friendly error message
+        const errorMessage = data?.error ?? `${response.status} ${response.statusText}`;
+        setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
+        setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
         return;
       }
 
-      // Clear any previous error for this fixture
-      setPickErrors((prev) => {
-        const next = { ...prev };
-        delete next[fixture.id];
-        return next;
-      });
-
-      // Refresh picks
-      await fetchPicks();
+      // Success: clear saving state and show saved indication
+      setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
       
       // Remove from editing mode (re-lock)
       setEditingByMatchId((prev) => ({
@@ -639,11 +785,47 @@ export default function TeamHomePage() {
           next.delete(fixture.id);
           return next;
         });
-      }, 2000);
+      }, 1000);
     } catch (err) {
+      // This catch handles any unexpected errors
       console.error("Error submitting pick:", err);
-    } finally {
-      setSavingFixtureId(null);
+      
+      // Rollback optimistic update
+      if (previousPick) {
+        setPicks((prev) => ({ ...prev, [fixture.id]: previousPick }));
+      } else {
+        setPicks((prev) => {
+          const next = { ...prev };
+          delete next[fixture.id];
+          return next;
+        });
+      }
+      if (previousWinner) {
+        setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: previousWinner }));
+      } else {
+        setSelectedWinnerByFixtureId((prev) => {
+          const next = { ...prev };
+          delete next[fixture.id];
+          return next;
+        });
+      }
+      if (previousMargin) {
+        setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: previousMargin }));
+      } else {
+        setSelectedMarginByFixtureId((prev) => {
+          const next = { ...prev };
+          delete next[fixture.id];
+          return next;
+        });
+      }
+
+      const isNetworkError = err instanceof TypeError && 
+        (err.message.includes("fetch") || err.message.includes("network") || err.message === "Failed to fetch");
+      const errorMessage = isNetworkError 
+        ? "You're offline — pick not saved. Please reconnect and try again."
+        : "Failed to save pick. Please try again.";
+      setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
+      setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
     }
       return;
     }
@@ -658,7 +840,31 @@ export default function TeamHomePage() {
     if (marginBand === "1-12") margin = 1;
     else if (marginBand === "13+") margin = 13;
 
-    setSavingFixtureId(fixture.id);
+    // Capture previous state for rollback
+    const previousPick = picks[fixture.id] || null;
+    const previousWinner = selectedWinnerByFixtureId[fixture.id] || null;
+    const previousMargin = selectedMarginByFixtureId[fixture.id] || null;
+
+    // Optimistic update: apply changes immediately
+    setPicks((prev) => ({
+      ...prev,
+      [fixture.id]: { fixture_id: fixture.id, picked_team: winner, margin },
+    }));
+    setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: winner }));
+    setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: marginBand }));
+
+    // Set saving state and clear errors
+    setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: true }));
+    setSaveErrorByFixtureId((prev) => {
+      const next = { ...prev };
+      delete next[fixture.id];
+      return next;
+    });
+    setPickErrors((prev) => {
+      const next = { ...prev };
+      delete next[fixture.id];
+      return next;
+    });
 
     // Get the current session token for authentication
     const { data: sessionData } = await supabase.auth.getSession();
@@ -672,16 +878,69 @@ export default function TeamHomePage() {
     };
 
     try {
-      const response = await fetch("/api/picks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(requestPayload),
-      });
+      let response: Response;
+      try {
+        response = await fetch("/api/picks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(requestPayload),
+        });
+      } catch (fetchErr) {
+        // Network error (offline, CORS, etc.) - fetch itself threw
+        const isNetworkError = fetchErr instanceof TypeError && 
+          (fetchErr.message.includes("fetch") || fetchErr.message.includes("network") || fetchErr.message === "Failed to fetch");
+        
+        // Rollback optimistic update
+        if (previousPick) {
+          setPicks((prev) => ({ ...prev, [fixture.id]: previousPick }));
+        } else {
+          setPicks((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+        if (previousWinner) {
+          setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: previousWinner }));
+        } else {
+          setSelectedWinnerByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+        if (previousMargin) {
+          setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: previousMargin }));
+        } else {
+          setSelectedMarginByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
 
-      const data = await response.json();
+        const errorMessage = isNetworkError 
+          ? "You're offline — pick not saved. Please reconnect and try again."
+          : "Failed to save pick. Please try again.";
+        setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
+        setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
+        return;
+      }
+
+      // Safely parse JSON response
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        // Response wasn't valid JSON - treat as error
+        console.error("Failed to parse response as JSON:", parseErr);
+      }
 
       if (!response.ok) {
         console.error("Error saving pick:", {
@@ -690,33 +949,45 @@ export default function TeamHomePage() {
           data,
         });
         console.error("Request payload:", requestPayload);
-        // Show user-friendly error message
-        const errorMessage = data?.error ?? `${response.status} ${response.statusText}`;
-        setPickErrors((prev) => ({
-          ...prev,
-          [fixture.id]: errorMessage,
-        }));
-        // Clear error after 5 seconds
-        setTimeout(() => {
-          setPickErrors((prev) => {
+        
+        // Rollback optimistic update
+        if (previousPick) {
+          setPicks((prev) => ({ ...prev, [fixture.id]: previousPick }));
+        } else {
+          setPicks((prev) => {
             const next = { ...prev };
             delete next[fixture.id];
             return next;
           });
-        }, 5000);
-        setSavingFixtureId(null);
+        }
+        if (previousWinner) {
+          setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: previousWinner }));
+        } else {
+          setSelectedWinnerByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+        if (previousMargin) {
+          setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: previousMargin }));
+        } else {
+          setSelectedMarginByFixtureId((prev) => {
+            const next = { ...prev };
+            delete next[fixture.id];
+            return next;
+          });
+        }
+
+        // Show user-friendly error message
+        const errorMessage = data?.error ?? `${response.status} ${response.statusText}`;
+        setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
+        setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
         return;
       }
 
-      // Clear any previous error for this fixture
-      setPickErrors((prev) => {
-        const next = { ...prev };
-        delete next[fixture.id];
-        return next;
-      });
-
-      // Refresh picks
-      await fetchPicks();
+      // Success: clear saving state and show saved indication
+      setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
       
       // Remove from editing mode (re-lock)
       setEditingByMatchId((prev) => ({
@@ -732,11 +1003,47 @@ export default function TeamHomePage() {
           next.delete(fixture.id);
           return next;
         });
-      }, 2000);
+      }, 1000);
     } catch (err) {
+      // This catch handles any unexpected errors
       console.error("Error submitting pick:", err);
-    } finally {
-      setSavingFixtureId(null);
+      
+      // Rollback optimistic update
+      if (previousPick) {
+        setPicks((prev) => ({ ...prev, [fixture.id]: previousPick }));
+      } else {
+        setPicks((prev) => {
+          const next = { ...prev };
+          delete next[fixture.id];
+          return next;
+        });
+      }
+      if (previousWinner) {
+        setSelectedWinnerByFixtureId((prev) => ({ ...prev, [fixture.id]: previousWinner }));
+      } else {
+        setSelectedWinnerByFixtureId((prev) => {
+          const next = { ...prev };
+          delete next[fixture.id];
+          return next;
+        });
+      }
+      if (previousMargin) {
+        setSelectedMarginByFixtureId((prev) => ({ ...prev, [fixture.id]: previousMargin }));
+      } else {
+        setSelectedMarginByFixtureId((prev) => {
+          const next = { ...prev };
+          delete next[fixture.id];
+          return next;
+        });
+      }
+
+      const isNetworkError = err instanceof TypeError && 
+        (err.message.includes("fetch") || err.message.includes("network") || err.message === "Failed to fetch");
+      const errorMessage = isNetworkError 
+        ? "You're offline — pick not saved. Please reconnect and try again."
+        : "Failed to save pick. Please try again.";
+      setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
+      setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
     }
   };
 
@@ -915,8 +1222,13 @@ export default function TeamHomePage() {
                 )}
               </div>
 
-              {/* Right: TOTAL stat box + Print button */}
+              {/* Right: Offline indicator + TOTAL stat box + Print button */}
               <div className="flex items-center gap-3 justify-end">
+                {!isOnline && (
+                  <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+                    Offline
+                  </span>
+                )}
                 {selectedRoundId && (
                   <>
                     <div className="w-[76px] h-[56px] rounded-lg border-2 border-slate-300 bg-white text-center px-2 py-2 flex flex-col items-center justify-center dark:border-zinc-600 dark:bg-zinc-900">
@@ -993,7 +1305,7 @@ export default function TeamHomePage() {
                 const effectiveWinner = selectedWinner || existingPick?.picked_team || null;
                 const isDraw = effectiveWinner === "DRAW";
                 const isSaved = savedFixtureIds.has(fixture.id);
-                const isSaving = savingFixtureId === fixture.id;
+                const isSaving = savingByFixtureId[fixture.id] ?? false;
 
                 return (
                   <div key={fixture.id} className="flex justify-center">
@@ -1036,9 +1348,25 @@ export default function TeamHomePage() {
                       })()}
 
                     {/* Error Message */}
-                    {pickErrors[fixture.id] && (
-                      <div className="mb-2 rounded-md bg-red-100 p-1.5 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
-                        {pickErrors[fixture.id]}
+                    {(pickErrors[fixture.id] || saveErrorByFixtureId[fixture.id]) && (
+                      <div className="mb-2 flex items-center justify-between rounded-md bg-red-100 p-1.5 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
+                        <span>{pickErrors[fixture.id] || saveErrorByFixtureId[fixture.id]}</span>
+                        {saveErrorByFixtureId[fixture.id] && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSaveErrorByFixtureId((prev) => {
+                                const next = { ...prev };
+                                delete next[fixture.id];
+                                return next;
+                              });
+                            }}
+                            className="ml-2 text-red-600 hover:text-red-800 dark:text-red-300 dark:hover:text-red-100"
+                            aria-label="Dismiss error"
+                          >
+                            ×
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -1399,9 +1727,9 @@ export default function TeamHomePage() {
                             <button
                               type="button"
                               onClick={() => handleSavePick(fixture)}
-                              disabled={isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
+                              disabled={!isOnline || isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
                               className={`rounded-md border px-3 py-1 text-sm text-white transition-colors ${
-                                isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
+                                !isOnline || isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
                                   ? "cursor-not-allowed opacity-50 border-zinc-400 bg-zinc-400"
                                   : "border-[#004165] bg-[#004165] hover:bg-[#003554] hover:border-[#003554]"
                               }`}
@@ -1413,9 +1741,9 @@ export default function TeamHomePage() {
                           <button
                             type="button"
                             onClick={() => handleSavePick(fixture)}
-                            disabled={isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
+                            disabled={!isOnline || isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)}
                             className={`rounded-md border px-3 py-1 text-sm text-white transition-colors ${
-                              isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
+                              !isOnline || isSaving || isLocked || !effectiveWinner || (effectiveWinner !== "DRAW" && !selectedMargin)
                                 ? "cursor-not-allowed opacity-50 border-zinc-400 bg-zinc-400"
                                 : "border-[#004165] bg-[#004165] hover:bg-[#003554] hover:border-[#003554]"
                             }`}

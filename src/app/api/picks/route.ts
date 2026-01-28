@@ -92,6 +92,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const requestedParticipantId = searchParams.get("participantId");
+    const roundId = searchParams.get("roundId");
 
     // participantId from query param is not trusted - we only use the authenticated participant's id
     // If the request includes participantId and it does NOT equal the participant.id -> return 403
@@ -102,12 +103,49 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Query picks ONLY for participant.id and their league - using non-admin client so RLS applies
-    const { data, error } = await supabase
-      .from("picks")
-      .select("fixture_id, picked_team, margin")
-      .eq("participant_id", participant.id)
-      .eq("league_id", participant.league_id);
+    let data: { fixture_id: string; picked_team: string; margin: number }[] | null = null;
+    let error: { message: string } | null = null;
+
+    if (roundId) {
+      // Scope to current round: get fixture ids for this round, then picks for those fixtures (DB-level filtering)
+      const { data: fixtureIdsRows, error: fixturesErr } = await supabase
+        .from("fixtures")
+        .select("id")
+        .eq("round_id", roundId);
+
+      if (fixturesErr) {
+        console.error("Error fetching fixture ids for round:", fixturesErr);
+        return NextResponse.json(
+          { error: "Failed to fetch picks" },
+          { status: 500 }
+        );
+      }
+
+      const fixtureIds = (fixtureIdsRows || []).map((r: { id: string }) => r.id);
+      if (fixtureIds.length === 0) {
+        return NextResponse.json({ picks: [] }, { status: 200 });
+      }
+
+      const result = await supabase
+        .from("picks")
+        .select("fixture_id, picked_team, margin")
+        .eq("participant_id", participant.id)
+        .eq("league_id", participant.league_id)
+        .in("fixture_id", fixtureIds);
+
+      data = result.data;
+      error = result.error;
+    } else {
+      // Existing behavior: all picks for this participant
+      const result = await supabase
+        .from("picks")
+        .select("fixture_id, picked_team, margin")
+        .eq("participant_id", participant.id)
+        .eq("league_id", participant.league_id);
+
+      data = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error("Error fetching picks:", error);

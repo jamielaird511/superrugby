@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { track } from "@/lib/analytics";
 
 type Participant = {
   id: string;
@@ -43,6 +44,12 @@ export default function Home() {
     (async () => {
       await fetchParticipants();
     })();
+  }, []);
+
+  // Track landing view
+  useEffect(() => {
+    const src = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("src") : null;
+    track("landing_view", { metadata: { src } });
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -130,6 +137,9 @@ export default function Home() {
         setLoading(false);
         return;
       }
+
+      // Track login success
+      track("login_success", { participantId: selectedParticipantId });
 
       // On success: redirect to team page
       router.push(`/team/${selectedParticipantId}`);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { track } from "@/lib/analytics";
 
 const CATEGORIES = [
   { label: "Accountant", value: "accountant" },
@@ -161,6 +162,9 @@ export default function RegisterPage() {
         setIsSubmitting(false);
         return;
       }
+
+      // Track registration success
+      track("register_success", { participantId: registerData.participantId });
 
       // On success: redirect to team page
       router.push(`/team/${registerData.participantId}`);

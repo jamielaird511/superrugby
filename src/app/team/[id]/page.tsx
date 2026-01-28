@@ -8,6 +8,7 @@ import * as Select from "@radix-ui/react-select";
 import { PencilSquareIcon, ChartBarIcon, Cog6ToothIcon, LockClosedIcon, ArrowRightOnRectangleIcon, PrinterIcon } from "@heroicons/react/24/outline";
 import TeamNav from "@/components/TeamNav";
 import { calculatePickScore } from "@/lib/scoring";
+import { track } from "@/lib/analytics";
 
 // Table name constants (from project usage)
 const FIXTURES_TABLE = "fixtures";
@@ -771,6 +772,12 @@ export default function TeamHomePage() {
       // Success: clear saving state and show saved indication
       setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
       
+      // Track pick saved
+      track("pick_saved", {
+        participantId: participant?.id || participantId,
+        metadata: { roundId: selectedRoundId },
+      });
+      
       // Remove from editing mode (re-lock)
       setEditingByMatchId((prev) => ({
         ...prev,
@@ -988,6 +995,12 @@ export default function TeamHomePage() {
 
       // Success: clear saving state and show saved indication
       setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
+      
+      // Track pick saved
+      track("pick_saved", {
+        participantId: participant?.id || participantId,
+        metadata: { roundId: selectedRoundId },
+      });
       
       // Remove from editing mode (re-lock)
       setEditingByMatchId((prev) => ({

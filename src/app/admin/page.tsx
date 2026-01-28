@@ -52,6 +52,13 @@ export default function AdminPage() {
   const [deleteRoundLoading, setDeleteRoundLoading] = useState<boolean>(false);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [analyticsSummary, setAnalyticsSummary] = useState<{
+    landing_view: number;
+    login_success: number;
+    register_success: number;
+    pick_saved: number;
+    total_participants: number;
+  } | null>(null);
 
   // Round form state
   const [roundSeason, setRoundSeason] = useState<number>(new Date().getFullYear());
@@ -216,10 +223,32 @@ export default function AdminPage() {
       // Only fetch admin data after admin check passes
       fetchRounds();
       fetchTeams();
+      fetchAnalyticsSummary();
     };
 
     checkAdmin();
   }, [router]);
+
+  // Fetch analytics summary
+  async function fetchAnalyticsSummary() {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const response = await fetch("/api/admin/analytics-summary", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAnalyticsSummary(data);
+      } else {
+        console.error("Error fetching analytics summary");
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching analytics summary:", err);
+    }
+  }
 
   // Fetch fixtures when round is selected (only if admin)
   useEffect(() => {
@@ -724,6 +753,35 @@ export default function AdminPage() {
               : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
           }`}>
             {message.text}
+          </div>
+        )}
+
+        {/* Analytics Summary */}
+        {analyticsSummary && (
+          <div className="mb-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="mb-3 text-lg font-semibold text-black dark:text-zinc-50">Analytics (Last 7 Days)</h2>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-zinc-600 dark:text-zinc-400">Landing Views:</span>{" "}
+                <span className="font-medium text-black dark:text-zinc-50">{analyticsSummary.landing_view}</span>
+              </div>
+              <div>
+                <span className="text-zinc-600 dark:text-zinc-400">Login Success:</span>{" "}
+                <span className="font-medium text-black dark:text-zinc-50">{analyticsSummary.login_success}</span>
+              </div>
+              <div>
+                <span className="text-zinc-600 dark:text-zinc-400">Register Success:</span>{" "}
+                <span className="font-medium text-black dark:text-zinc-50">{analyticsSummary.register_success}</span>
+              </div>
+              <div>
+                <span className="text-zinc-600 dark:text-zinc-400">Picks Saved:</span>{" "}
+                <span className="font-medium text-black dark:text-zinc-50">{analyticsSummary.pick_saved}</span>
+              </div>
+            </div>
+            <div className="mt-3 text-sm">
+              <span className="text-zinc-600 dark:text-zinc-400">Total Participants:</span>{" "}
+              <span className="font-medium text-black dark:text-zinc-50">{analyticsSummary.total_participants}</span>
+            </div>
           </div>
         )}
 

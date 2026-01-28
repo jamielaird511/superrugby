@@ -136,3 +136,83 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        { error: "Server misconfiguration" },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createServerClient(req);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
+
+    if (!user.email || !adminEmails.includes(user.email)) {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const roundId = searchParams.get("roundId");
+
+    if (!roundId) {
+      return NextResponse.json(
+        { error: "roundId is required" },
+        { status: 400 }
+      );
+    }
+
+    const { data: fixtures, error: fixturesError } = await supabaseAdmin
+      .from("fixtures")
+      .select("id")
+      .eq("round_id", roundId)
+      .limit(1);
+
+    if (fixturesError) {
+      console.error("Error checking fixtures for round delete:", fixturesError);
+      return NextResponse.json(
+        { error: fixturesError.message || "Failed to check fixtures" },
+        { status: 500 }
+      );
+    }
+
+    if (fixtures && fixtures.length > 0) {
+      return NextResponse.json(
+        { error: "Cannot delete a round that has fixtures. Delete fixtures first." },
+        { status: 400 }
+      );
+    }
+
+    const { error: deleteError } = await supabaseAdmin
+      .from("rounds")
+      .delete()
+      .eq("id", roundId);
+
+    if (deleteError) {
+      console.error("Error deleting round:", deleteError);
+      return NextResponse.json(
+        { error: deleteError.message || "Failed to delete round" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (err) {
+    console.error("Admin rounds DELETE error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

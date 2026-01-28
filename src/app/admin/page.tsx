@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { TrashIcon } from "@heroicons/react/24/outline";
 
 type Round = {
   id: string;
@@ -46,6 +47,9 @@ export default function AdminPage() {
   const [editingResultFixtureId, setEditingResultFixtureId] = useState<string | null>(null);
   const [confirmModalData, setConfirmModalData] = useState<{ fixtureId: string; fixture: Fixture; entry: { winning_team: string; margin_band: string | null } } | null>(null);
   const [deleteModalData, setDeleteModalData] = useState<{ fixtureId: string; fixture: Fixture } | null>(null);
+  const [deleteRoundTarget, setDeleteRoundTarget] = useState<Round | null>(null);
+  const [deleteRoundError, setDeleteRoundError] = useState<string | null>(null);
+  const [deleteRoundLoading, setDeleteRoundLoading] = useState<boolean>(false);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -618,6 +622,56 @@ export default function AdminPage() {
     }
   };
 
+  const closeDeleteRoundModal = () => {
+    setDeleteRoundTarget(null);
+    setDeleteRoundError(null);
+  };
+
+  const handleConfirmDeleteRound = async () => {
+    if (!deleteRoundTarget) return;
+
+    setDeleteRoundError(null);
+    setDeleteRoundLoading(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const response = await fetch(`/api/admin/rounds?roundId=${deleteRoundTarget.id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      const result = await response.json();
+
+      if (response.status === 400) {
+        setDeleteRoundError(result.error || "Cannot delete a round that has fixtures. Delete fixtures first.");
+        setDeleteRoundLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        setMessage({ type: "error", text: result.error || "Failed to delete round" });
+        closeDeleteRoundModal();
+        setDeleteRoundLoading(false);
+        return;
+      }
+
+      setMessage({ type: "success", text: "Round deleted." });
+      if (selectedRoundId === deleteRoundTarget.id) {
+        setSelectedRoundId(null);
+      }
+      closeDeleteRoundModal();
+      setDeleteRoundLoading(false);
+      fetchRounds();
+    } catch (err) {
+      console.error("Unexpected error deleting round:", err);
+      setMessage({ type: "error", text: `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}` });
+      closeDeleteRoundModal();
+      setDeleteRoundLoading(false);
+    }
+  };
+
   // Show "Checking access..." while auth check is in progress
   if (!authChecked) {
     return (
@@ -741,16 +795,28 @@ export default function AdminPage() {
                         Season {round.season} - Round {round.round_number}
                       </span>
                     </div>
-                    <button
-                      onClick={() => setSelectedRoundId(round.id)}
-                      className={`rounded-md px-3 py-1 text-xs transition-colors ${
-                        selectedRoundId === round.id
-                          ? "bg-blue-600 text-white"
-                          : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                      }`}
-                    >
-                      {selectedRoundId === round.id ? "Selected" : "Select"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedRoundId(round.id)}
+                        className={`rounded-md px-3 py-1 text-xs transition-colors ${
+                          selectedRoundId === round.id
+                            ? "bg-blue-600 text-white"
+                            : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                        }`}
+                      >
+                        {selectedRoundId === round.id ? "Selected" : "Select"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setDeleteRoundTarget(round); setDeleteRoundError(null); }}
+                        disabled={deleteRoundLoading && deleteRoundTarget?.id === round.id}
+                        className="rounded-md p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600 dark:text-zinc-400 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-600 dark:disabled:hover:bg-transparent dark:disabled:hover:text-zinc-400"
+                        title="Delete round"
+                        aria-label="Delete round"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -1126,6 +1192,41 @@ export default function AdminPage() {
                   className="rounded-md bg-green-600 px-4 py-2 text-sm text-white transition-colors hover:bg-green-700"
                 >
                   Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Round Modal */}
+        {deleteRoundTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-black dark:text-zinc-50 mb-4">Delete round?</h3>
+              <div className="space-y-2 text-sm text-black dark:text-zinc-50 mb-4">
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  This will permanently delete the round. This cannot be undone.
+                </p>
+                {deleteRoundError && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-2">{deleteRoundError}</p>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={closeDeleteRoundModal}
+                  disabled={deleteRoundLoading}
+                  className="rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteRound}
+                  disabled={deleteRoundLoading}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteRoundLoading ? "Deleting…" : "Delete"}
                 </button>
               </div>
             </div>

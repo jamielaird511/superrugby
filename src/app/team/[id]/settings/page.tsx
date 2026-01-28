@@ -44,6 +44,12 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState("");
   const [primaryEmail, setPrimaryEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changePasswordSaving, setChangePasswordSaving] = useState(false);
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState<string | null>(null);
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
 
   // Helper to get auth header
   const getAuthHeader = async (): Promise<Record<string, string>> => {
@@ -314,6 +320,59 @@ export default function SettingsPage() {
     setDeleteError(null);
   };
 
+  const saveChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError(null);
+    if (newPassword !== confirmPassword) {
+      setChangePasswordError("New passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setChangePasswordError("Password must be at least 6 characters.");
+      return;
+    }
+    try {
+      setChangePasswordSaving(true);
+      setChangePasswordError(null);
+      setChangePasswordSuccess(null);
+      const authHeaders = await getAuthHeader();
+      if (!authHeaders.Authorization) {
+        setChangePasswordError("Please log in again");
+        setChangePasswordSaving(false);
+        return;
+      }
+      const response = await fetch("/api/team/change-password", {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          teamId: participantId,
+          currentPassword,
+          newPassword,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setChangePasswordError(data.error || "Password update failed.");
+        return;
+      }
+      setChangePasswordError(null);
+      const successText =
+        data.mode === "set" ? "Password set successfully." : "Password changed successfully.";
+      setChangePasswordSuccess(successText);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Password update failed.";
+      setChangePasswordError(errorMessage);
+    } finally {
+      setChangePasswordSaving(false);
+    }
+  };
+
   const deleteContact = async () => {
     if (!deleteTarget) return;
 
@@ -513,6 +572,87 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* Change password Section */}
+          <section className="mb-8">
+            <div className="rounded-lg border border-zinc-300 bg-white p-6">
+              <h2 className="text-xl font-semibold text-[#003A5D] mb-4">Change password</h2>
+              <form onSubmit={saveChangePassword} className="space-y-4 max-w-md">
+                {changePasswordError && (
+                  <div className="rounded-md bg-red-50 p-3 border border-red-200 flex items-center justify-between gap-3">
+                    <p className="text-sm text-red-800">{changePasswordError}</p>
+                    <button
+                      type="button"
+                      onClick={() => setChangePasswordError(null)}
+                      className="text-red-700 hover:text-red-900 shrink-0 focus:outline-none focus:ring-2 focus:ring-[#004165] rounded p-1"
+                      aria-label="Dismiss"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+                {changePasswordSuccess && (
+                  <div className="rounded-md bg-green-50 p-3 border border-green-200 flex items-center justify-between gap-3">
+                    <p className="text-sm text-green-800">{changePasswordSuccess}</p>
+                    <button
+                      type="button"
+                      onClick={() => setChangePasswordSuccess(null)}
+                      className="text-green-700 hover:text-green-900 shrink-0 focus:outline-none focus:ring-2 focus:ring-[#004165] rounded p-1"
+                      aria-label="Dismiss"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Current password</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => {
+                      setChangePasswordError(null);
+                      setChangePasswordSuccess(null);
+                      setCurrentPassword(e.target.value);
+                    }}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">New password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setChangePasswordError(null);
+                      setChangePasswordSuccess(null);
+                      setNewPassword(e.target.value);
+                    }}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Confirm new password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setChangePasswordError(null);
+                      setChangePasswordSuccess(null);
+                      setConfirmPassword(e.target.value);
+                    }}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-1"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={changePasswordSaving || !newPassword || !confirmPassword}
+                  className="inline-flex items-center justify-center rounded-md bg-[#003A5D] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004165] focus:outline-none focus:ring-2 focus:ring-[#004165] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {changePasswordSaving ? "Saving…" : "Change password"}
+                </button>
+              </form>
             </div>
           </section>
 

@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { hashPassword } from "@/lib/password";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error(
-    "Missing Supabase environment variables. Please ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set."
-  );
+function generateTempPassword(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const len = 10 + Math.floor(Math.random() * 3);
+  let s = "";
+  for (let i = 0; i < len; i++) {
+    s += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return s;
 }
-
-// Create Supabase client with service role key (bypasses RLS)
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate ADMIN_KEY environment variable
     const adminKey = process.env.ADMIN_KEY;
     if (!adminKey) {
       return NextResponse.json(
@@ -24,7 +22,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify admin key
     const adminKeyHeader = request.headers.get("x-admin-key");
     if (!adminKeyHeader || adminKeyHeader !== adminKey) {
       return NextResponse.json(
@@ -43,22 +40,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update participant password_hash to NULL
-    const { error: updateError } = await supabase
+    const { data: participant, error: fetchError } = await supabaseAdmin
       .from("participants")
-      .update({ password_hash: null })
+      .select("id, auth_user_id, auth_email")
+      .eq("id", participantId)
+      .single();
+
+    if (fetchError || !participant) {
+      return NextResponse.json(
+        { error: "Participant not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!participant.auth_user_id && !participant.auth_email) {
+      return NextResponse.json(
+        { error: "Participant has no auth user; cannot reset password" },
+        { status: 400 }
+      );
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+
+    const { error: updateError } = await supabaseAdmin
+      .from("participants")
+      .update({ password_hash: passwordHash })
       .eq("id", participantId);
 
     if (updateError) {
-      console.error("Error resetting password:", updateError);
+      console.error("Error updating password_hash:", updateError);
       return NextResponse.json(
         { error: "Failed to reset password" },
         { status: 500 }
       );
     }
 
-    // Return success
-    return NextResponse.json({ ok: true });
+    let authUserId: string | null = participant.auth_user_id;
+
+    if (!authUserId && participant.auth_email) {
+      const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const match = data?.users?.find((u) => u.email === participant.auth_email);
+      authUserId = match?.id ?? null;
+    }
+
+    if (!authUserId) {
+      return NextResponse.json(
+        { error: "Auth user not found for this participant" },
+        { status: 400 }
+      );
+    }
+
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+      password: tempPassword,
+    });
+
+    if (authError) {
+      console.error("Error updating Auth password:", authError);
+      return NextResponse.json(
+        { error: authError.message || "Failed to update auth password" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ tempPassword });
   } catch (err) {
     console.error("Reset password error:", err);
     return NextResponse.json(

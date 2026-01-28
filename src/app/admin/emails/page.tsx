@@ -15,11 +15,26 @@ type EmailRow = {
   created_at: string;
 };
 
+type ParticipantForReset = {
+  id: string;
+  team_name: string | null;
+  category: string | null;
+  primary_email: string | null;
+};
+
 export default function AdminEmailsPage() {
   const [data, setData] = useState<EmailRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Participants for reset-password
+  const [participantsForReset, setParticipantsForReset] = useState<ParticipantForReset[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(true);
+  const [resetConfirmTarget, setResetConfirmTarget] = useState<{ id: string; team_name: string } | null>(null);
+  const [resetSuccessTempPassword, setResetSuccessTempPassword] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Filters
   const [onlyUpdates, setOnlyUpdates] = useState(true);
@@ -35,6 +50,32 @@ export default function AdminEmailsPage() {
   useEffect(() => {
     fetchEmails();
   }, [onlyUpdates, includePrimary, includeAdditional, selectedCategory]);
+
+  useEffect(() => {
+    fetchParticipantsForReset();
+  }, []);
+
+  const fetchParticipantsForReset = async () => {
+    try {
+      setParticipantsLoading(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/participants", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to fetch participants");
+      }
+      const result = await response.json();
+      setParticipantsForReset(result.data || []);
+    } catch (err) {
+      console.error("Error fetching participants for reset:", err);
+      setParticipantsForReset([]);
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
 
   const fetchEmails = async () => {
     try {
@@ -114,6 +155,34 @@ export default function AdminEmailsPage() {
     copyToClipboard(linesText);
   };
 
+  const handleResetConfirm = async () => {
+    if (!resetConfirmTarget) return;
+    try {
+      setResetLoading(true);
+      setResetError(null);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ participantId: resetConfirmTarget.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Password reset failed");
+      }
+      setResetSuccessTempPassword(result.tempPassword ?? "");
+      setResetConfirmTarget(null);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : "Password reset failed");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -131,6 +200,12 @@ export default function AdminEmailsPage() {
       {error && (
         <div className="mb-4 rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900 dark:text-red-200">
           {error}
+        </div>
+      )}
+
+      {resetError && (
+        <div className="mb-4 rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900 dark:text-red-200">
+          Reset password: {resetError}
         </div>
       )}
 
@@ -285,6 +360,112 @@ export default function AdminEmailsPage() {
           </div>
         )}
       </div>
+
+      {/* Reset password section */}
+      <div className="mt-10 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="border-b border-zinc-200 px-4 py-3 text-lg font-semibold text-black dark:border-zinc-700 dark:text-zinc-50">
+          Reset password
+        </h2>
+        {participantsLoading ? (
+          <div className="p-8 text-center text-zinc-600 dark:text-zinc-400">Loading participants...</div>
+        ) : participantsForReset.length === 0 ? (
+          <div className="p-8 text-center text-zinc-600 dark:text-zinc-400">No participants found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-zinc-50 dark:bg-zinc-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Team</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Category</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Primary email</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                {participantsForReset.map((p) => (
+                  <tr key={p.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-900 dark:text-zinc-50">{p.team_name || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-900 dark:text-zinc-50">
+                      {p.category ? p.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-900 dark:text-zinc-50">{p.primary_email || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setResetConfirmTarget({ id: p.id, team_name: p.team_name ?? "—" })}
+                        className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+                      >
+                        Reset password
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Reset confirm modal */}
+      {resetConfirmTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-lg font-semibold text-black dark:text-zinc-50">Reset password?</h3>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Generate a new temporary password for <strong>{resetConfirmTarget.team_name}</strong>. The team will need to use it to sign in and can change it in Settings.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setResetConfirmTarget(null)}
+                disabled={resetLoading}
+                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResetConfirm}
+                disabled={resetLoading}
+                className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {resetLoading ? "Resetting…" : "Reset password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset success modal (temp password + Copy) */}
+      {resetSuccessTempPassword !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-lg font-semibold text-black dark:text-zinc-50">Temporary password</h3>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Copy this password and share it securely. The team can change it in Settings after signing in.
+            </p>
+            <div className="mt-3 flex items-center gap-2 rounded-md bg-zinc-100 px-3 py-2 font-mono text-sm dark:bg-zinc-800">
+              <span className="flex-1 break-all text-zinc-900 dark:text-zinc-50">{resetSuccessTempPassword}</span>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(resetSuccessTempPassword)}
+                className="shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setResetSuccessTempPassword(null)}
+                className="rounded-md bg-zinc-600 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-500 dark:hover:bg-zinc-600"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

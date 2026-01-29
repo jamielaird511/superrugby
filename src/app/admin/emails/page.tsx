@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link";
 
 type EmailRow = {
   participant_id: string;
@@ -184,17 +183,11 @@ export default function AdminEmailsPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
+    <>
+      <div className="mb-6">
         <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">
           Email recipients
         </h1>
-        <Link
-          href="/admin"
-          className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
-        >
-          ← Back to Admin
-        </Link>
       </div>
 
       {error && (
@@ -466,6 +459,6 @@ export default function AdminEmailsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

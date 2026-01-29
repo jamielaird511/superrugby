@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
     }
 
     const leagueCountsMap = new Map<string, number>();
-    (leaguesForCounts || []).forEach((row: any) => {
+    (leaguesForCounts || []).forEach((row: Record<string, unknown>) => {
       const compId = row.competition_id as string;
       leagueCountsMap.set(compId, (leagueCountsMap.get(compId) || 0) + 1);
     });
@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
     }
 
     const roundCountsMap = new Map<string, number>();
-    (roundsForCounts || []).forEach((row: any) => {
+    (roundsForCounts || []).forEach((row: Record<string, unknown>) => {
       const compId = row.competition_id as string;
       roundCountsMap.set(compId, (roundCountsMap.get(compId) || 0) + 1);
     });
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
     }
 
     const fixtureCountsMap = new Map<string, number>();
-    (fixturesForCounts || []).forEach((row: any) => {
+    (fixturesForCounts || []).forEach((row: Record<string, unknown>) => {
       const compId = row.competition_id as string;
       fixtureCountsMap.set(compId, (fixtureCountsMap.get(compId) || 0) + 1);
     });
@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
     }
 
     const participantCountsMap = new Map<string, number>();
-    (participantsForCounts || []).forEach((row: any) => {
+    (participantsForCounts || []).forEach((row: Record<string, unknown>) => {
       const leagueId = row.league_id as string;
       participantCountsMap.set(leagueId, (participantCountsMap.get(leagueId) || 0) + 1);
     });

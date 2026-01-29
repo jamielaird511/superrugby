@@ -448,6 +448,73 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Auto-upsert Paperpunter bet (paper_bets) using match_odds; never block pick save
+    try {
+      let outcome: string | null = null;
+      if (pickedTeamCode === DRAW_CODE) {
+        outcome = "draw";
+      } else if (pickedTeamCode === fixture.home_team_code && margin === 1) {
+        outcome = "home_1_12";
+      } else if (pickedTeamCode === fixture.home_team_code && margin === 13) {
+        outcome = "home_13_plus";
+      } else if (pickedTeamCode === fixture.away_team_code && margin === 1) {
+        outcome = "away_1_12";
+      } else if (pickedTeamCode === fixture.away_team_code && margin === 13) {
+        outcome = "away_13_plus";
+      }
+      if (!outcome) {
+        console.error("[Paperpunter] Could not determine outcome for paper_bets", {
+          pickedTeamCode,
+          margin,
+          fixtureId,
+        });
+      } else {
+        const { data: oddsRow, error: oddsErr } = await supabaseAdmin
+          .from("match_odds")
+          .select("draw_odds, home_1_12_odds, home_13_plus_odds, away_1_12_odds, away_13_plus_odds")
+          .eq("fixture_id", fixtureId)
+          .maybeSingle();
+        if (oddsErr || !oddsRow) {
+          // Skip when no match_odds for fixture
+        } else {
+          const oddsByOutcome: Record<string, number> = {
+            draw: oddsRow.draw_odds,
+            home_1_12: oddsRow.home_1_12_odds,
+            home_13_plus: oddsRow.home_13_plus_odds,
+            away_1_12: oddsRow.away_1_12_odds,
+            away_13_plus: oddsRow.away_13_plus_odds,
+          };
+          const oddsValue = oddsByOutcome[outcome];
+          if (
+            oddsValue == null ||
+            typeof oddsValue !== "number" ||
+            Number(oddsValue) < 1.01
+          ) {
+            // Skip invalid/missing odds
+          } else {
+            const { error: betErr } = await supabaseAdmin
+              .from("paper_bets")
+              .upsert(
+                {
+                  participant_id: participantId,
+                  fixture_id: fixtureId,
+                  league_id: me.league_id,
+                  outcome,
+                  stake: 10,
+                  odds: Number(oddsValue),
+                },
+                { onConflict: "participant_id,fixture_id" }
+              );
+            if (betErr) {
+              console.error("[Paperpunter] paper_bets upsert failed", betErr);
+            }
+          }
+        }
+      }
+    } catch (paperErr) {
+      console.error("[Paperpunter] paper_bets auto-upsert error", paperErr);
+    }
+
     return NextResponse.json(
       { ok: true },
       { status: 200 }

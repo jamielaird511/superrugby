@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
     );
 
     // Join contacts with participants
-    let joinedData = (contactsData || [])
+    const joinedData = (contactsData || [])
       .map((contact) => {
         const participant = participantsMap.get(contact.participant_id);
         if (!participant) return null;

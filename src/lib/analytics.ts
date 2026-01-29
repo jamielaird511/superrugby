@@ -5,7 +5,7 @@
 
 export async function track(
   eventName: string,
-  options?: { participantId?: string; metadata?: any }
+  options?: { participantId?: string; metadata?: unknown }
 ): Promise<void> {
   try {
     // Fire-and-forget: don't await, just start the request
@@ -22,7 +22,7 @@ export async function track(
     }).catch(() => {
       // Silently ignore errors
     });
-  } catch (err) {
+  } catch {
     // Silently ignore errors
   }
 }

@@ -4,7 +4,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim()) || [];
 
 function createServerClient(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -41,14 +40,23 @@ export async function GET(req: NextRequest) {
     if (userError || !user) {
       return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     }
-    if (!user.email || !adminEmails.includes(user.email)) {
+    const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+    const userEmailLower = user.email?.toLowerCase() || "";
+    if (!adminEmails.length || !userEmailLower || !adminEmails.includes(userEmailLower)) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
-    const { data: participantsData, error: participantsError } = await supabaseAdmin
+    const { searchParams } = new URL(req.url);
+    const leagueId = searchParams.get("leagueId") ?? undefined;
+
+    let query = supabaseAdmin
       .from("participants")
       .select("id, team_name, category")
       .order("team_name", { ascending: true });
+    if (leagueId) {
+      query = query.eq("league_id", leagueId);
+    }
+    const { data: participantsData, error: participantsError } = await query;
 
     if (participantsError) {
       console.error("Error fetching participants:", participantsError);

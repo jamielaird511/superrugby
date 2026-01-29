@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link";
 
 type CompetitionRow = {
   id: string;
@@ -128,26 +127,15 @@ export default function AdminStructurePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="container mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">
-              Admin - Structure
-            </h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Competitions and leagues overview (read-only)
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin"
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
-            >
-              ← Back to Admin
-            </Link>
-          </div>
-        </div>
+    <>
+      <div className="mb-6">
+        <h1 className="text-3xl font-semibold text-black dark:text-zinc-50">
+          Admin - Structure
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Competitions and leagues overview (read-only)
+        </p>
+      </div>
 
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/40 dark:text-red-200">
@@ -294,8 +282,7 @@ export default function AdminStructurePage() {
             </section>
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }
 

@@ -714,11 +714,11 @@ export default function TeamHomePage() {
       }
 
       // Safely parse JSON response
-      let data: any = {};
+      let data: Record<string, unknown> = {};
       try {
         const text = await response.text();
         if (text) {
-          data = JSON.parse(text);
+          data = JSON.parse(text) as Record<string, unknown>;
         }
       } catch (parseErr) {
         // Response wasn't valid JSON - treat as error
@@ -763,7 +763,8 @@ export default function TeamHomePage() {
         }
 
         // Show user-friendly error message
-        const errorMessage = data?.error ?? `${response.status} ${response.statusText}`;
+        const errorMessage: string =
+          typeof data?.error === "string" ? data.error : `${response.status} ${response.statusText}`;
         setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
         setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
         return;
@@ -938,11 +939,11 @@ export default function TeamHomePage() {
       }
 
       // Safely parse JSON response
-      let data: any = {};
+      let data: Record<string, unknown> = {};
       try {
         const text = await response.text();
         if (text) {
-          data = JSON.parse(text);
+          data = JSON.parse(text) as Record<string, unknown>;
         }
       } catch (parseErr) {
         // Response wasn't valid JSON - treat as error
@@ -987,7 +988,8 @@ export default function TeamHomePage() {
         }
 
         // Show user-friendly error message
-        const errorMessage = data?.error ?? `${response.status} ${response.statusText}`;
+        const errorMessage: string =
+          typeof data?.error === "string" ? data.error : `${response.status} ${response.statusText}`;
         setSaveErrorByFixtureId((prev) => ({ ...prev, [fixture.id]: errorMessage }));
         setSavingByFixtureId((prev) => ({ ...prev, [fixture.id]: false }));
         return;

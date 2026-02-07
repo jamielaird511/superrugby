@@ -75,6 +75,16 @@ type FixtureResult = {
   margin_band: string | null;
 };
 
+type MatchOdds = {
+  fixture_id: string;
+  odds_as_at: string;
+  home_1_12_odds: number | null;
+  home_13_plus_odds: number | null;
+  draw_odds: number | null;
+  away_1_12_odds: number | null;
+  away_13_plus_odds: number | null;
+};
+
 export default function TeamHomePage() {
   const params = useParams();
   const router = useRouter();
@@ -100,6 +110,7 @@ export default function TeamHomePage() {
   const [editingByMatchId, setEditingByMatchId] = useState<Record<string, boolean>>({});
   const [showOwnTeamNotice, setShowOwnTeamNotice] = useState(false);
   const [fixtureResults, setFixtureResults] = useState<Record<string, FixtureResult>>({});
+  const [matchOdds, setMatchOdds] = useState<Record<string, MatchOdds>>({});
   const isInitializingRound = useRef(true);
   const printDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const [participantCompetitionId, setParticipantCompetitionId] = useState<string | null>(null);
@@ -333,6 +344,7 @@ export default function TeamHomePage() {
           console.warn("Error fetching fixtures for round:", fixturesRes.error);
           setNextRoundFixtures([]);
           setFixtureResults({});
+          setMatchOdds({});
         } else {
           const fixtures = fixturesRes.data || [];
           setNextRoundFixtures(fixtures);
@@ -347,13 +359,24 @@ export default function TeamHomePage() {
               resultsMap[r.fixture_id] = { winning_team: r.winning_team, margin_band: r.margin_band };
             });
             setFixtureResults(resultsMap);
+            const { data: oddsData } = await supabase
+              .from("match_odds")
+              .select("fixture_id, home_1_12_odds, home_13_plus_odds, draw_odds, away_1_12_odds, away_13_plus_odds, odds_as_at")
+              .in("fixture_id", fixtureIds);
+            const oddsMap: Record<string, MatchOdds> = {};
+            (oddsData || []).forEach((o: MatchOdds) => {
+              oddsMap[o.fixture_id] = o;
+            });
+            setMatchOdds(oddsMap);
           } else {
             setFixtureResults({});
+            setMatchOdds({});
           }
         }
       } else {
         setNextRoundFixtures([]);
         setFixtureResults({});
+        setMatchOdds({});
       }
 
       // Fetch teams for logos
@@ -496,6 +519,7 @@ export default function TeamHomePage() {
           console.warn("Error fetching fixtures for round:", fixturesRes.error);
           setNextRoundFixtures([]);
           setFixtureResults({});
+          setMatchOdds({});
         } else {
           const fixtures = fixturesRes.data || [];
           setNextRoundFixtures(fixtures);
@@ -510,8 +534,18 @@ export default function TeamHomePage() {
               resultsMap[r.fixture_id] = { winning_team: r.winning_team, margin_band: r.margin_band };
             });
             setFixtureResults(resultsMap);
+            const { data: oddsData } = await supabase
+              .from("match_odds")
+              .select("fixture_id, home_1_12_odds, home_13_plus_odds, draw_odds, away_1_12_odds, away_13_plus_odds, odds_as_at")
+              .in("fixture_id", fixtureIds);
+            const oddsMap: Record<string, MatchOdds> = {};
+            (oddsData || []).forEach((o: MatchOdds) => {
+              oddsMap[o.fixture_id] = o;
+            });
+            setMatchOdds(oddsMap);
           } else {
             setFixtureResults({});
+            setMatchOdds({});
           }
         }
       };
@@ -1768,6 +1802,47 @@ export default function TeamHomePage() {
                         )}
                       </div>
                     )}
+
+                    {/* Odds (TAB Winning Margin) */}
+                    <div className="mt-3 pt-2 border-t border-gray-200 dark:border-zinc-700 py-1">
+                      {matchOdds[fixture.id] ? (
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                          <div />
+                          <div className="grid grid-cols-3 items-center divide-x divide-gray-200 dark:divide-zinc-700 text-center text-[12px] leading-tight">
+                            {/* Home */}
+                            <div className="px-5 py-1 flex flex-col items-center justify-center gap-0.5">
+                              <span className="sr-only">{homeName} </span>
+                              <div className="text-[11px] text-gray-500 dark:text-zinc-400">1–12 <span className="font-medium text-gray-900 dark:text-zinc-200 tabular-nums">${Number(matchOdds[fixture.id].home_1_12_odds).toFixed(2)}</span></div>
+                              <div className="text-[11px] text-gray-500 dark:text-zinc-400">13+ <span className="font-medium text-gray-900 dark:text-zinc-200 tabular-nums">${Number(matchOdds[fixture.id].home_13_plus_odds).toFixed(2)}</span></div>
+                            </div>
+                            {/* Draw */}
+                            <div className="px-5 py-1 flex flex-col items-center justify-center gap-0.5">
+                              <span className="sr-only">Draw </span>
+                              <div className="text-[11px] text-gray-500 dark:text-zinc-400">Draw <span className="font-medium text-gray-900 dark:text-zinc-200 tabular-nums">${Number(matchOdds[fixture.id].draw_odds).toFixed(2)}</span></div>
+                            </div>
+                            {/* Away */}
+                            <div className="px-5 py-1 flex flex-col items-center justify-center gap-0.5">
+                              <span className="sr-only">{awayName} </span>
+                              <div className="text-[11px] text-gray-500 dark:text-zinc-400">1–12 <span className="font-medium text-gray-900 dark:text-zinc-200 tabular-nums">${Number(matchOdds[fixture.id].away_1_12_odds).toFixed(2)}</span></div>
+                              <div className="text-[11px] text-gray-500 dark:text-zinc-400">13+ <span className="font-medium text-gray-900 dark:text-zinc-200 tabular-nums">${Number(matchOdds[fixture.id].away_13_plus_odds).toFixed(2)}</span></div>
+                            </div>
+                          </div>
+                          <span className="text-[11px] text-gray-500 dark:text-zinc-500 whitespace-nowrap tabular-nums justify-self-end">
+                            As at{" "}
+                            {new Date(matchOdds[fixture.id].odds_as_at).toLocaleString("en-NZ", {
+                              timeZone: "Pacific/Auckland",
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-gray-500 dark:text-zinc-500">Odds not set</span>
+                      )}
+                    </div>
                     </div>
                   </div>
                 );

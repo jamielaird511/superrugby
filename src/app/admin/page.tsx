@@ -1685,61 +1685,74 @@ export default function AdminPage() {
                         {/* Odds Panel */}
                         <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3 dark:bg-zinc-950 dark:border-zinc-800">
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                            <div className="text-sm font-medium text-gray-700 dark:text-zinc-300">
                               Odds (TAB Winning Margin)
                             </div>
                             {matchOdds[fixture.id] && (
-                              <div className="text-xs text-zinc-500 dark:text-zinc-400 text-right">
+                              <div className="text-xs text-gray-500 dark:text-zinc-400 text-right">
+                                As at{" "}
                                 {new Date(matchOdds[fixture.id].odds_as_at).toLocaleString("en-NZ", {
                                   timeZone: "Pacific/Auckland",
                                   day: "numeric",
                                   month: "short",
                                   hour: "numeric",
                                   minute: "2-digit",
+                                  hour12: true,
                                 })}
                               </div>
                             )}
                           </div>
-                          {matchOdds[fixture.id] && editingOddsFixtureId !== fixture.id ? (
+                          {!matchOdds[fixture.id] && editingOddsFixtureId !== fixture.id ? (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600 dark:text-zinc-400">Odds not set</span>
+                              <button
+                                type="button"
+                                onClick={() => handleEditOdds(fixture.id)}
+                                className="rounded-md bg-blue-600 px-3 h-8 text-xs text-white transition-colors hover:bg-blue-700"
+                              >
+                                Edit odds
+                              </button>
+                            </div>
+                          ) : matchOdds[fixture.id] && editingOddsFixtureId !== fixture.id ? (
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 <div>
-                                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+                                  <div className="text-sm text-gray-700 dark:text-zinc-400 mb-1">
                                     {homeName} 1–12
                                   </div>
-                                  <div className="text-sm font-semibold text-black dark:text-zinc-50">
+                                  <div className="text-sm font-medium text-black dark:text-zinc-50">
                                     {formatOdds(matchOdds[fixture.id].home_1_12_odds)}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+                                  <div className="text-sm text-gray-700 dark:text-zinc-400 mb-1">
                                     {homeName} 13+
                                   </div>
-                                  <div className="text-sm font-semibold text-black dark:text-zinc-50">
+                                  <div className="text-sm font-medium text-black dark:text-zinc-50">
                                     {formatOdds(matchOdds[fixture.id].home_13_plus_odds)}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">
-                                    Draw
+                                  <div className="text-sm text-gray-700 dark:text-zinc-400 mb-1">
+                                    Draw 13+
                                   </div>
-                                  <div className="text-sm font-semibold text-black dark:text-zinc-50">
+                                  <div className="text-sm font-medium text-black dark:text-zinc-50">
                                     {formatOdds(matchOdds[fixture.id].draw_odds)}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+                                  <div className="text-sm text-gray-700 dark:text-zinc-400 mb-1">
                                     {awayName} 1–12
                                   </div>
-                                  <div className="text-sm font-semibold text-black dark:text-zinc-50">
+                                  <div className="text-sm font-medium text-black dark:text-zinc-50">
                                     {formatOdds(matchOdds[fixture.id].away_1_12_odds)}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">
+                                  <div className="text-sm text-gray-700 dark:text-zinc-400 mb-1">
                                     {awayName} 13+
                                   </div>
-                                  <div className="text-sm font-semibold text-black dark:text-zinc-50">
+                                  <div className="text-sm font-medium text-black dark:text-zinc-50">
                                     {formatOdds(matchOdds[fixture.id].away_13_plus_odds)}
                                   </div>
                                 </div>

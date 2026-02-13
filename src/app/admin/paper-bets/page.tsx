@@ -95,7 +95,7 @@ function computeReturnProfit(
 ): { returnVal: number | null; profit: number | null; stakeNum: number | null } {
   if (!r.paper_bet_id) return { returnVal: null, profit: null, stakeNum: null };
   const stakeNum = toNum(r.stake);
-  const oddsNum = toNum(r.paper_odds);
+  const oddsNum = computeExpectedOdds(r); // use live odds
   if (stakeNum == null || oddsNum == null) return { returnVal: null, profit: null, stakeNum };
   const actualOutcome = deriveActualOutcome(
     r.winning_team,
@@ -405,7 +405,7 @@ export default async function AdminPaperBetsPage({
                         savedOdds != null &&
                         !oddsOk
                       )
-                        badge = "ODDS MISMATCH";
+                        badge = "ODDS MOVED";
                       else if (hasPick && hasPaper) badge = "OK";
 
                       const resultLabel =
@@ -478,7 +478,7 @@ export default async function AdminPaperBetsPage({
                             ) : (
                               <div className="font-semibold">{badge}</div>
                             )}
-                            {(badge === "ODDS MISMATCH" || badge === "MISSING PAPER BET") &&
+                            {(badge === "ODDS MOVED" || badge === "MISSING PAPER BET") &&
                               expectedOdds != null && (
                                 <div className="text-xs text-zinc-500 dark:text-zinc-400">
                                   Expected odds: {expectedOdds}
@@ -510,8 +510,8 @@ export default async function AdminPaperBetsPage({
 
           <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
             If you see <b>MISSING PAPER BET</b>, your sync didn’t run for this round/participant
-            or there’s missing odds. If you see <b>ODDS/OUTCOME MISMATCH</b>, your mapping logic
-            is wrong.
+            or there’s missing odds. If you see <b>ODDS MOVED</b>, the market price has changed
+            since the paper bet was created.
           </p>
         </div>
       )}

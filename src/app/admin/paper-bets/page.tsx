@@ -18,6 +18,7 @@ type Row = {
   paper_outcome: string | null;
   stake: string | null;
   paper_odds: string | null;
+  kickoff_odds: string | null;
 
   winning_team: string | null;
   margin_band: string | null;
@@ -95,8 +96,8 @@ function computeReturnProfit(
 ): { returnVal: number | null; profit: number | null; stakeNum: number | null } {
   if (!r.paper_bet_id) return { returnVal: null, profit: null, stakeNum: null };
   const stakeNum = toNum(r.stake);
-  const oddsNum = computeExpectedOdds(r); // use live odds
-  if (stakeNum == null || oddsNum == null) return { returnVal: null, profit: null, stakeNum };
+  const oddsNum = toNum(r.kickoff_odds); // use locked odds at kickoff
+  if (stakeNum == null || oddsNum == null) return { returnVal: null, profit: null, stakeNum: null };
   const actualOutcome = deriveActualOutcome(
     r.winning_team,
     r.margin_band,
@@ -192,7 +193,7 @@ export default async function AdminPaperBetsPage({
           .in("fixture_id", fixtureIds),
         supabaseAdmin
           .from("paper_bets")
-          .select("id, fixture_id, outcome, stake, odds")
+          .select("id, fixture_id, outcome, stake, odds, kickoff_odds")
           .eq("participant_id", participantId)
           .in("fixture_id", fixtureIds),
         supabaseAdmin
@@ -243,6 +244,7 @@ export default async function AdminPaperBetsPage({
           paper_outcome: (bRow.outcome as string) ?? null,
           stake: bRow.stake != null ? String(bRow.stake) : null,
           paper_odds: bRow.odds != null ? String(bRow.odds) : null,
+          kickoff_odds: bRow.kickoff_odds != null ? String(bRow.kickoff_odds) : null,
 
           winning_team: (resRow.winning_team as string) ?? null,
           margin_band: (resRow.margin_band as string) ?? null,

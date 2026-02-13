@@ -119,6 +119,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Auto-lock paper bet kickoff odds for this fixture
+    if (fixture_id) {
+      const { error: rpcError } = await supabaseAdmin.rpc("lock_paper_bets_kickoff_odds", {
+        p_fixture_id: fixture_id,
+      });
+      if (rpcError) {
+        console.error("lock_paper_bets_kickoff_odds RPC failed:", rpcError);
+      }
+    }
+
     return NextResponse.json({ data: data || [] }, { status: 200 });
   } catch (err) {
     console.error("Admin results error:", err);

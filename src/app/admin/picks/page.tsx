@@ -78,6 +78,31 @@ export default function AdminPicksPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reminder (round pick status)
+  const [roundStatusLoading, setRoundStatusLoading] = useState(false);
+  const [roundStatusError, setRoundStatusError] = useState<string | null>(null);
+  const [roundStatusTotals, setRoundStatusTotals] = useState<{
+    total_games: number;
+    open_games: number;
+    participant_count: number;
+    complete_open_count: number;
+    incomplete_open_count: number;
+  } | null>(null);
+  const [roundStatusRows, setRoundStatusRows] = useState<
+    Array<{
+      participant_id: string;
+      team_name: string;
+      picks_total: number;
+      picks_open: number;
+      total_games: number;
+      open_games: number;
+      missing_open: number;
+      is_complete_open: boolean;
+      emails: string[];
+    }>
+  >([]);
+  const [reminderCopied, setReminderCopied] = useState(false);
+
   // Admin gate: check authentication and admin email on load
   useEffect(() => {
     const checkAdmin = async () => {
@@ -296,6 +321,56 @@ export default function AdminPicksPage() {
     }
 
     fetchPicksData();
+  }, [selectedRoundId]);
+
+  // Fetch round pick status (reminder) when round changes
+  useEffect(() => {
+    if (!selectedRoundId) {
+      setRoundStatusTotals(null);
+      setRoundStatusRows([]);
+      setRoundStatusError(null);
+      return;
+    }
+
+    async function fetchRoundStatus() {
+      setRoundStatusLoading(true);
+      setRoundStatusError(null);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) {
+          setRoundStatusError("Not authenticated");
+          setRoundStatusLoading(false);
+          return;
+        }
+
+        const res = await fetch(
+          `/api/admin/round-pick-status?roundId=${selectedRoundId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          setRoundStatusError(err.error || "Failed to fetch round status");
+          setRoundStatusTotals(null);
+          setRoundStatusRows([]);
+          setRoundStatusLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        setRoundStatusTotals(data.totals || null);
+        setRoundStatusRows(data.rows || []);
+        setRoundStatusError(null);
+      } catch (e) {
+        setRoundStatusError(e instanceof Error ? e.message : "Failed to fetch");
+        setRoundStatusTotals(null);
+        setRoundStatusRows([]);
+      } finally {
+        setRoundStatusLoading(false);
+      }
+    }
+
+    fetchRoundStatus();
   }, [selectedRoundId]);
 
   function buildDisplayPicks(picksData: Pick[], fixtureIds: string[]) {
@@ -682,6 +757,78 @@ export default function AdminPicksPage() {
             )}
           </div>
         </div>
+
+        {/* Reminder panel */}
+        {selectedRoundId && (
+          <div className="mb-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-2">
+              Reminder
+            </h3>
+            {roundStatusLoading ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading...</p>
+            ) : roundStatusError ? (
+              <p className="text-sm text-amber-600 dark:text-amber-400">{roundStatusError}</p>
+            ) : roundStatusTotals ? (
+              <>
+                <div className="flex flex-wrap gap-4 text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                  <span>Open complete: {roundStatusTotals.complete_open_count} / {roundStatusTotals.participant_count}</span>
+                  <span>Open incomplete: {roundStatusTotals.incomplete_open_count}</span>
+                  <span>Open games remaining: {roundStatusTotals.open_games}</span>
+                  <span>Total games in round: {roundStatusTotals.total_games}</span>
+                </div>
+                {roundStatusTotals.open_games === 0 ? (
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">No open games remaining for this round.</p>
+                ) : roundStatusTotals.incomplete_open_count === 0 ? (
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Everyone is done for the remaining open games.</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto mb-3">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                            <th className="text-left py-1 pr-2 font-medium text-zinc-900 dark:text-zinc-50">Team</th>
+                            <th className="text-left py-1 pr-2 font-medium text-zinc-900 dark:text-zinc-50">Overall</th>
+                            <th className="text-left py-1 pr-2 font-medium text-zinc-900 dark:text-zinc-50">Open</th>
+                            <th className="text-left py-1 pr-2 font-medium text-zinc-900 dark:text-zinc-50">Missing open</th>
+                            <th className="text-left py-1 font-medium text-zinc-900 dark:text-zinc-50">Emails</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {roundStatusRows
+                            .filter((r) => r.missing_open > 0)
+                            .map((r) => (
+                              <tr key={r.participant_id} className="border-b border-zinc-100 dark:border-zinc-800">
+                                <td className="py-1 pr-2 text-zinc-900 dark:text-zinc-50">{r.team_name}</td>
+                                <td className="py-1 pr-2 text-zinc-700 dark:text-zinc-300">{r.picks_total}/{r.total_games}</td>
+                                <td className="py-1 pr-2 text-zinc-700 dark:text-zinc-300">{r.picks_open}/{r.open_games}</td>
+                                <td className="py-1 pr-2 text-zinc-700 dark:text-zinc-300">{r.missing_open}</td>
+                                <td className="py-1 text-xs text-zinc-600 dark:text-zinc-400">{r.emails.join(", ")}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const emails = roundStatusRows
+                          .filter((r) => r.missing_open > 0)
+                          .flatMap((r) => r.emails);
+                        const deduped = [...new Set(emails)].join("; ");
+                        await navigator.clipboard.writeText(deduped);
+                        setReminderCopied(true);
+                        setTimeout(() => setReminderCopied(false), 1000);
+                      }}
+                      className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      {reminderCopied ? "Copied" : "Copy BCC (incomplete)"}
+                    </button>
+                  </>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
 
         {/* Round Total Summary (By Team mode only) */}
         {mode === "team" && selectedRoundId && filteredPicks.length > 0 && (

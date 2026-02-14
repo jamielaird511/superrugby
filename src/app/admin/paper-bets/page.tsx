@@ -1,3 +1,4 @@
+import { PrinterIcon } from "@heroicons/react/24/outline";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import PaperBetsLeaderboardSection from "./PaperBetsLeaderboardSection";
 
@@ -260,6 +261,11 @@ export default async function AdminPaperBetsPage({
   }
 
   const base = "/admin/paper-bets";
+  const printUrl = roundId
+    ? `/admin/print/paper-bets?round=${encodeURIComponent(roundId)}`
+    : rounds.length > 0 && rounds[0].season != null
+      ? `/admin/print/paper-bets?season=${rounds[0].season}`
+      : null;
 
   return (
     <>
@@ -323,12 +329,33 @@ export default async function AdminPaperBetsPage({
             </select>
           </label>
 
-          <button
-            type="submit"
-            className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-zinc-600"
-          >
-            Load
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+            >
+              Load
+            </button>
+            {printUrl ? (
+              <a
+                href={printUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+              >
+                <PrinterIcon className="h-4 w-4" />
+                Print report
+              </a>
+            ) : (
+              <span
+                className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-500 opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                aria-disabled="true"
+              >
+                <PrinterIcon className="h-4 w-4" />
+                Print report
+              </span>
+            )}
+          </div>
         </form>
 
         <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">

@@ -508,6 +508,7 @@ export default function TeamHomePage() {
       // Fetch fixtures for selected round and participant's competition
       const fetchRoundFixtures = async () => {
         if (!participantCompetitionId) return;
+
         const fixturesRes = await supabase
           .from(FIXTURES_TABLE)
           .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
@@ -523,21 +524,25 @@ export default function TeamHomePage() {
         } else {
           const fixtures = fixturesRes.data || [];
           setNextRoundFixtures(fixtures);
+
           const fixtureIds = fixtures.map((f: Fixture) => f.id);
           if (fixtureIds.length > 0) {
             const { data: resultsData } = await supabase
               .from("fixture_results_public")
               .select("fixture_id, winning_team, margin_band")
               .in("fixture_id", fixtureIds);
+
             const resultsMap: Record<string, FixtureResult> = {};
             (resultsData || []).forEach((r: { fixture_id: string; winning_team: string; margin_band: string | null }) => {
               resultsMap[r.fixture_id] = { winning_team: r.winning_team, margin_band: r.margin_band };
             });
             setFixtureResults(resultsMap);
+
             const { data: oddsData } = await supabase
               .from("match_odds")
               .select("fixture_id, home_1_12_odds, home_13_plus_odds, draw_odds, away_1_12_odds, away_13_plus_odds, odds_as_at")
               .in("fixture_id", fixtureIds);
+
             const oddsMap: Record<string, MatchOdds> = {};
             (oddsData || []).forEach((o: MatchOdds) => {
               oddsMap[o.fixture_id] = o;
@@ -548,11 +553,14 @@ export default function TeamHomePage() {
             setMatchOdds({});
           }
         }
+
+        // Refetch picks for the newly selected round
+        await fetchPicks(participant?.id || participantId, selectedRoundId);
       };
 
       fetchRoundFixtures();
     }
-  }, [selectedRoundId, hasInitialFetch]);
+  }, [selectedRoundId, hasInitialFetch, participantCompetitionId, participant?.id, participantId]);
 
   const DRAW_VALUE = "DRAW";
 
@@ -1135,6 +1143,13 @@ export default function TeamHomePage() {
     return nextRoundFixtures.some((fixture) => !isFixtureLocked(fixture.kickoff_at));
   };
 
+  const isRoundLocked = useMemo(() => {
+    if (nextRoundFixtures.length === 0) return false;
+    return nextRoundFixtures.every(
+      (fixture) => isFixtureLocked(fixture.kickoff_at) || !!fixtureResults[fixture.id]
+    );
+  }, [nextRoundFixtures, fixtureResults]);
+
   const canMakePicks = () => {
     // Allow picks if any fixture is open (not locked)
     return hasOpenFixtures();
@@ -1330,6 +1345,12 @@ export default function TeamHomePage() {
               </div>
             </div>
           </div>
+
+          {selectedRoundId && isRoundLocked && (
+            <div className="mx-auto w-full max-w-2xl mb-4 rounded-md border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+              <span className="font-semibold">Round locked.</span> Picks are closed for all matches in this round.
+            </div>
+          )}
 
           {nextRoundFixtures.length === 0 ? (
             <p className="text-center text-zinc-600 dark:text-zinc-400">

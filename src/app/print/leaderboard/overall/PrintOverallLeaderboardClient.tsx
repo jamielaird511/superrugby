@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useParams } from "next/navigation";
 import PrintButton from "@/components/PrintButton";
 
 type OverallScore = {
@@ -25,9 +24,11 @@ function sortLeaderboardRows<T extends { total_points: number; team_name: string
   });
 }
 
-export default function PrintCategoryLeaderboard() {
-  const params = useParams();
-  const categorySlug = decodeURIComponent(params.category as string);
+export default function PrintOverallLeaderboardClient({
+  leagueIdParam,
+}: {
+  leagueIdParam: string | undefined;
+}) {
   const [scores, setScores] = useState<OverallScore[]>([]);
   const [businessNames, setBusinessNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -35,20 +36,38 @@ export default function PrintCategoryLeaderboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch overall leaderboard (we'll filter by category)
+        // Get league_id from query param or default to ANZ2026
+        let targetLeagueId: string | null = null;
+
+        if (leagueIdParam) {
+          targetLeagueId = leagueIdParam;
+        } else {
+          // Default to ANZ2026 league
+          const { data: defaultLeague } = await supabase
+            .from("leagues")
+            .select("id")
+            .eq("league_code", "ANZ2026")
+            .single();
+          targetLeagueId = defaultLeague?.id || null;
+        }
+
+        if (!targetLeagueId) {
+          console.error("Could not determine league");
+          setLoading(false);
+          return;
+        }
+
+        // Fetch overall leaderboard (filtered by league)
         const { data: leaderboardData, error: leaderboardError } = await supabase
           .from("leaderboard_overall_public")
-          .select("participant_id, team_name, category, total_points");
+          .select("participant_id, team_name, category, total_points")
+          .eq("league_id", targetLeagueId);
 
         if (leaderboardError) {
           console.error("Error fetching leaderboard:", leaderboardError);
           setScores([]);
         } else {
-          // Filter by category
-          const categoryScores = (leaderboardData || []).filter(
-            (score) => score.category === categorySlug
-          );
-          const sorted = sortLeaderboardRows(categoryScores);
+          const sorted = sortLeaderboardRows(leaderboardData || []);
           setScores(sorted);
         }
 
@@ -72,7 +91,7 @@ export default function PrintCategoryLeaderboard() {
     };
 
     fetchData();
-  }, [categorySlug]);
+  }, [leagueIdParam]);
 
   if (loading) {
     return <div className="p-8">Loading...</div>;
@@ -144,9 +163,7 @@ export default function PrintCategoryLeaderboard() {
           <div className="mb-6 no-print">
             <PrintButton onClick={() => window.print()} />
           </div>
-          <h1 className="text-2xl font-bold text-[#003A5D] mb-6">
-            Category: {formatCategoryLabel(categorySlug)}
-          </h1>
+          <h1 className="text-2xl font-bold text-[#003A5D] mb-6">Overall Leaderboard</h1>
           <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300">
             <thead className="bg-zinc-50">
               <tr>

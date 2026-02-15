@@ -2,14 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useParams } from "next/navigation";
 import PrintButton from "@/components/PrintButton";
 
-type OverallScore = {
+type RoundScore = {
   participant_id: string;
   team_name: string;
   category: string | null;
   total_points: number;
+};
+
+type Round = {
+  id: string;
+  season: number;
+  round_number: number;
 };
 
 function formatCategoryLabel(slug: string): string {
@@ -25,30 +30,48 @@ function sortLeaderboardRows<T extends { total_points: number; team_name: string
   });
 }
 
-export default function PrintCategoryLeaderboard() {
-  const params = useParams();
-  const categorySlug = decodeURIComponent(params.category as string);
-  const [scores, setScores] = useState<OverallScore[]>([]);
+export default function PrintRoundLeaderboardClient({
+  roundId,
+}: {
+  roundId: string;
+}) {
+  const [scores, setScores] = useState<RoundScore[]>([]);
   const [businessNames, setBusinessNames] = useState<Record<string, string>>({});
+  const [round, setRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!roundId) return;
+
       try {
-        // Fetch overall leaderboard (we'll filter by category)
+        // Fetch round info (including league_id)
+        const { data: roundData, error: roundError } = await supabase
+          .from("rounds")
+          .select("id, season, round_number, league_id")
+          .eq("id", roundId)
+          .single();
+
+        if (roundError || !roundData) {
+          console.error("Error fetching round:", roundError);
+          setLoading(false);
+          return;
+        }
+
+        setRound(roundData);
+
+        // Fetch round leaderboard (filtered by round's league)
         const { data: leaderboardData, error: leaderboardError } = await supabase
-          .from("leaderboard_overall_public")
-          .select("participant_id, team_name, category, total_points");
+          .from("leaderboard_round_public")
+          .select("participant_id, team_name, category, total_points")
+          .eq("round_id", roundId)
+          .eq("league_id", roundData.league_id);
 
         if (leaderboardError) {
           console.error("Error fetching leaderboard:", leaderboardError);
           setScores([]);
         } else {
-          // Filter by category
-          const categoryScores = (leaderboardData || []).filter(
-            (score) => score.category === categorySlug
-          );
-          const sorted = sortLeaderboardRows(categoryScores);
+          const sorted = sortLeaderboardRows(leaderboardData || []);
           setScores(sorted);
         }
 
@@ -72,7 +95,7 @@ export default function PrintCategoryLeaderboard() {
     };
 
     fetchData();
-  }, [categorySlug]);
+  }, [roundId]);
 
   if (loading) {
     return <div className="p-8">Loading...</div>;
@@ -145,7 +168,7 @@ export default function PrintCategoryLeaderboard() {
             <PrintButton onClick={() => window.print()} />
           </div>
           <h1 className="text-2xl font-bold text-[#003A5D] mb-6">
-            Category: {formatCategoryLabel(categorySlug)}
+            Round {round?.round_number || "—"} Results
           </h1>
           <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300">
             <thead className="bg-zinc-50">

@@ -18,14 +18,7 @@ export default function PrintLeaderboardLayout({
 
           .print-container table {
             width: 100% !important;
-            font-size: 11px;
             table-layout: fixed;
-          }
-
-          .print-container th,
-          .print-container td {
-            padding: 6px 8px;
-            white-space: nowrap;
           }
 
           .print-container {

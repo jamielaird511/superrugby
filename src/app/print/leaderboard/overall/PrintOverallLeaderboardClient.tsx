@@ -115,19 +115,15 @@ export default function PrintOverallLeaderboardClient({
             margin: 0 !important;
             background: white !important;
           }
-          .print-container {
-            max-width: 100%;
+          .print-container,
+          .print-content {
+            width: 100% !important;
+            max-width: none !important;
             padding: 0;
-            width: 100%;
           }
           .print-content {
-            width: 100%;
-            max-width: 190mm;
             margin: 0 auto;
             padding: 6mm 10mm;
-          }
-          table {
-            font-size: 11px;
           }
           thead {
             display: table-header-group;
@@ -138,10 +134,6 @@ export default function PrintOverallLeaderboardClient({
           tr {
             break-inside: avoid;
             page-break-inside: avoid;
-          }
-          th, td {
-            padding-top: 6px !important;
-            padding-bottom: 6px !important;
           }
         }
         @media screen {
@@ -159,51 +151,56 @@ export default function PrintOverallLeaderboardClient({
         }
       `}</style>
       <div className="print-container bg-white">
-        <div className="print-content">
+        <div className="mx-auto w-full max-w-[860px] px-6 pt-8 pb-8">
           <div className="mb-6 no-print">
             <PrintButton onClick={() => window.print()} />
           </div>
-          <h1 className="text-2xl font-bold text-[#003A5D] mb-6">Overall Leaderboard</h1>
-          <table className="min-w-full divide-y divide-zinc-200 border border-zinc-300">
-            <thead className="bg-zinc-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                  Rank
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                  Team
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                  Business
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-zinc-300">
-                  Category
-                </th>
-                <th className="px-4 py-3 w-[110px] text-right text-xs font-semibold text-zinc-700 uppercase tracking-wider border-b border-zinc-300">
-                  Points
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-zinc-200">
-              {scores.map((score, index) => {
-                const business = businessNames[score.participant_id] || "—";
-                const category = score.category ? formatCategoryLabel(score.category) : "—";
-                return (
-                  <tr key={score.participant_id}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-900">{index + 1}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-900">{score.team_name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 max-w-[260px]">
-                      <span className="block truncate" title={business}>{business}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500 max-w-[140px]">
-                      <span className="block truncate" title={category}>{category}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap w-[110px] text-sm text-zinc-900 text-right font-semibold">{score.total_points}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <h1 className="text-2xl font-semibold text-slate-900 mb-4">Overall Leaderboard</h1>
+          <div className="w-full rounded-md border border-slate-300 overflow-hidden">
+            <table className="w-full table-fixed border-collapse text-[13px] text-slate-800" style={{ tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: "44px" }} />
+                <col style={{ width: "240px" }} />
+                <col style={{ width: "240px" }} />
+                <col style={{ width: "150px" }} />
+                <col style={{ width: "72px" }} />
+              </colgroup>
+              <thead className="bg-slate-100">
+                <tr className="border-b border-slate-300">
+                  <th className="px-2 py-2 text-[11px] font-semibold tracking-wide text-slate-700 text-center">
+                    Rank
+                  </th>
+                  <th className="px-2 py-2 text-[11px] font-semibold tracking-wide text-slate-700 text-left">
+                    Team
+                  </th>
+                  <th className="px-2 py-2 text-[11px] font-semibold tracking-wide text-slate-700 text-left">
+                    Business
+                  </th>
+                  <th className="px-2 py-2 text-[11px] font-semibold tracking-wide text-slate-700 text-left">
+                    Category
+                  </th>
+                  <th className="px-2 py-2 text-[11px] font-semibold tracking-wide text-slate-700 text-center">
+                    Points
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {scores.map((score, index) => {
+                  const business = businessNames[score.participant_id] || "—";
+                  const category = score.category ? formatCategoryLabel(score.category) : "—";
+                  return (
+                    <tr key={score.participant_id} className="border-b border-slate-200 odd:bg-white even:bg-slate-50">
+                      <td className="px-2 py-2 whitespace-nowrap text-center text-slate-900">{index + 1}</td>
+                      <td className="px-2 py-2 truncate text-left font-medium text-slate-900" title={score.team_name}>{score.team_name}</td>
+                      <td className="px-2 py-2 truncate text-left text-slate-600" title={business}>{business}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-left text-slate-600">{category}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-center font-semibold text-slate-900">{score.total_points}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>

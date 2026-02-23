@@ -77,6 +77,7 @@ export default function AdminPage() {
   const [overridePickedTeamCode, setOverridePickedTeamCode] = useState<string>("");
   const [overrideMargin, setOverrideMargin] = useState<number | null>(null);
   const [overrideConfirmText, setOverrideConfirmText] = useState<string>("");
+  const [overrideReason, setOverrideReason] = useState<string>("");
   const [overrideParticipants, setOverrideParticipants] = useState<{ id: string; team_name: string }[]>([]);
   const [overrideLoading, setOverrideLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -979,6 +980,7 @@ export default function AdminPage() {
     setOverridePickedTeamCode("");
     setOverrideMargin(null);
     setOverrideConfirmText("");
+    setOverrideReason("");
   };
 
   const closeOverrideModal = () => {
@@ -987,6 +989,7 @@ export default function AdminPage() {
     setOverridePickedTeamCode("");
     setOverrideMargin(null);
     setOverrideConfirmText("");
+    setOverrideReason("");
   };
 
   const handleOverrideSubmit = async (action: "upsert" | "delete") => {
@@ -1010,6 +1013,7 @@ export default function AdminPage() {
         body.picked_team_code = overridePickedTeamCode;
         body.margin = overridePickedTeamCode === "DRAW" ? 0 : overrideMargin;
       }
+      if (overrideReason.trim()) body.reason = overrideReason.trim();
 
       const response = await fetch("/api/admin/override-pick", {
         method: "POST",
@@ -2040,6 +2044,16 @@ export default function AdminPage() {
                     </select>
                   </div>
                 )}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Reason (optional)</label>
+                  <input
+                    type="text"
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="Audit reason for override"
+                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                     Type OVERRIDE to confirm

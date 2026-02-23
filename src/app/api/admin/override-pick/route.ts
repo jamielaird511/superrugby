@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { participant_id, fixture_id, picked_team_code, margin, action } = body;
+    const { participant_id, fixture_id, picked_team_code, margin, action, reason } = body;
 
     if (typeof participant_id !== "string" || !UUID_REGEX.test(participant_id)) {
       return NextResponse.json({ error: "participant_id must be a valid UUID" }, { status: 400 });
@@ -129,13 +129,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Fixture is locked (result recorded)" }, { status: 403 });
     }
 
-    if (fixture.kickoff_at) {
-      const kickoffTime = new Date(fixture.kickoff_at);
-      if (new Date() >= kickoffTime) {
-        return NextResponse.json({ error: "Fixture is locked (kickoff passed)" }, { status: 403 });
-      }
-    }
-
     if (action === "upsert") {
       if (
         picked_team_code !== fixture.home_team_code &&
@@ -154,10 +147,19 @@ export async function POST(req: NextRequest) {
         .eq("fixture_id", fixture_id)
         .maybeSingle();
 
+      const auditFields = {
+        admin_override: true,
+        admin_override_reason: typeof reason === "string" ? reason : null,
+        admin_overridden_at: new Date().toISOString(),
+      };
       if (existingPick) {
         const { error: updateErr } = await supabaseAdmin
           .from("picks")
-          .update({ picked_team: picked_team_code, margin: marginVal })
+          .update({
+            picked_team: picked_team_code,
+            margin: marginVal,
+            ...auditFields,
+          })
           .eq("id", existingPick.id);
         if (updateErr) {
           console.error("Override pick update error:", updateErr);
@@ -172,6 +174,7 @@ export async function POST(req: NextRequest) {
             league_id: participant.league_id,
             picked_team: picked_team_code,
             margin: marginVal,
+            ...auditFields,
           });
         if (insertErr) {
           console.error("Override pick insert error:", insertErr);

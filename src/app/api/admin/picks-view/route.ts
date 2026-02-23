@@ -32,6 +32,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "roundId is required" }, { status: 400 });
     }
 
+    // Load round to get competition_id
+    const { data: round, error: roundError } = await supabaseAdmin
+      .from("rounds")
+      .select("id, competition_id")
+      .eq("id", roundId)
+      .single();
+
+    if (roundError || !round?.competition_id) {
+      return NextResponse.json(
+        { error: "Round not found or has no competition" },
+        { status: 400 }
+      );
+    }
+
     // Load fixtures for the round
     const { data: fixtures, error: fixturesError } = await supabaseAdmin
       .from("fixtures")
@@ -49,10 +63,27 @@ export async function GET(req: NextRequest) {
 
     const fixtureIds = (fixtures || []).map((f) => f.id);
 
-    // Load participants
+    // Load leagues for this competition
+    const { data: leagues, error: leaguesError } = await supabaseAdmin
+      .from("leagues")
+      .select("id")
+      .eq("competition_id", round.competition_id);
+
+    if (leaguesError) {
+      console.error("Error fetching leagues:", leaguesError);
+      return NextResponse.json(
+        { error: "Failed to fetch leagues" },
+        { status: 500 }
+      );
+    }
+
+    const leagueIds = (leagues || []).map((l) => l.id);
+
+    // Load participants for the same league(s) as the round's competition
     const { data: participants, error: participantsError } = await supabaseAdmin
       .from("participants")
-      .select("id, team_name, business_name")
+      .select("id, team_name, business_name, league_id")
+      .in("league_id", leagueIds.length > 0 ? leagueIds : ["00000000-0000-0000-0000-000000000000"])
       .order("team_name", { ascending: true });
 
     if (participantsError) {
@@ -63,12 +94,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Load picks for those fixtures
+    // Load picks for those fixtures (all participants; picks may be missing)
     let picks: unknown[] = [];
     if (fixtureIds.length > 0) {
       const { data: picksData, error: picksError } = await supabaseAdmin
         .from("picks")
-        .select("id, participant_id, fixture_id, picked_team, margin, created_at, updated_at")
+        .select("id, participant_id, fixture_id, picked_team, margin, created_at, updated_at, admin_override, admin_override_reason, admin_overridden_at")
         .in("fixture_id", fixtureIds);
 
       if (picksError) {

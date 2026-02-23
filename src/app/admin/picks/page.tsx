@@ -14,6 +14,7 @@ type Round = {
 type Participant = {
   id: string;
   team_name: string;
+  league_id?: string;
 };
 
 type Fixture = {
@@ -38,6 +39,9 @@ type Pick = {
   margin: number;
   updated_at: string;
   created_at: string;
+  admin_override?: boolean;
+  admin_override_reason?: string | null;
+  admin_overridden_at?: string | null;
 };
 
 type Result = {
@@ -47,17 +51,19 @@ type Result = {
 };
 
 type PickDisplay = {
-  matchLabel: string; // Compact format
-  fullMatchLabel: string; // Full format for tooltip
-  teamName: string; // Full participant team name
-  pickLabel: string; // 3-letter code
+  matchLabel: string;
+  fullMatchLabel: string;
+  teamName: string;
+  pickLabel: string; // 3-letter code or "—" when missing
   marginBand: string;
   updated: string;
   fixtureId: string;
-  points: number | null; // null if no result yet
+  points: number | null;
   participantId: string;
+  leagueId: string;
   pickedTeam: string;
   margin: number;
+  hasPick: boolean;
 };
 
 export default function AdminPicksPage() {
@@ -77,6 +83,13 @@ export default function AdminPicksPage() {
   const [displayPicks, setDisplayPicks] = useState<PickDisplay[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [overrideRow, setOverrideRow] = useState<PickDisplay | null>(null);
+  const [overridePickedTeamCode, setOverridePickedTeamCode] = useState<string>("");
+  const [overrideMargin, setOverrideMargin] = useState<number | null>(null);
+  const [overrideReason, setOverrideReason] = useState<string>("");
+  const [overrideLoading, setOverrideLoading] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
 
   // Reminder (round pick status)
   const [roundStatusLoading, setRoundStatusLoading] = useState(false);
@@ -321,7 +334,7 @@ export default function AdminPicksPage() {
     }
 
     fetchPicksData();
-  }, [selectedRoundId]);
+  }, [selectedRoundId, refreshCounter]);
 
   // Fetch round pick status (reminder) when round changes
   useEffect(() => {
@@ -374,10 +387,9 @@ export default function AdminPicksPage() {
   }, [selectedRoundId]);
 
   function buildDisplayPicks(picksData: Pick[], fixtureIds: string[]) {
-    // Build maps
-    const participantMap: Record<string, string> = {};
+    const participantMap: Record<string, { team_name: string; league_id: string }> = {};
     participants.forEach((p) => {
-      participantMap[p.id] = p.team_name;
+      participantMap[p.id] = { team_name: p.team_name, league_id: p.league_id ?? "" };
     });
 
     const fixtureMap: Record<string, Fixture> = {};
@@ -385,133 +397,124 @@ export default function AdminPicksPage() {
       fixtureMap[f.id] = f;
     });
 
-    // Also build a map for fixture match numbers for sorting
-    const fixtureMatchMap: Record<string, number> = {};
-    fixtures.forEach((f) => {
-      fixtureMatchMap[f.id] = f.match_number;
+    const pickMap: Record<string, Pick> = {};
+    picksData.forEach((p) => {
+      pickMap[`${p.participant_id}:${p.fixture_id}`] = p;
     });
 
-    // Build display picks
     const display: PickDisplay[] = [];
 
-    picksData.forEach((pick) => {
-      const fixture = fixtureMap[pick.fixture_id];
-      if (!fixture) return;
+    participants.forEach((participant) => {
+      fixtures.forEach((fixture) => {
+        const pick = pickMap[`${participant.id}:${fixture.id}`];
+        const homeCode = fixture.home_team_code;
+        const awayCode = fixture.away_team_code;
 
-      // Use 3-letter codes for teams
-      const homeCode = fixture.home_team_code;
-      const awayCode = fixture.away_team_code;
+        let kickoffStr = "";
+        if (fixture.kickoff_at) {
+          const kickoffDate = new Date(fixture.kickoff_at);
+          kickoffStr = kickoffDate.toLocaleString("en-NZ", {
+            timeZone: "Pacific/Auckland",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          });
+        }
 
-      // Format kickoff time (compact)
-      let kickoffStr = "";
-      if (fixture.kickoff_at) {
-        const kickoffDate = new Date(fixture.kickoff_at);
-        kickoffStr = kickoffDate.toLocaleString("en-NZ", {
+        const compactMatchLabel = `M${fixture.match_number}: ${homeCode} vs ${awayCode}${kickoffStr ? ` (${kickoffStr})` : ""}`;
+        const homeTeam = teams[fixture.home_team_code];
+        const awayTeam = teams[fixture.away_team_code];
+        const homeName = homeTeam?.name || fixture.home_team_code;
+        const awayName = awayTeam?.name || fixture.away_team_code;
+        const fullMatchLabel = `Match ${fixture.match_number}: ${homeName} vs ${awayName}${kickoffStr ? ` (${kickoffStr})` : ""}`;
+        const teamName = participantMap[participant.id]?.team_name ?? "Unknown";
+        const leagueId = participantMap[participant.id]?.league_id ?? "";
+
+        if (!pick) {
+          display.push({
+            matchLabel: compactMatchLabel,
+            fullMatchLabel,
+            teamName,
+            pickLabel: "—",
+            marginBand: "—",
+            updated: "—",
+            fixtureId: fixture.id,
+            points: null,
+            participantId: participant.id,
+            leagueId,
+            pickedTeam: "",
+            margin: 0,
+            hasPick: false,
+          });
+          return;
+        }
+
+        let pickLabel = pick.picked_team === "DRAW" ? "DRAW" : pick.picked_team;
+        let marginBand = "—";
+        if (pick.picked_team !== "DRAW") {
+          if (pick.margin === 1) marginBand = "1-12";
+          else if (pick.margin === 13) marginBand = "13+";
+        }
+
+        const updatedDate = pick.updated_at ? new Date(pick.updated_at) : new Date(pick.created_at);
+        const updated = updatedDate.toLocaleString("en-NZ", {
           timeZone: "Pacific/Auckland",
-          month: "short",
           day: "numeric",
+          month: "short",
           hour: "numeric",
           minute: "2-digit",
         });
-      }
 
-      // Compact match label: M{match_number}: {HOME} vs {AWAY} ({kickoff})
-      const compactMatchLabel = `M${fixture.match_number}: ${homeCode} vs ${awayCode}${kickoffStr ? ` (${kickoffStr})` : ""}`;
-      
-      // Full match label for tooltip
-      const homeTeam = teams[fixture.home_team_code];
-      const awayTeam = teams[fixture.away_team_code];
-      const homeName = homeTeam?.name || fixture.home_team_code;
-      const awayName = awayTeam?.name || fixture.away_team_code;
-      const fullMatchLabel = `Match ${fixture.match_number}: ${homeName} vs ${awayName}${kickoffStr ? ` (${kickoffStr})` : ""}`;
-      
-      // Use full participant team name (no abbreviation)
-      const teamName = participantMap[pick.participant_id] || "Unknown";
-
-      // Format pick label - use 3-letter code
-      let pickLabel = "";
-      if (pick.picked_team === "DRAW") {
-        pickLabel = "DRAW";
-      } else {
-        pickLabel = pick.picked_team; // Already a 3-letter code
-      }
-
-      // Format margin/band
-      let marginBand = "—";
-      if (pick.picked_team !== "DRAW") {
-        if (pick.margin === 1) {
-          marginBand = "1-12";
-        } else if (pick.margin === 13) {
-          marginBand = "13+";
+        let points: number | null = null;
+        const result = results[pick.fixture_id];
+        if (result) {
+          const score = calculatePickScore(pick.picked_team, pick.margin, {
+            winning_team: result.winning_team,
+            margin_band: result.margin_band,
+          });
+          points = score.totalPoints;
         }
-      }
 
-      // Format updated time
-      const updatedDate = pick.updated_at ? new Date(pick.updated_at) : new Date(pick.created_at);
-      const updated = updatedDate.toLocaleString("en-NZ", {
-        timeZone: "Pacific/Auckland",
-        day: "numeric",
-        month: "short",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-
-      // Calculate points if result exists
-      let points: number | null = null;
-      const result = results[pick.fixture_id];
-      if (result) {
-        const score = calculatePickScore(pick.picked_team, pick.margin, {
-          winning_team: result.winning_team,
-          margin_band: result.margin_band,
+        display.push({
+          matchLabel: compactMatchLabel,
+          fullMatchLabel,
+          teamName,
+          pickLabel,
+          marginBand,
+          updated,
+          fixtureId: pick.fixture_id,
+          points,
+          participantId: pick.participant_id,
+          leagueId,
+          pickedTeam: pick.picked_team,
+          margin: pick.margin,
+          hasPick: true,
         });
-        points = score.totalPoints;
-      }
-
-      display.push({
-        matchLabel: compactMatchLabel,
-        fullMatchLabel,
-        teamName,
-        pickLabel,
-        marginBand,
-        updated,
-        fixtureId: pick.fixture_id,
-        points,
-        participantId: pick.participant_id,
-        pickedTeam: pick.picked_team,
-        margin: pick.margin,
       });
     });
 
-    // Sort by fixture match number, then by kickoff time, then by team name
     display.sort((a, b) => {
       const fixtureA = fixtureMap[a.fixtureId];
       const fixtureB = fixtureMap[b.fixtureId];
       if (!fixtureA || !fixtureB) return 0;
-      
-      // First sort by match number
       if (fixtureA.match_number !== fixtureB.match_number) {
         return fixtureA.match_number - fixtureB.match_number;
       }
-      
-      // Then by kickoff time
       const timeA = fixtureA.kickoff_at ? new Date(fixtureA.kickoff_at).getTime() : 0;
       const timeB = fixtureB.kickoff_at ? new Date(fixtureB.kickoff_at).getTime() : 0;
-      if (timeA !== timeB) {
-        return timeA - timeB;
-      }
-      
-      // Finally by team name (A-Z) for when showing all teams
+      if (timeA !== timeB) return timeA - timeB;
       return a.teamName.localeCompare(b.teamName);
     });
 
     setDisplayPicks(display);
   }
 
-  // Rebuild display picks when picks, fixtures, participants, teams, or results change
+  // Rebuild display picks when picks, fixtures, participants, teams, or results change (include missing picks)
   useEffect(() => {
-    if (picks.length > 0 && fixtures.length > 0) {
+    if (fixtures.length > 0 && participants.length > 0) {
       buildDisplayPicks(picks, fixtures.map((f) => f.id));
-    } else if (picks.length === 0) {
+    } else {
       setDisplayPicks([]);
     }
   }, [picks, fixtures, participants, teams, results]);
@@ -562,6 +565,66 @@ export default function AdminPicksPage() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isAdmin, selectedRoundId, rounds]);
+
+  const openOverrideModal = (row: PickDisplay) => {
+    const fixture = fixtures.find((f) => f.id === row.fixtureId);
+    setOverrideRow(row);
+    setOverridePickedTeamCode(row.hasPick ? row.pickedTeam : "");
+    setOverrideMargin(row.hasPick && row.pickedTeam !== "DRAW" ? row.margin : null);
+    setOverrideReason("");
+    setOverrideError(null);
+  };
+
+  const closeOverrideModal = () => {
+    setOverrideRow(null);
+    setOverridePickedTeamCode("");
+    setOverrideMargin(null);
+    setOverrideReason("");
+    setOverrideError(null);
+  };
+
+  const handleOverrideSubmit = async () => {
+    if (!overrideRow) return;
+    const fixture = fixtures.find((f) => f.id === overrideRow.fixtureId);
+    if (!fixture) return;
+    if (!overridePickedTeamCode || (overridePickedTeamCode !== "DRAW" && (overrideMargin !== 1 && overrideMargin !== 13))) return;
+
+    setOverrideLoading(true);
+    setOverrideError(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const res = await fetch("/api/admin/override-pick", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          participant_id: overrideRow.participantId,
+          fixture_id: overrideRow.fixtureId,
+          action: "upsert",
+          picked_team_code: overridePickedTeamCode,
+          margin: overridePickedTeamCode === "DRAW" ? 0 : overrideMargin,
+          ...(overrideReason.trim() ? { reason: overrideReason.trim() } : {}),
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setOverrideError(data?.error ?? "Override failed");
+        setOverrideLoading(false);
+        return;
+      }
+      closeOverrideModal();
+      setRefreshCounter((c) => c + 1);
+    } catch (err) {
+      setOverrideError(err instanceof Error ? err.message : "Override failed");
+    } finally {
+      setOverrideLoading(false);
+    }
+  };
 
   // Filter display picks based on mode and selection
   const filteredPicks = displayPicks.filter((pick) => {
@@ -888,6 +951,9 @@ export default function AdminPicksPage() {
                       <th className="px-4 py-1.5 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                         Updated
                       </th>
+                      <th className="px-4 py-1.5 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+                        Override
+                      </th>
                     </>
                   ) : mode === "team" ? (
                     <>
@@ -906,6 +972,9 @@ export default function AdminPicksPage() {
                       <th className="px-4 py-1.5 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                         Updated
                       </th>
+                      <th className="px-4 py-1.5 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+                        Override
+                      </th>
                     </>
                     ) : (
                       <>
@@ -921,13 +990,16 @@ export default function AdminPicksPage() {
                       <th className="px-4 py-1.5 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                         Updated
                       </th>
+                      <th className="px-4 py-1.5 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+                        Override
+                      </th>
                     </>
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                {filteredPicks.map((pick, index) => (
-                  <tr key={index} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                {filteredPicks.map((pick) => (
+                  <tr key={`${pick.participantId}:${pick.fixtureId}`} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
                     {mode === "team" && !selectedTeamId ? (
                       <>
                         <td className="px-4 py-1.5 text-sm text-zinc-900 dark:text-zinc-50 truncate max-w-[220px]" title={pick.teamName}>
@@ -948,6 +1020,15 @@ export default function AdminPicksPage() {
                         <td className="px-4 py-1.5 text-xs text-zinc-900 dark:text-zinc-50 whitespace-nowrap">
                           {pick.updated}
                         </td>
+                        <td className="px-4 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openOverrideModal(pick)}
+                            className="rounded-md border border-amber-500 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                          >
+                            Override
+                          </button>
+                        </td>
                       </>
                     ) : mode === "team" ? (
                       <>
@@ -966,6 +1047,15 @@ export default function AdminPicksPage() {
                         <td className="px-4 py-1.5 text-xs text-zinc-900 dark:text-zinc-50 whitespace-nowrap">
                           {pick.updated}
                         </td>
+                        <td className="px-4 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openOverrideModal(pick)}
+                            className="rounded-md border border-amber-500 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                          >
+                            Override
+                          </button>
+                        </td>
                       </>
                     ) : (
                       <>
@@ -981,12 +1071,123 @@ export default function AdminPicksPage() {
                         <td className="px-4 py-1.5 text-xs text-zinc-900 dark:text-zinc-50 whitespace-nowrap">
                           {pick.updated}
                         </td>
+                        <td className="px-4 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openOverrideModal(pick)}
+                            className="rounded-md border border-amber-500 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                          >
+                            Override
+                          </button>
+                        </td>
                       </>
                     )}
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Override pick modal */}
+        {overrideRow && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-black dark:text-zinc-50 mb-2">Override pick</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                {overrideRow.teamName} — {overrideRow.fullMatchLabel}
+              </p>
+              {overrideError && (
+                <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200">
+                  {overrideError}
+                </div>
+              )}
+              {(() => {
+                const fixture = fixtures.find((f) => f.id === overrideRow.fixtureId);
+                if (!fixture) return null;
+                return (
+                  <>
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Pick</label>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => { setOverridePickedTeamCode(fixture.home_team_code); setOverrideMargin(1); }}
+                          className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                            overridePickedTeamCode === fixture.home_team_code ? "bg-blue-600 text-white" : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                          }`}
+                        >
+                          {teams[fixture.home_team_code]?.name ?? fixture.home_team_code}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setOverridePickedTeamCode(fixture.away_team_code); setOverrideMargin(1); }}
+                          className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                            overridePickedTeamCode === fixture.away_team_code ? "bg-blue-600 text-white" : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                          }`}
+                        >
+                          {teams[fixture.away_team_code]?.name ?? fixture.away_team_code}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setOverridePickedTeamCode("DRAW"); setOverrideMargin(0); }}
+                          className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                            overridePickedTeamCode === "DRAW" ? "bg-blue-600 text-white" : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                          }`}
+                        >
+                          Draw
+                        </button>
+                      </div>
+                    </div>
+                    {overridePickedTeamCode && overridePickedTeamCode !== "DRAW" && (
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Margin</label>
+                        <select
+                          value={overrideMargin ?? ""}
+                          onChange={(e) => setOverrideMargin(e.target.value === "" ? null : Number(e.target.value))}
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                        >
+                          <option value="1">1–12</option>
+                          <option value="13">13+</option>
+                        </select>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Reason (optional)</label>
+                <input
+                  type="text"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Audit reason"
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={closeOverrideModal}
+                  disabled={overrideLoading}
+                  className="rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOverrideSubmit}
+                  disabled={
+                    overrideLoading ||
+                    !overridePickedTeamCode ||
+                    (overridePickedTeamCode !== "DRAW" && (overrideMargin !== 1 && overrideMargin !== 13))
+                  }
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {overrideLoading ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
     </>

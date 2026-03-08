@@ -86,6 +86,13 @@ export default function AdminPage() {
   const [paperBetsConfirmText, setPaperBetsConfirmText] = useState<string>("");
   const [paperBetsParticipants, setPaperBetsParticipants] = useState<{ id: string; team_name: string }[]>([]);
   const [paperBetsLoading, setPaperBetsLoading] = useState<boolean>(false);
+  const [paperBetIntegrity, setPaperBetIntegrity] = useState<{
+    missingPaperBets: number;
+    fixturesWithoutOdds: number;
+    paperBetsMissingKickoffOdds: number;
+    affectedParticipants: number;
+  } | null>(null);
+  const [paperBetIntegrityLoading, setPaperBetIntegrityLoading] = useState<boolean>(false);
   const [analyticsSummary, setAnalyticsSummary] = useState<{
     landing_view: number;
     login_success: number;
@@ -937,6 +944,49 @@ export default function AdminPage() {
     })();
   }, [paperBetsRoundId, rounds]);
 
+  // Fetch paper bet integrity for selected round (Paper Bets Tools)
+  useEffect(() => {
+    if (!paperBetsRoundId) {
+      setPaperBetIntegrity(null);
+      return;
+    }
+    let cancelled = false;
+    setPaperBetIntegrityLoading(true);
+    (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const res = await fetch(
+          `/api/admin/paper-bet-integrity?roundId=${encodeURIComponent(paperBetsRoundId)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        );
+        const json = await res.json();
+        if (cancelled) return;
+        if (
+          res.ok &&
+          typeof json.missingPaperBets === "number" &&
+          typeof json.fixturesWithoutOdds === "number" &&
+          typeof json.paperBetsMissingKickoffOdds === "number" &&
+          typeof json.affectedParticipants === "number"
+        ) {
+          setPaperBetIntegrity({
+            missingPaperBets: json.missingPaperBets,
+            fixturesWithoutOdds: json.fixturesWithoutOdds,
+            paperBetsMissingKickoffOdds: json.paperBetsMissingKickoffOdds,
+            affectedParticipants: json.affectedParticipants,
+          });
+        } else {
+          setPaperBetIntegrity(null);
+        }
+      } catch {
+        if (!cancelled) setPaperBetIntegrity(null);
+      } finally {
+        if (!cancelled) setPaperBetIntegrityLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [paperBetsRoundId]);
+
   const handleSyncPaperBetsTool = async () => {
     if (paperBetsConfirmText !== "OVERRIDE" || !paperBetsParticipantId) return;
     setPaperBetsLoading(true);
@@ -1335,6 +1385,33 @@ export default function AdminPage() {
               {paperBetsLoading ? "Syncing…" : "Sync paper bets"}
             </button>
           </div>
+          {paperBetsRoundId && (
+            <div className="mt-4">
+              {paperBetIntegrityLoading ? (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Checking paper bet integrity…</p>
+              ) : paperBetIntegrity ? (
+                paperBetIntegrity.missingPaperBets > 0 || paperBetIntegrity.paperBetsMissingKickoffOdds > 0 ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Paper bet integrity warning</p>
+                    <ul className="mt-1 list-inside list-disc text-sm text-amber-700 dark:text-amber-300">
+                      <li>Missing paper bets: {paperBetIntegrity.missingPaperBets}</li>
+                      <li>Missing kickoff odds (on paper bets): {paperBetIntegrity.paperBetsMissingKickoffOdds}</li>
+                      <li>Affected participants: {paperBetIntegrity.affectedParticipants}</li>
+                    </ul>
+                  </div>
+                ) : paperBetIntegrity.fixturesWithoutOdds > 0 ? (
+                  <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                      Odds not loaded yet for {paperBetIntegrity.fixturesWithoutOdds} fixture{paperBetIntegrity.fixturesWithoutOdds !== 1 ? "s" : ""} in this round.
+                    </p>
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Missing paper bets: 0</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Paper bet integrity OK</p>
+                )
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* Fixture Creation Form - Only show when round is selected */}

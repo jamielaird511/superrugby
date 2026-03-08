@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { syncPaperBetsForFixture } from "@/lib/syncPaperBetsForFixture";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -125,6 +126,11 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Auto-sync paper bets for this fixture (create missing, backfill kickoff_odds); do not block response
+    syncPaperBetsForFixture(fixture_id).catch((err) => {
+      console.error("[Odds] syncPaperBetsForFixture error:", err);
+    });
 
     return NextResponse.json(
       { ok: true, data: data?.[0] ?? null },

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { participantId, password } = body;
+    const { participantId, password, resolveEmailFromAuth } = body;
 
     if (!participantId || !password) {
       return NextResponse.json(
@@ -102,8 +102,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Return success with participantId and authEmail
-    return NextResponse.json({ participantId: participant.id, authEmail }, { status: 200 });
+    let responseEmail = authEmail;
+
+    if (resolveEmailFromAuth === true && authUserId) {
+      const { data: authUser, error: authLookupError } =
+        await supabaseAdmin.auth.admin.getUserById(authUserId);
+
+      if (authLookupError || !authUser?.user?.email) {
+        return NextResponse.json(
+          { error: "Failed to resolve auth user" },
+          { status: 500 }
+        );
+      }
+
+      responseEmail = authUser.user.email;
+    }
+
+    return NextResponse.json(
+      { participantId: participant.id, authEmail: responseEmail },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("Set password error:", err);
     return NextResponse.json(

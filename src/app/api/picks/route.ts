@@ -7,6 +7,8 @@ import { syncPaperBetsForFixture } from "@/lib/syncPaperBetsForFixture";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
+const FIFA_WORLD_CUP_2026_COMPETITION_ID = "9e60564e-4be5-4756-b6cb-48ae06f45654";
 
 // Create a server Supabase client using ANON key + request cookies/session (NOT service role)
 // This ensures RLS policies are enforced based on the authenticated user
@@ -175,52 +177,83 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create server client with user session (not service role)
-    const supabase = createServerClient(req);
-
-    // Require an authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-
-    // Fetch participant row for this user (their real participant id)
-    const { data: me, error: meErr } = await supabase
-      .from("participants")
-      .select("id, league_id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (meErr || !me) {
-      return NextResponse.json(
-        { error: "NO_PARTICIPANT" },
-        { status: 403 }
-      );
-    }
-
     const DRAW_CODE = "DRAW";
 
+    // Create server client with user session (not service role)
+    const supabase = createServerClient(req);
     const body = await req.json();
     const { participantId: requestedParticipantId, fixtureId, pickedTeamCode, pickedMargin } = body;
-    const participantId = me.id;
-
-    // Stop trusting participantId from body - if they send one and it doesn't match, explicitly forbid
-    if (requestedParticipantId && requestedParticipantId !== me.id) {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
 
     if (!fixtureId || !pickedTeamCode || pickedMargin === undefined) {
       return NextResponse.json(
         { error: "fixtureId, pickedTeamCode, and pickedMargin are required" },
         { status: 400 }
       );
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let participantId = "";
+    let participantLeagueId = "";
+    let competitionId = "";
+    let authUserId: string | null = null;
+
+    if (user) {
+      // Existing authenticated flow (Super Rugby + authenticated World Cup users).
+      const { data: me, error: meErr } = await supabase
+        .from("participants")
+        .select("id, league_id")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (meErr || !me) {
+        return NextResponse.json({ error: "NO_PARTICIPANT" }, { status: 403 });
+      }
+
+      if (requestedParticipantId && requestedParticipantId !== me.id) {
+        return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      }
+
+      const { data: league, error: leagueError } = await supabaseAdmin
+        .from("leagues")
+        .select("competition_id")
+        .eq("id", me.league_id)
+        .single();
+
+      if (leagueError || !league) {
+        console.error("Error fetching league for picks:", leagueError);
+        return NextResponse.json({ error: "League not found for participant" }, { status: 500 });
+      }
+
+      participantId = me.id;
+      participantLeagueId = me.league_id;
+      competitionId = league.competition_id;
+      authUserId = user.id;
+    } else {
+      // World Cup flow without Supabase Auth.
+      if (!requestedParticipantId) {
+        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      }
+
+      const { data: worldCupParticipant, error: wcParticipantError } = await supabaseAdmin
+        .from("participants")
+        .select("id, league_id")
+        .eq("id", requestedParticipantId)
+        .maybeSingle();
+
+      if (wcParticipantError || !worldCupParticipant) {
+        return NextResponse.json({ error: "Invalid participant" }, { status: 400 });
+      }
+
+      if (worldCupParticipant.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+        return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      }
+
+      participantId = worldCupParticipant.id;
+      participantLeagueId = worldCupParticipant.league_id;
+      competitionId = FIFA_WORLD_CUP_2026_COMPETITION_ID;
     }
 
     // Enforce the new margin encoding: DRAW=0, non-DRAW must be 1 or 13
@@ -237,23 +270,6 @@ export async function POST(req: NextRequest) {
         );
       }
     }
-
-    // Look up competition_id for this participant's league
-    const { data: league, error: leagueError } = await supabaseAdmin
-      .from("leagues")
-      .select("competition_id")
-      .eq("id", me.league_id)
-      .single();
-
-    if (leagueError || !league) {
-      console.error("Error fetching league for picks:", leagueError);
-      return NextResponse.json(
-        { error: "League not found for participant" },
-        { status: 500 }
-      );
-    }
-
-    const competitionId = league.competition_id;
 
     // Fetch fixture to validate lockout and team codes, and verify competition matches
     const { data: fixture, error: fixtureError } = await supabaseAdmin
@@ -328,9 +344,9 @@ export async function POST(req: NextRequest) {
 
     // Check if fixture is locked (kickoff has passed)
     if (fixture.kickoff_at) {
-      const kickoffTime = new Date(fixture.kickoff_at);
-      const now = new Date();
-      if (now >= kickoffTime) {
+      const kickoffTimeMs = new Date(fixture.kickoff_at).getTime(); // UTC-based epoch ms
+      const nowMs = Date.now();
+      if (kickoffTimeMs <= nowMs) {
         return NextResponse.json(
           { error: "Fixture is locked" },
           { status: 403 }
@@ -351,28 +367,30 @@ export async function POST(req: NextRequest) {
     }
 
     // Log pick event before upserting
-    const { error: eventError } = await supabaseAdmin
-      .from("pick_events")
-      .insert({
-        auth_user_id: user.id,
-        participant_id: participantId,
-        fixture_id: fixtureId,
-        picked_team: pickedTeamCode,
-        margin: margin,
-      });
+    if (authUserId) {
+      const { error: eventError } = await supabaseAdmin
+        .from("pick_events")
+        .insert({
+          auth_user_id: authUserId,
+          participant_id: participantId,
+          fixture_id: fixtureId,
+          picked_team: pickedTeamCode,
+          margin: margin,
+        });
 
-    if (eventError) {
-      console.error("Error logging pick event:", {
-        message: eventError?.message,
-        details: eventError?.details,
-        hint: eventError?.hint,
-        code: eventError?.code,
-        raw: eventError,
-      });
-      return NextResponse.json(
-        { error: eventError?.message || "Failed to log pick event" },
-        { status: 500 }
-      );
+      if (eventError) {
+        console.error("Error logging pick event:", {
+          message: eventError?.message,
+          details: eventError?.details,
+          hint: eventError?.hint,
+          code: eventError?.code,
+          raw: eventError,
+        });
+        return NextResponse.json(
+          { error: eventError?.message || "Failed to log pick event" },
+          { status: 500 }
+        );
+      }
     }
 
     // Check if pick exists
@@ -423,7 +441,7 @@ export async function POST(req: NextRequest) {
           fixture_id: fixtureId,
           picked_team: pickedTeamCode,
           margin: margin,
-          league_id: me.league_id,
+          league_id: participantLeagueId,
         });
 
       if (insertError) {

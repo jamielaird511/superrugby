@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { participantId, password } = body;
+    const { participantId, password, resolveEmailFromAuth } = body;
 
     if (!participantId || !password) {
       return NextResponse.json(
@@ -35,10 +35,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return success with participantId and authEmail
-    return NextResponse.json({ 
-      participantId: participant.id, 
-      authEmail: participant.auth_email 
+    let authEmail = participant.auth_email;
+
+    if (resolveEmailFromAuth === true) {
+      const { data: authUser, error: authLookupError } =
+        await supabaseAdmin.auth.admin.getUserById(participant.auth_user_id);
+
+      if (authLookupError || !authUser?.user?.email) {
+        return NextResponse.json(
+          { error: "Invalid credentials" },
+          { status: 401 }
+        );
+      }
+
+      authEmail = authUser.user.email;
+    }
+
+    return NextResponse.json({
+      participantId: participant.id,
+      authEmail,
     });
   } catch (err) {
     console.error("Login error:", err);

@@ -43,6 +43,16 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function getErrorMessage(error: unknown): string | null {
+  if (!error) return null;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === "string" ? message : null;
+  }
+  return null;
+}
+
 function computeExpectedOdds(r: Row): number | null {
   if (!r.picked_team) return null;
   if (r.picked_team === "DRAW") return toNum(r.draw_odds);
@@ -162,9 +172,9 @@ export default async function AdminPaperBetsPage({
     (participantsRes.data ?? []) as { id: string; team_name: string | null }[];
 
   const topErrors: string[] = [
-    leaguesRes.error?.message,
-    roundsRes.error?.message,
-    participantsRes.error?.message,
+    getErrorMessage(leaguesRes.error),
+    getErrorMessage(roundsRes.error),
+    getErrorMessage(participantsRes.error),
   ].filter((m): m is string => !!m);
 
   let rows: Row[] = [];

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 import PrintButton from "@/components/PrintButton";
 
 type LeaderboardRow = {
@@ -140,22 +141,31 @@ export default function PaperBetsPrintClient() {
         }
 
         if (roundId) {
+          const compId = await getSuperRugbyAdminCompetitionId(supabase);
+          if (!compId) {
+            setRound(null);
+            setRoundDate("");
+          } else {
           const { data: roundData } = await supabase
             .from("rounds")
             .select("id, season, round_number")
             .eq("id", roundId)
-            .single();
+            .eq("competition_id", compId)
+            .maybeSingle();
           if (roundData && !cancelled) setRound(roundData as Round);
+          else if (!cancelled) setRound(null);
 
           const { data: fixtureData } = await supabase
             .from("fixtures")
             .select("kickoff_at")
             .eq("round_id", roundId)
+            .eq("competition_id", compId)
             .order("kickoff_at", { ascending: true })
             .limit(1)
             .maybeSingle();
           if (fixtureData?.kickoff_at && !cancelled) {
             setRoundDate(fmtDate(fixtureData.kickoff_at));
+          }
           }
         } else {
           setRound(null);

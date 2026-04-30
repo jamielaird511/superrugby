@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
 
 const FIFA_WORLD_CUP_2026_COMPETITION_ID =
   "9e60564e-4be5-4756-b6cb-48ae06f45654";
@@ -397,11 +397,6 @@ export default function WorldCupTeamDashboardPage() {
     }
   }
 
-  async function handleLogout() {
-    localStorage.removeItem(STORAGE_KEY);
-    window.location.href = "/worldcup/login";
-  }
-
   async function handlePickTeam(fixture: Fixture, pickedTeamCode: string) {
     if (!participant) return;
     if (fixture.kickoff_at && new Date(fixture.kickoff_at) <= new Date()) return;
@@ -547,50 +542,10 @@ export default function WorldCupTeamDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 pb-12 font-sans text-slate-900">
-      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-[#004765] shadow-md">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div>
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-xl font-bold uppercase tracking-wide text-white">
-                FIFA World Cup 2026
-              </span>
-              <span className="truncate text-sm font-medium text-white/80 sm:text-base">
-                {entrantDisplayName(participant)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="rounded-full border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#004765]"
-              >
-                Picks
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-              >
-                Results
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-              >
-                Settings
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleLogout()}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-              >
-                <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                Log out
-              </button>
-            </div>
-          </div>
-        </div>
-        </div>
-      </header>
+      <WorldCupHeader
+        subtitle={entrantDisplayName(participant)}
+        initialParticipantId={participant.id}
+      />
 
       <main className="mx-auto max-w-5xl px-4 pt-28 pb-8 sm:px-6">
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">

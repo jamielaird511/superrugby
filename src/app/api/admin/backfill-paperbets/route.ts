@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -78,10 +79,21 @@ export async function POST(req: NextRequest) {
       .eq("league_id", participant.league_id);
 
     if (round_id && typeof round_id === "string" && UUID_REGEX.test(round_id)) {
+      const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+      const { data: scopeRound } = await supabaseAdmin
+        .from("rounds")
+        .select("competition_id")
+        .eq("id", round_id)
+        .maybeSingle();
+      if (!srCompId || scopeRound?.competition_id !== srCompId) {
+        return NextResponse.json({ error: "Round not found" }, { status: 404 });
+      }
+
       const { data: fixtureIds } = await supabaseAdmin
         .from("fixtures")
         .select("id")
-        .eq("round_id", round_id);
+        .eq("round_id", round_id)
+        .eq("competition_id", srCompId);
       const ids = (fixtureIds || []).map((f) => f.id);
       if (ids.length === 0) {
         return NextResponse.json({ ok: true, processed: 0, upserted: 0, skipped: 0 }, { status: 200 });

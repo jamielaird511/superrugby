@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -60,10 +61,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(empty);
     }
 
+    const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+    if (!srCompId) {
+      return NextResponse.json(empty);
+    }
+
+    const { data: srRound } = await supabaseAdmin
+      .from("rounds")
+      .select("id")
+      .eq("id", roundId)
+      .eq("competition_id", srCompId)
+      .maybeSingle();
+    if (!srRound) {
+      return NextResponse.json(empty);
+    }
+
     const { data: fixtures, error: fixErr } = await supabaseAdmin
       .from("fixtures")
       .select("id")
-      .eq("round_id", roundId);
+      .eq("round_id", roundId)
+      .eq("competition_id", srCompId);
     if (fixErr || !fixtures?.length) {
       return NextResponse.json(empty);
     }

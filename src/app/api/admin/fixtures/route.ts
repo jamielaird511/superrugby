@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -95,6 +96,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (roundError || !round) {
+      return NextResponse.json(
+        { error: "Round not found" },
+        { status: 404 }
+      );
+    }
+
+    const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+    if (!srCompId || round.competition_id !== srCompId) {
       return NextResponse.json(
         { error: "Round not found" },
         { status: 404 }
@@ -196,6 +205,27 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json(
         { error: "id is required" },
         { status: 400 }
+      );
+    }
+
+    const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+    if (!srCompId) {
+      return NextResponse.json(
+        { error: "Super Rugby league not configured" },
+        { status: 500 }
+      );
+    }
+
+    const { data: existingFx, error: fxLookupErr } = await supabaseAdmin
+      .from("fixtures")
+      .select("competition_id")
+      .eq("id", id)
+      .single();
+
+    if (fxLookupErr || !existingFx || existingFx.competition_id !== srCompId) {
+      return NextResponse.json(
+        { error: "Fixture not found" },
+        { status: 404 }
       );
     }
 

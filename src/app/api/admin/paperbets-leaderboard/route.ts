@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,8 +26,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const roundId = searchParams.get("round_id");
 
+    const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+    if (!srCompId) {
+      return NextResponse.json(
+        { error: "Super Rugby league not configured" },
+        { status: 500 }
+      );
+    }
+
     const { data, error } = await supabaseAdmin.rpc("paperbets_leaderboard", {
       p_round_id: roundId && roundId.trim() !== "" ? roundId : null,
+      p_competition_id: srCompId,
     });
 
     if (error) {

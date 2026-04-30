@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 
 type Round = { id: string; round_number: number; season: number };
 type Row = {
@@ -26,9 +27,15 @@ export default function PaperbetsResultsPage() {
   useEffect(() => {
     (async () => {
       try {
+        const compId = await getSuperRugbyAdminCompetitionId(supabase);
+        if (!compId) {
+          setRounds([]);
+          return;
+        }
         const { data, error } = await supabase
           .from("rounds")
           .select("id, round_number, season")
+          .eq("competition_id", compId)
           .order("season", { ascending: false })
           .order("round_number", { ascending: false });
         if (!error) setRounds(data ?? []);

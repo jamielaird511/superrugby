@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 import { TrashIcon } from "@heroicons/react/24/outline";
 
 type Round = {
@@ -93,6 +94,8 @@ export default function AdminPage() {
     affectedParticipants: number;
   } | null>(null);
   const [paperBetIntegrityLoading, setPaperBetIntegrityLoading] = useState<boolean>(false);
+  const superRugbyCompetitionIdRef = useRef<string | null>(null);
+
   const [analyticsSummary, setAnalyticsSummary] = useState<{
     landing_view: number;
     login_success: number;
@@ -115,9 +118,22 @@ export default function AdminPage() {
   // Fetch functions (hoisted as function declarations)
   async function fetchRounds() {
     try {
+      const compId = await getSuperRugbyAdminCompetitionId(supabase);
+      superRugbyCompetitionIdRef.current = compId;
+      if (!compId) {
+        console.error("Super Rugby league ANZ2026 not found");
+        setMessage({
+          type: "error",
+          text: "Super Rugby league (ANZ2026) not found; rounds cannot be loaded.",
+        });
+        setRounds([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("rounds")
         .select("*")
+        .eq("competition_id", compId)
         .order("season", { ascending: true })
         .order("round_number", { ascending: true });
 
@@ -161,10 +177,24 @@ export default function AdminPage() {
 
   async function fetchFixtures(roundId: string) {
     try {
+      const compId =
+        superRugbyCompetitionIdRef.current ??
+        (await getSuperRugbyAdminCompetitionId(supabase));
+      if (compId) superRugbyCompetitionIdRef.current = compId;
+      if (!compId) {
+        setMessage({
+          type: "error",
+          text: "Super Rugby league (ANZ2026) not found; fixtures cannot be loaded.",
+        });
+        setFixtures([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("fixtures")
         .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
         .eq("round_id", roundId)
+        .eq("competition_id", compId)
         .order("match_number", { ascending: true });
 
       if (error) {

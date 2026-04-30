@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,6 +33,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "roundId is required" }, { status: 400 });
     }
 
+    const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+    if (!srCompId) {
+      return NextResponse.json(
+        { error: "Super Rugby league not configured" },
+        { status: 500 }
+      );
+    }
+
     // Load round to get competition_id
     const { data: round, error: roundError } = await supabaseAdmin
       .from("rounds")
@@ -39,7 +48,7 @@ export async function GET(req: NextRequest) {
       .eq("id", roundId)
       .single();
 
-    if (roundError || !round?.competition_id) {
+    if (roundError || !round?.competition_id || round.competition_id !== srCompId) {
       return NextResponse.json(
         { error: "Round not found or has no competition" },
         { status: 400 }
@@ -51,6 +60,7 @@ export async function GET(req: NextRequest) {
       .from("fixtures")
       .select("id, round_id, match_number, home_team_code, away_team_code, kickoff_at")
       .eq("round_id", roundId)
+      .eq("competition_id", srCompId)
       .order("kickoff_at", { ascending: true });
 
     if (fixturesError) {

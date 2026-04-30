@@ -1,5 +1,6 @@
 import { PrinterIcon } from "@heroicons/react/24/outline";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 import PaperBetsLeaderboardSection from "./PaperBetsLeaderboardSection";
 
 type League = { id: string; name: string | null };
@@ -122,18 +123,26 @@ export default async function AdminPaperBetsPage({
   const roundId = sp.round ?? "";
   const participantId = sp.participant ?? "";
 
-  const leaguesRes = await supabaseAdmin
-    .from("leagues")
-    .select("id, name")
-    .order("created_at", { ascending: false });
+  const srCompId = await getSuperRugbyAdminCompetitionId(supabaseAdmin);
+
+  const leaguesRes = srCompId
+    ? await supabaseAdmin
+        .from("leagues")
+        .select("id, name")
+        .eq("competition_id", srCompId)
+        .order("created_at", { ascending: false })
+    : { data: [] as League[], error: null as unknown };
 
   const leagues: League[] = (leaguesRes.data ?? []) as League[];
 
-  const roundsRes = await supabaseAdmin
-    .from("rounds")
-    .select("id, season, round_number")
-    .order("season", { ascending: false })
-    .order("round_number", { ascending: true });
+  const roundsRes = srCompId
+    ? await supabaseAdmin
+        .from("rounds")
+        .select("id, season, round_number")
+        .eq("competition_id", srCompId)
+        .order("season", { ascending: false })
+        .order("round_number", { ascending: true })
+    : { data: [] as Round[], error: null as unknown };
 
   const rounds: Round[] = (roundsRes.data ?? []) as Round[];
 
@@ -161,11 +170,12 @@ export default async function AdminPaperBetsPage({
   let rows: Row[] = [];
   let loadError: string | null = null;
 
-  if (roundId && participantId) {
+  if (roundId && participantId && srCompId) {
     const fixturesRes = await supabaseAdmin
       .from("fixtures")
       .select("id, match_number, kickoff_at, home_team_code, away_team_code")
       .eq("round_id", roundId)
+      .eq("competition_id", srCompId)
       .order("match_number", { ascending: true });
 
     if (fixturesRes.error) {
@@ -258,6 +268,8 @@ export default async function AdminPaperBetsPage({
         };
       });
     }
+  } else if (roundId && participantId && !srCompId) {
+    loadError = "Super Rugby league not configured.";
   }
 
   const base = "/admin/paper-bets";

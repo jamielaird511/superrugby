@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSuperRugbyAdminCompetitionId } from "@/lib/superRugbyAdminScope";
 import { calculatePickScore } from "@/lib/scoring";
 
 type Round = {
@@ -152,9 +153,17 @@ export default function AdminPicksPage() {
 
   async function fetchRounds() {
     try {
+      const compId = await getSuperRugbyAdminCompetitionId(supabase);
+      if (!compId) {
+        console.error("Super Rugby league ANZ2026 not found");
+        setRounds([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("rounds")
         .select("id, season, round_number")
+        .eq("competition_id", compId)
         .order("season", { ascending: true })
         .order("round_number", { ascending: true });
 
@@ -182,11 +191,16 @@ export default function AdminPicksPage() {
         // Get round IDs in ascending order
         const roundIds = rounds.map((r) => r.id);
 
+        const compId = await getSuperRugbyAdminCompetitionId(supabase);
+
         // Query fixtures for all rounds to find which ones have fixtures
-        const { data: fixturesData, error: fixturesError } = await supabase
+        const fixturesQuery = supabase
           .from("fixtures")
           .select("round_id")
           .in("round_id", roundIds);
+        const { data: fixturesData, error: fixturesError } = compId
+          ? await fixturesQuery.eq("competition_id", compId)
+          : await fixturesQuery;
 
         if (fixturesError) {
           console.error("Error checking fixtures for default round:", fixturesError);

@@ -22,13 +22,19 @@ export default function WorldCupHeader({ subtitle, initialParticipantId = null }
     setParticipantId(id || initialParticipantId || null);
   }, [initialParticipantId]);
 
-  const activeTab: "picks" | "results" | "settings" = useMemo(() => {
+  const activeTab: "picks" | "competition-picks" | "results" | "settings" = useMemo(() => {
+    if (pathname?.startsWith("/worldcup/team/") && pathname.endsWith("/competition-picks")) {
+      return "competition-picks";
+    }
     if (pathname?.startsWith("/worldcup/team/") && pathname.endsWith("/settings")) return "settings";
     if (pathname === "/worldcup/results") return "results";
     return "picks";
   }, [pathname]);
 
   const picksHref = participantId ? `/worldcup/team/${participantId}` : null;
+  const competitionPicksHref = participantId
+    ? `/worldcup/team/${participantId}/competition-picks`
+    : null;
   const settingsHref = participantId ? `/worldcup/team/${participantId}/settings` : null;
 
   function handleLogout() {
@@ -67,6 +73,27 @@ export default function WorldCupHeader({ subtitle, initialParticipantId = null }
               >
                 Log in
               </Link>
+            )}
+
+            {competitionPicksHref ? (
+              <Link
+                href={competitionPicksHref}
+                className={
+                  activeTab === "competition-picks"
+                    ? "rounded-full border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#004765]"
+                    : "rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
+                }
+              >
+                Competition Picks
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white/70"
+              >
+                Competition Picks
+              </button>
             )}
 
             <Link

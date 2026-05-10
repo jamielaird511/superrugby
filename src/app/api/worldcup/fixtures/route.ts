@@ -2,16 +2,26 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const FIFA_WORLD_CUP_2026_COMPETITION_ID = "9e60564e-4be5-4756-b6cb-48ae06f45654";
+const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const includePast = searchParams.get("includePast") === "true";
     const nowISO = new Date().toISOString();
-    const { data, error } = await supabaseAdmin
+
+    let query = supabaseAdmin
       .from("fixtures")
       .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
       .eq("competition_id", FIFA_WORLD_CUP_2026_COMPETITION_ID)
-      .gt("kickoff_at", nowISO)
+      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
       .order("kickoff_at", { ascending: true });
+
+    if (!includePast) {
+      query = query.gt("kickoff_at", nowISO);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("World Cup fixtures fetch error:", error);

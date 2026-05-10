@@ -143,9 +143,6 @@ export default function FifaWorldCup2026LoginPage() {
                   </option>
                 ))}
               </select>
-              {participants.length === 0 ? (
-                <p className="mt-1 text-xs text-zinc-500">No World Cup participants found.</p>
-              ) : null}
             </div>
 
             <div>
@@ -187,17 +184,12 @@ export default function FifaWorldCup2026LoginPage() {
 
           <div className="mt-3 text-center">
             <Link
-              href="/admin-login"
+              href="/worldcup/admin/login"
               className="inline-flex items-center justify-center rounded-md bg-[#003A5D] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#005F8E]"
             >
               Admin login
             </Link>
           </div>
-          <p className="mt-4 text-center text-xs text-zinc-500">
-            <Link href="/" className="text-[#0B1F3A] underline hover:text-[#152a45]">
-              Super Rugby competition login
-            </Link>
-          </p>
         </div>
       </div>
     </div>

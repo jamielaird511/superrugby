@@ -32,8 +32,7 @@ async function requireAdmin(req: NextRequest) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
   const adminEmails =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
-    [];
+    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
   const userEmailLower = user.email?.toLowerCase() || "";
   if (!adminEmails.includes(userEmailLower)) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };

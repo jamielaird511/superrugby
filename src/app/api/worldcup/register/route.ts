@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
     const lastName = String(body?.lastName ?? "").trim();
     const email = String(body?.email ?? "").trim().toLowerCase();
     const password = String(body?.password ?? "");
+    const accessCode = String(body?.accessCode ?? "");
 
     if (!firstName) {
       return NextResponse.json({ error: "First name is required" }, { status: 400 });
@@ -28,6 +29,16 @@ export async function POST(req: NextRequest) {
     }
     if (!password) {
       return NextResponse.json({ error: "Password is required" }, { status: 400 });
+    }
+    const configuredAccessCode = process.env.WORLDCUP_ACCESS_CODE;
+    if (!configuredAccessCode || !configuredAccessCode.trim()) {
+      console.error(
+        "[worldcup/register] WORLDCUP_ACCESS_CODE missing; denying registration"
+      );
+      return NextResponse.json({ error: "Invalid access code." }, { status: 403 });
+    }
+    if (accessCode.trim().toLowerCase() !== configuredAccessCode.trim().toLowerCase()) {
+      return NextResponse.json({ error: "Invalid access code." }, { status: 403 });
     }
 
     const fullName = `${firstName} ${lastName}`;

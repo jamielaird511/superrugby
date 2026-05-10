@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
 
 const FIFA_WORLD_CUP_2026_COMPETITION_ID =
@@ -83,6 +82,14 @@ const PICK_DRAW = "DRAW";
 
 type PickRow = { picked_team: string; margin: number };
 type PendingPickClear = { fixtureId: string; pickedTeamCode: string };
+type MatchResult = {
+  home_goals: number;
+  away_goals: number;
+  home_team_code: string;
+  away_team_code: string;
+  winning_team: string | null;
+};
+type CompetitionPickMeta = { completed: number; total: number };
 
 /** Maps UI selection to `pickedMargin` for POST /api/picks (contract unchanged). */
 function marginForWorldCupPick(pickedTeamCode: string): number {
@@ -210,6 +217,13 @@ function formatKickoff(kickoffAt: string | null) {
   });
 }
 
+function isLockedByKickoffUtc(kickoffAt: string | null): boolean {
+  if (!kickoffAt) return false;
+  const kickoffMs = Date.parse(kickoffAt);
+  if (!Number.isFinite(kickoffMs)) return false;
+  return kickoffMs <= Date.now();
+}
+
 function fixtureDateGroupParts(kickoffAt: string | null): { dateKey: string; heading: string } {
   if (!kickoffAt) return { dateKey: "TBD", heading: "TBD" };
   const d = new Date(kickoffAt);
@@ -255,12 +269,17 @@ export default function WorldCupTeamDashboardPage() {
     {}
   );
   const [picksByFixtureId, setPicksByFixtureId] = useState<Record<string, PickRow>>({});
+  const [matchResultsByFixtureId, setMatchResultsByFixtureId] = useState<Record<string, MatchResult>>(
+    {}
+  );
+  const [competitionPickMeta, setCompetitionPickMeta] = useState<CompetitionPickMeta | null>(null);
   const [savingFixtureId, setSavingFixtureId] = useState<string | null>(null);
   const [pickErrorByFixtureId, setPickErrorByFixtureId] = useState<Record<string, string | null>>(
     {}
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamsMetadataError, setTeamsMetadataError] = useState<string | null>(null);
   const [pendingPickClear, setPendingPickClear] = useState<PendingPickClear | null>(null);
 
   useEffect(() => {
@@ -279,6 +298,34 @@ export default function WorldCupTeamDashboardPage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pendingPickClear]);
+
+  useEffect(() => {
+    const loadMeta = async () => {
+      const participantId = localStorage.getItem(STORAGE_KEY);
+      if (!participantId || participantId !== routeParticipantId) {
+        setCompetitionPickMeta(null);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/worldcup/competition-picks?participantId=${encodeURIComponent(routeParticipantId)}`,
+          { cache: "no-store" }
+        );
+        const json = (await res.json()) as { completion?: CompetitionPickMeta };
+        if (!res.ok || !json.completion) {
+          setCompetitionPickMeta(null);
+          return;
+        }
+        setCompetitionPickMeta(json.completion);
+      } catch {
+        setCompetitionPickMeta(null);
+      }
+    };
+    void loadMeta();
+    const onFocus = () => void loadMeta();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [routeParticipantId]);
 
   async function loadDashboard() {
     try {
@@ -315,37 +362,30 @@ export default function WorldCupTeamDashboardPage() {
 
       setParticipant(participantData);
 
-      const currentSeason = new Date().getFullYear();
-      const [teamsRes, wcTeamsRes] = await Promise.all([
-        supabase
-          .from("super_rugby_teams")
-          .select("code, name")
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("world_cup_teams")
-          .select("code, name, flag_emoji, flag_url")
-          .order("code", {
-            ascending: true,
-          }),
-      ]);
-
-      if (teamsRes.error) {
-        console.warn("Fixture display name lookup:", teamsRes.error);
+      setTeamsMetadataError(null);
+      const teamsMetaRes = await fetch("/api/worldcup/teams-metadata", { cache: "no-store" });
+      const teamsMetaJson = (await teamsMetaRes.json()) as {
+        teamNamesByCode?: Record<string, string>;
+        worldCupTeams?: WorldCupTeamRow[];
+        error?: string;
+        details?: string;
+      };
+      if (!teamsMetaRes.ok) {
+        const msg =
+          (typeof teamsMetaJson.details === "string" && teamsMetaJson.details) ||
+          teamsMetaJson.error ||
+          "Failed to load team names and flags";
+        setTeamsMetadataError(msg);
         setTeamNamesByCode({});
-      } else {
-        const map: Record<string, string> = {};
-        for (const row of teamsRes.data || []) {
-          map[row.code] = row.name;
-        }
-        setTeamNamesByCode(map);
-      }
-
-      if (wcTeamsRes.error) {
-        console.warn("world_cup_teams lookup:", wcTeamsRes.error);
         setWorldCupTeamsByCode({});
       } else {
+        const map: Record<string, string> = {};
+        for (const [code, name] of Object.entries(teamsMetaJson.teamNamesByCode || {})) {
+          map[code] = name;
+        }
+        setTeamNamesByCode(map);
         const wcMap: Record<string, WorldCupTeamRow> = {};
-        for (const row of (wcTeamsRes.data || []) as WorldCupTeamRow[]) {
+        for (const row of teamsMetaJson.worldCupTeams || []) {
           const c = row?.code?.trim();
           if (!c) continue;
           const key = worldCupTeamLookupKey(c);
@@ -359,24 +399,73 @@ export default function WorldCupTeamDashboardPage() {
         setWorldCupTeamsByCode(wcMap);
       }
 
-      const fixturesRes = await fetch("/api/worldcup/fixtures");
-      const fixturesJson = (await fixturesRes.json()) as { fixtures?: Fixture[] };
-      const fixtureList = fixturesRes.ok ? fixturesJson.fixtures || [] : [];
+      const fixturesRes = await fetch("/api/worldcup/fixtures?includePast=true");
+      const fixturesJson = (await fixturesRes.json()) as {
+        fixtures?: Fixture[];
+        error?: string;
+      };
+      if (!fixturesRes.ok) {
+        throw new Error(fixturesJson.error || "Failed to load fixtures");
+      }
+      const fixtureList = fixturesJson.fixtures || [];
       setFixtures(fixtureList);
+
+      const wcResultsRes = await fetch("/api/worldcup/results");
+      const wcResultsJson = (await wcResultsRes.json()) as {
+        rounds?: Array<{
+          fixtures?: Array<{
+            id: string;
+            home_team_code: string;
+            away_team_code: string;
+            winning_team: string | null;
+            home_goals: number | null;
+            away_goals: number | null;
+          }>;
+        }>;
+      };
+      if (wcResultsRes.ok) {
+        const resultMap: Record<string, MatchResult> = {};
+        for (const round of wcResultsJson.rounds || []) {
+          for (const fx of round.fixtures || []) {
+            if (fx.home_goals == null || fx.away_goals == null) continue;
+            resultMap[fx.id] = {
+              home_goals: fx.home_goals,
+              away_goals: fx.away_goals,
+              home_team_code: fx.home_team_code,
+              away_team_code: fx.away_team_code,
+              winning_team: fx.winning_team,
+            };
+          }
+        }
+        setMatchResultsByFixtureId(resultMap);
+      } else {
+        setMatchResultsByFixtureId({});
+      }
 
       const fixtureIds = fixtureList.map((x: Fixture) => x.id);
       if (fixtureIds.length > 0) {
-        const { data: picksRows, error: picksError } = await supabase
-          .from("picks")
-          .select("fixture_id, picked_team, margin")
-          .eq("participant_id", participantData.id);
+        const picksRes = await fetch(
+          `/api/picks?participantId=${encodeURIComponent(participantData.id)}`,
+          { cache: "no-store" }
+        );
+        const picksJson = (await picksRes.json()) as {
+          picks?: Array<{ fixture_id: string; picked_team: string; margin: number }>;
+          error?: string;
+          details?: string;
+        };
 
-        if (picksError) {
-          setPicksByFixtureId({});
+        if (!picksRes.ok) {
+          setPickErrorByFixtureId((prev) => ({
+            ...prev,
+            __load__:
+              (typeof picksJson.details === "string" && picksJson.details) ||
+              picksJson.error ||
+              "Failed to load picks",
+          }));
         } else {
           const idSet = new Set(fixtureIds);
           const map: Record<string, PickRow> = {};
-          for (const row of picksRows || []) {
+          for (const row of picksJson.picks || []) {
             if (idSet.has(row.fixture_id)) {
               map[row.fixture_id] = {
                 picked_team: row.picked_team,
@@ -385,12 +474,17 @@ export default function WorldCupTeamDashboardPage() {
             }
           }
           setPicksByFixtureId(map);
+          setPickErrorByFixtureId((prev) => {
+            if (!prev.__load__) return prev;
+            const next = { ...prev };
+            delete next.__load__;
+            return next;
+          });
         }
       } else {
         setPicksByFixtureId({});
       }
     } catch (err) {
-      console.error(err);
       setError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setLoading(false);
@@ -399,7 +493,7 @@ export default function WorldCupTeamDashboardPage() {
 
   async function handlePickTeam(fixture: Fixture, pickedTeamCode: string) {
     if (!participant) return;
-    if (fixture.kickoff_at && new Date(fixture.kickoff_at) <= new Date()) return;
+    if (isLockedByKickoffUtc(fixture.kickoff_at)) return;
 
     const currentPick = picksByFixtureId[fixture.id]?.picked_team;
     const isDeselect = currentPick === pickedTeamCode;
@@ -432,7 +526,6 @@ export default function WorldCupTeamDashboardPage() {
       } catch {
         /* ignore */
       }
-
       if (!response.ok) {
         setPickErrorByFixtureId((prev) => ({
           ...prev,
@@ -467,21 +560,34 @@ export default function WorldCupTeamDashboardPage() {
     setSavingFixtureId(fixtureId);
     try {
       const fixture = fixtures.find((f) => f.id === fixtureId);
-      if (fixture?.kickoff_at && new Date(fixture.kickoff_at) <= new Date()) {
+      if (fixture && isLockedByKickoffUtc(fixture.kickoff_at)) {
         setPendingPickClear(null);
         return;
       }
 
-      const { error: deleteError } = await supabase
-        .from("picks")
-        .delete()
-        .eq("participant_id", participant.id)
-        .eq("fixture_id", fixtureId);
+      const response = await fetch("/api/picks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          participantId: participant.id,
+          fixtureId,
+        }),
+      });
+      let clearBody: { error?: string; details?: string } = {};
+      try {
+        clearBody = (await response.json()) as { error?: string; details?: string };
+      } catch {
+        /* ignore */
+      }
 
-      if (deleteError) {
+      if (!response.ok) {
+        const msg =
+          (typeof clearBody.details === "string" && clearBody.details) ||
+          (typeof clearBody.error === "string" && clearBody.error) ||
+          "Failed to clear pick";
         setPickErrorByFixtureId((prev) => ({
           ...prev,
-          [fixtureId]: deleteError.message || "Failed to clear pick",
+          [fixtureId]: msg,
         }));
         return;
       }
@@ -554,6 +660,24 @@ export default function WorldCupTeamDashboardPage() {
             Your individual picks for this competition. Everything below is scoped to the FIFA
             World Cup 2026 competition only.
           </p>
+          {competitionPickMeta && competitionPickMeta.completed < competitionPickMeta.total ? (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Competition Picks incomplete ({competitionPickMeta.completed}/{competitionPickMeta.total}).
+              Complete them in the Competition Picks tab.
+            </div>
+          ) : null}
+
+          {teamsMetadataError ? (
+            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              Could not load team flags and labels: {teamsMetadataError}
+            </div>
+          ) : null}
+
+          {pickErrorByFixtureId.__load__ ? (
+            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              Could not reload your saved picks: {pickErrorByFixtureId.__load__}
+            </div>
+          ) : null}
 
           <section className="mt-8">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
@@ -574,10 +698,12 @@ export default function WorldCupTeamDashboardPage() {
                         const drawSelected = pick?.picked_team === PICK_DRAW;
                         const awaySelected = pick?.picked_team === f.away_team_code;
                         const saving = savingFixtureId === f.id;
-                        const locked = f.kickoff_at ? new Date(f.kickoff_at) <= new Date() : false;
+                        const locked = isLockedByKickoffUtc(f.kickoff_at);
+                        const result = matchResultsByFixtureId[f.id];
                         const pickErr = pickErrorByFixtureId[f.id];
                         const baseBtn =
                           "flex h-20 flex-1 flex-col items-center justify-center rounded-xl border px-3 py-3 text-center text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70";
+                        const lockedBtnTone = "disabled:opacity-85 disabled:border-orange-200 disabled:bg-orange-50";
                         const idleBtn =
                           "max-w-[220px] border-gray-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm";
                         const selectedBtn =
@@ -586,9 +712,17 @@ export default function WorldCupTeamDashboardPage() {
                         return (
                           <li
                             key={f.id}
-                            className="mb-4 flex flex-col gap-3 rounded-xl border border-[#dbe3ef] bg-[#f8fafc] p-4 text-sm shadow-sm transition-shadow hover:shadow-md"
+                            className={`mb-4 flex flex-col gap-3 rounded-xl border p-4 text-sm shadow-sm transition-shadow ${
+                              locked
+                                ? "border-orange-200 bg-orange-50"
+                                : "border-[#dbe3ef] bg-[#f8fafc] hover:shadow-md"
+                            }`}
                           >
-                            <div className="mb-3 flex flex-col items-center gap-1 text-center">
+                            <div
+                              className={`mb-3 flex flex-col items-center gap-1 text-center ${
+                                locked ? "text-slate-600" : ""
+                              }`}
+                            >
                               {(() => {
                                 const home = worldCupFixtureSideParts(
                                   f.home_team_code,
@@ -601,7 +735,11 @@ export default function WorldCupTeamDashboardPage() {
                                   teamNamesByCode
                                 );
                                 return (
-                                  <span className="inline-flex items-center justify-center gap-3 text-base font-semibold text-slate-900">
+                                  <span
+                                    className={`inline-flex items-center justify-center gap-3 text-base font-semibold ${
+                                      locked ? "text-slate-800" : "text-slate-900"
+                                    }`}
+                                  >
                                     <span className="inline-flex items-center gap-1.5">
                                       {home.flagUrl ? (
                                         <img
@@ -648,7 +786,9 @@ export default function WorldCupTeamDashboardPage() {
                                   </span>
                                 );
                               })()}
-                              <span className="text-sm text-slate-500">{formatKickoff(f.kickoff_at)}</span>
+                              <span className={locked ? "text-sm text-slate-700" : "text-sm text-slate-500"}>
+                                {formatKickoff(f.kickoff_at)}
+                              </span>
                             </div>
                             <div
                               className={
@@ -661,7 +801,7 @@ export default function WorldCupTeamDashboardPage() {
                                 type="button"
                                 disabled={saving || locked}
                                 onClick={() => void handlePickTeam(f, f.home_team_code)}
-                                className={`${baseBtn} ${isKnockoutFixture ? "w-48 flex-none" : "w-44 flex-none"} ${homeSelected ? selectedBtn : idleBtn}`}
+                                className={`${baseBtn} ${isKnockoutFixture ? "w-48 flex-none" : "w-44 flex-none"} ${homeSelected ? selectedBtn : idleBtn} ${locked ? lockedBtnTone : ""}`}
                               >
                                 <WorldCupFixtureSideText
                                   code={f.home_team_code}
@@ -675,7 +815,7 @@ export default function WorldCupTeamDashboardPage() {
                                   type="button"
                                   disabled={saving || locked}
                                   onClick={() => void handlePickTeam(f, PICK_DRAW)}
-                                  className={`${baseBtn} w-44 flex-none ${drawSelected ? selectedBtn : idleBtn}`}
+                                  className={`${baseBtn} w-44 flex-none ${drawSelected ? selectedBtn : idleBtn} ${locked ? lockedBtnTone : ""}`}
                                 >
                                   Draw
                                 </button>
@@ -684,7 +824,7 @@ export default function WorldCupTeamDashboardPage() {
                                 type="button"
                                 disabled={saving || locked}
                                 onClick={() => void handlePickTeam(f, f.away_team_code)}
-                                className={`${baseBtn} ${isKnockoutFixture ? "w-48 flex-none" : "w-44 flex-none"} ${awaySelected ? selectedBtn : idleBtn}`}
+                                className={`${baseBtn} ${isKnockoutFixture ? "w-48 flex-none" : "w-44 flex-none"} ${awaySelected ? selectedBtn : idleBtn} ${locked ? lockedBtnTone : ""}`}
                               >
                                 <WorldCupFixtureSideText
                                   code={f.away_team_code}
@@ -694,7 +834,41 @@ export default function WorldCupTeamDashboardPage() {
                                 />
                               </button>
                             </div>
-                            {locked ? <p className="text-xs text-slate-500">Picks locked</p> : null}
+                            {locked ? (
+                              <div className="flex flex-col items-start gap-1">
+                                <span className="inline-flex rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-800">
+                                  Picks locked
+                                </span>
+                                {result ? (
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {teamDisplayName(result.home_team_code, teamNamesByCode)}{" "}
+                                    <span
+                                      className={
+                                        result.winning_team === result.home_team_code
+                                          ? "text-orange-700"
+                                          : ""
+                                      }
+                                    >
+                                      {result.home_goals}
+                                    </span>
+                                    {" – "}
+                                    <span
+                                      className={
+                                        result.winning_team === result.away_team_code
+                                          ? "text-orange-700"
+                                          : ""
+                                      }
+                                    >
+                                      {result.away_goals}
+                                    </span>{" "}
+                                    {teamDisplayName(result.away_team_code, teamNamesByCode)}
+                                  </p>
+                                ) : null}
+                                <p className="text-xs text-slate-700">
+                                  Kickoff has passed — picks can no longer be changed.
+                                </p>
+                              </div>
+                            ) : null}
                             {saving ? <p className="text-xs text-slate-500">Saving…</p> : null}
                             {pickErr ? <p className="text-xs text-red-600">{pickErr}</p> : null}
                           </li>

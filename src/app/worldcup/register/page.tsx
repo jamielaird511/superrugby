@@ -14,6 +14,7 @@ export default function WorldCupRegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +56,13 @@ export default function WorldCupRegisterPage() {
       const response = await fetch("/api/worldcup/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: first, lastName: last, email: mail, password }),
+        body: JSON.stringify({
+          firstName: first,
+          lastName: last,
+          email: mail,
+          password,
+          accessCode: accessCode.trim(),
+        }),
       });
 
       const data = (await response.json()) as { participantId?: string; error?: string };
@@ -135,6 +142,18 @@ export default function WorldCupRegisterPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Access code
+              </label>
+              <input
+                type="text"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
                 className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
                 required
               />

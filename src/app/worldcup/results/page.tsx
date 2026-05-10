@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
 
 const STORAGE_KEY = "worldcup_participant_id";
@@ -67,6 +67,30 @@ export default function WorldCupResultsPage() {
   const [error, setError] = useState<string | null>(null);
   const [participantPath, setParticipantPath] = useState<string | null>(null);
 
+  const fetchResults = useCallback(async () => {
+    try {
+      const res = await fetch("/api/worldcup/results");
+      const json = (await res.json()) as {
+        rounds?: RoundSection[];
+        leaderboard?: LeaderboardRow[];
+        teamNames?: Record<string, string>;
+        error?: string;
+      };
+      if (!res.ok) {
+        setError(json.error || "Failed to load results");
+        return;
+      }
+      setError(null);
+      setRounds(json.rounds || []);
+      setLeaderboard(json.leaderboard || []);
+      setTeamNames(json.teamNames || {});
+    } catch {
+      setError("Failed to load results");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const id = localStorage.getItem(STORAGE_KEY);
@@ -75,35 +99,19 @@ export default function WorldCupResultsPage() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/worldcup/results");
-        const json = (await res.json()) as {
-          rounds?: RoundSection[];
-          leaderboard?: LeaderboardRow[];
-          teamNames?: Record<string, string>;
-          error?: string;
-        };
-        if (!res.ok) {
-          setError(json.error || "Failed to load results");
-          return;
-        }
-        if (!cancelled) {
-          setRounds(json.rounds || []);
-          setLeaderboard(json.leaderboard || []);
-          setTeamNames(json.teamNames || {});
-        }
-      } catch {
-        if (!cancelled) setError("Failed to load results");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
+    void fetchResults();
+    const intervalId = window.setInterval(() => {
+      void fetchResults();
+    }, 5000);
+    const onFocus = () => {
+      void fetchResults();
     };
-  }, []);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [fetchResults]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 font-sans text-slate-900">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -27,6 +27,27 @@ type RoundSection = {
 
 function teamLabel(code: string, teamNames: Record<string, string>) {
   return teamNames[code.trim().toUpperCase()] || code;
+}
+
+function AdminNavTabs() {
+  const pathname = usePathname();
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  const matchActive = normalized === "/worldcup/admin";
+  const compActive = normalized.includes("/worldcup/admin/competition-results");
+  const linkClass = (active: boolean) =>
+    `rounded-md px-3 py-1.5 text-sm font-medium ${
+      active ? "bg-white/25 text-white" : "text-white/90 hover:bg-white/15"
+    }`;
+  return (
+    <nav className="mt-2 flex flex-wrap gap-2 border-t border-white/20 pt-2">
+      <Link href="/worldcup/admin" className={linkClass(matchActive)}>
+        Match Results
+      </Link>
+      <Link href="/worldcup/admin/competition-results" className={linkClass(compActive)}>
+        Competition Results
+      </Link>
+    </nav>
+  );
 }
 
 function formatKickoffNz(kickoffAt: string | null) {
@@ -58,7 +79,6 @@ export default function WorldCupAdminResultsPage() {
   const [saveMessage, setSaveMessage] = useState<{ type: "ok" | "err"; text: string } | null>(
     null
   );
-
   const applyPayload = useCallback(
     (payload: { rounds: RoundSection[]; teamNames: Record<string, string> }) => {
       setRounds(payload.rounds);
@@ -86,11 +106,14 @@ export default function WorldCupAdminResultsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (cancelled) return;
 
       if (userError || !user) {
-        router.replace("/worldcup/login");
+        router.replace("/worldcup/admin/login");
         setAuthChecked(true);
         return;
       }
@@ -102,7 +125,7 @@ export default function WorldCupAdminResultsPage() {
         adminEmails.length > 0 && userEmailLower && adminEmails.includes(userEmailLower);
 
       if (!ok) {
-        router.replace("/");
+        router.replace("/worldcup/admin/login");
         setAuthChecked(true);
         return;
       }
@@ -143,6 +166,12 @@ export default function WorldCupAdminResultsPage() {
       cancelled = true;
     };
   }, [router, applyPayload]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setAllowed(false);
+    router.replace("/worldcup/login");
+  }
 
   useEffect(() => {
     return () => {
@@ -325,6 +354,7 @@ export default function WorldCupAdminResultsPage() {
               FIFA World Cup 2026
             </span>
             <span className="text-sm font-medium text-white/80">Admin — results</span>
+            <AdminNavTabs />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -339,6 +369,13 @@ export default function WorldCupAdminResultsPage() {
             >
               Home
             </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>

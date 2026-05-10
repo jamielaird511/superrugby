@@ -1,7 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const DEFAULT_HOSTS = ["paperpunter.com", "www.paperpunter.com"];
+const DEFAULT_HOSTS = [
+  "paperpunter.com",
+  "www.paperpunter.com",
+  "paperpunter.co.nz",
+  "www.paperpunter.co.nz",
+];
 
 function allowedPaperPunterHosts(): Set<string> {
   const raw = process.env.PAPERPUNTER_HOSTS?.trim();
@@ -29,16 +34,25 @@ export function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Send /lander to /paperpunter — not to /, since some hosts redirect / → /lander (would loop).
+  // Canonical root: avoid legacy /lander paths on PaperPunter domains.
   if (pathname === "/lander" || pathname.startsWith("/lander/")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/paperpunter";
+    url.pathname = "/";
     return NextResponse.redirect(url, 308);
+  }
+
+  // Serve PaperPunter marketing at `/` while keeping `/paperpunter` as a working path.
+  if (pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/paperpunter";
+    const headers = new Headers(request.headers);
+    headers.set("x-paperpunter-root-rewrite", "1");
+    return NextResponse.rewrite(url, { request: { headers } });
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/lander", "/lander/(.*)"],
+  matcher: ["/", "/lander", "/lander/(.*)"],
 };

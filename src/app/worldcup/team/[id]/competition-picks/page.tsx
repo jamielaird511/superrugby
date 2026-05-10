@@ -33,6 +33,21 @@ function emptyPicks(): CompetitionPicksState {
   };
 }
 
+function normalizeGroupPicks(
+  picks?: Record<string, { first?: string; second?: string }> | null
+): Record<string, { first: string; second: string }> {
+  const result: Record<string, { first: string; second: string }> = {};
+
+  for (const [group, value] of Object.entries(picks || {})) {
+    result[group] = {
+      first: value.first || "",
+      second: value.second || "",
+    };
+  }
+
+  return result;
+}
+
 function getGroupLabel(row: WorldCupTeamRow): string {
   const raw = row.group_name;
   const normalized = typeof raw === "string" ? raw.trim() : String(raw ?? "").trim();
@@ -140,7 +155,7 @@ export default function WorldCupCompetitionPicksPage() {
               saved.semifinalist_team_codes && Array.isArray(saved.semifinalist_team_codes)
                 ? [0, 1, 2, 3].map((i) => String(saved.semifinalist_team_codes?.[i] || ""))
                 : ["", "", "", ""],
-            groupStage: saved.group_picks || {},
+            groupStage: normalizeGroupPicks(saved.group_picks),
             totalGoals: saved.total_goals == null ? "" : String(saved.total_goals),
             topScoringTeam: saved.top_scoring_team_code || "",
           });

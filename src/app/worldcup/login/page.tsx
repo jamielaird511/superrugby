@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { track } from "@/lib/analytics";
 
 const FIFA_WORLD_CUP_2026_COMPETITION_ID =
@@ -118,6 +119,15 @@ export default function FifaWorldCup2026LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50">
       <div className="w-full max-w-[420px] px-4">
         <div className="rounded-lg border border-[#D6E3EC] bg-white p-6 shadow-sm">
+          <div className="mb-4">
+            <Link
+              href="/paperpunter"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D6E3EC] bg-[#F4F8FB] px-3 py-2 text-sm font-semibold text-[#003A5D] shadow-sm ring-1 ring-black/[0.04] transition-colors hover:border-[#003A5D]/35 hover:bg-white hover:text-[#005F8E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003A5D]/40"
+            >
+              <ArrowLeftIcon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+              Home
+            </Link>
+          </div>
           <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-[#C6A349]">
             FIFA World Cup 2026
           </div>

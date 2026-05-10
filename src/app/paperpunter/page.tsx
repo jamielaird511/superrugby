@@ -1,17 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChartBarIcon, TrophyIcon, UserGroupIcon } from "@heroicons/react/24/solid";
+import {
+  ChartBarIcon,
+  RocketLaunchIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/solid";
 
 const BRAND_BLUE = "#126BFF";
 
 export default function PaperPunterLandingPage() {
   return (
     <div
-      className="relative left-1/2 w-screen max-w-none -translate-x-1/2 min-h-screen overflow-hidden text-white"
+      className="relative left-1/2 -ml-[50vw] min-h-screen w-screen max-w-none overflow-x-hidden"
       style={{
-        background: `linear-gradient(180deg, #3B9BFF 0%, ${BRAND_BLUE} 42%, #0956D4 78%, #063A91 100%)`,
+        background: `linear-gradient(165deg, #5AAEFF 0%, #4AA3FF 28%, #2F8EF3 58%, #1769D6 85%, #115CC4 100%)`,
       }}
     >
+      <div className="fixed top-0 left-0 right-0 z-50 shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
       {/* Brand bar — single sharp diagonal via two solid stops (no clip-path wedges); wordmark centered */}
       <header className="relative z-20 overflow-hidden">
         <div
@@ -21,17 +26,17 @@ export default function PaperPunterLandingPage() {
             background: `linear-gradient(118deg, ${BRAND_BLUE} 50%, #ffffff 50%)`,
           }}
         />
-        <h1 className="relative z-10 flex min-h-[76px] w-full translate-x-1 items-center justify-center gap-4 whitespace-nowrap px-4 py-5 font-black italic tracking-tight [-webkit-text-size-adjust:100%] sm:min-h-[92px] sm:translate-x-1.5 sm:gap-5 sm:px-6 sm:py-6 md:min-h-[104px] md:translate-x-2 md:gap-6 lg:min-h-[116px] lg:translate-x-3">
+        <h1 className="relative z-10 flex min-h-[52px] w-full translate-x-1 items-center justify-center gap-3 whitespace-nowrap px-4 py-2.5 font-black italic tracking-tight [-webkit-text-size-adjust:100%] sm:min-h-[58px] sm:translate-x-1.5 sm:gap-4 sm:px-6 sm:py-3 md:min-h-[60px] md:translate-x-2 md:gap-5 lg:min-h-[64px] lg:translate-x-3 lg:py-3">
           <span
             className="leading-none pr-0.5 text-white sm:pr-1"
-            style={{ fontSize: "clamp(1.5rem, 4vw + 0.45rem, 4.5rem)" }}
+            style={{ fontSize: "clamp(1.35rem, 3.25vw + 0.38rem, 3.5rem)" }}
           >
             Paper
           </span>
           <span
             className="pl-0.5 leading-none sm:pl-1"
             style={{
-              fontSize: "clamp(1.5rem, 4vw + 0.45rem, 4.5rem)",
+              fontSize: "clamp(1.35rem, 3.25vw + 0.38rem, 3.5rem)",
               color: BRAND_BLUE,
             }}
           >
@@ -40,79 +45,177 @@ export default function PaperPunterLandingPage() {
         </h1>
       </header>
 
-      <main className="relative z-10 mx-auto flex min-h-0 max-w-5xl flex-col px-4 pb-20 pt-10 sm:px-6 sm:pb-24 sm:pt-12 md:pt-14">
-        <section className="mx-auto w-full max-w-2xl text-center">
-          <div className="flex justify-center">
-            <Link
-              href="/worldcup/login"
-              aria-label="FIFA World Cup tipping — log in"
-              className="inline-flex rounded-2xl bg-white px-6 py-5 shadow-[0_0_0_3px_#fff,0_0_0_7px_rgba(255,255,255,0.35),0_22px_56px_-16px_rgba(0,35,95,0.52),0_8px_24px_-6px_rgba(0,0,0,0.2)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_0_3px_#fff,0_0_0_8px_rgba(255,255,255,0.42),0_28px_64px_-14px_rgba(0,35,95,0.58),0_12px_32px_-6px_rgba(0,0,0,0.24)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/90 sm:rounded-3xl sm:px-8 sm:py-6"
-            >
-              <Image
-                src="/mundial-2026-world-cup.svg"
-                alt="FIFA World Cup 2026"
-                width={606}
-                height={650}
-                className="h-auto w-auto max-h-[min(132px,38vw)] max-w-[min(360px,92vw)] object-contain sm:max-h-[156px] sm:max-w-[400px] md:max-h-[176px] md:max-w-[440px]"
-                priority
-                unoptimized
-              />
-            </Link>
-          </div>
-          <h2 className="mt-7 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl md:mt-9 md:text-[2.35rem] md:leading-[1.15]">
-            FIFA World Cup 2026 Tipping Competition
-          </h2>
+      <nav
+        aria-label="Primary"
+        className="relative z-20 border-b border-[#0d52d4] bg-[#126BFF] text-white"
+      >
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-2 gap-y-1.5 px-4 py-1.5 sm:justify-end sm:gap-x-2 sm:px-6 sm:py-2">
+          <Link
+            href="/worldcup/login"
+            className="rounded-md px-2.5 py-1 text-[13px] font-semibold text-white/95 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:px-3 sm:text-sm"
+          >
+            Log In
+          </Link>
+          <Link
+            href="/paperpunter/create-competition"
+            className="rounded-md border border-white/25 bg-white/10 px-2.5 py-1 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:px-3 sm:text-sm"
+          >
+            Create Competition
+          </Link>
+        </div>
+      </nav>
+      </div>
 
-          <div className="mt-8 flex flex-col items-center justify-center sm:mt-9">
-            <Link
-              href="/worldcup/login"
-              className="inline-flex h-12 w-full max-w-[260px] items-center justify-center rounded-xl bg-white px-6 text-sm font-bold text-[#126BFF] shadow-lg shadow-black/25 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
-            >
-              Let’s Go
-            </Link>
-          </div>
-        </section>
+      <main className="relative z-10 mx-auto flex min-h-0 max-w-6xl flex-col px-4 pb-20 pt-[calc(146px+1.5rem)] text-slate-900 sm:px-6 sm:pb-28 sm:pt-[calc(132px+2rem)] md:pt-[calc(136px+2.25rem)] lg:pt-[calc(140px+2.25rem)]">
+        {/* Hero — white panel: product pitch + featured competition + proof pills */}
+        <div className="rounded-[28px] border-2 border-slate-200 bg-white/96 shadow-[0_20px_60px_rgba(15,23,42,0.18)] backdrop-blur-[2px]">
+          <div className="p-6 sm:p-8 lg:p-10">
+            <section className="grid w-full gap-10 lg:grid-cols-2 lg:items-start lg:gap-12">
+              <div className="flex flex-col text-center sm:text-left">
+                <h2 className="text-[1.65rem] font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-4xl md:text-[2.35rem] md:leading-[1.1] lg:max-w-xl">
+                  Run Private Tipping Competitions Without The Spreadsheet
+                </h2>
+                <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:mx-0 sm:mt-5 sm:text-lg sm:text-slate-700">
+                  PaperPunter makes it easy to run prediction comps for mates,
+                  offices, clubs, and major sporting events — with picks, leaderboards,
+                  and results in one place.
+                </p>
+                <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:flex-wrap">
+                  <Link
+                    href="/worldcup/login"
+                    className="inline-flex min-h-12 w-full flex-1 items-center justify-center rounded-xl bg-[#126BFF] px-5 py-3 text-center text-sm font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:bg-[#0f5fdf] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/40 sm:min-w-[220px] sm:flex-none sm:px-8"
+                  >
+                    Join World Cup Competition
+                  </Link>
+                  <a
+                    href="#"
+                    className="inline-flex min-h-11 w-full flex-1 items-center justify-center rounded-xl border-2 border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 transition-all duration-200 hover:scale-[1.01] hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:min-w-[200px] sm:flex-none"
+                  >
+                    Create Your Own Competition
+                  </a>
+                </div>
+              </div>
 
-        <section className="mx-auto mt-16 w-full max-w-5xl sm:mt-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-base font-semibold tracking-tight text-white/95">
+              <div className="flex justify-center lg:justify-end lg:pt-1">
+                <div className="w-full max-w-md overflow-hidden rounded-2xl border-2 border-[#2E7BFF]/20 bg-white shadow-[0_18px_40px_rgba(37,99,235,0.18)]">
+                  <div className="bg-gradient-to-r from-[#126BFF] to-[#0F5BE8] px-4 py-3 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/95">
+                      Featured Competition
+                    </p>
+                  </div>
+                  <div className="bg-white px-5 pb-6 pt-5 sm:px-6 sm:pb-7">
+                    <h3 className="text-center text-xl font-bold text-slate-900 sm:text-2xl">
+                      FIFA World Cup 2026
+                    </h3>
+                    <p className="mt-2 text-center text-sm text-slate-600">
+                      104 matches · Private leaderboard · Free to enter
+                    </p>
+
+                    <div className="mt-5 flex justify-center">
+                      <Link
+                        href="/worldcup/login"
+                        aria-label="FIFA World Cup tipping — log in"
+                        className="inline-flex rounded-2xl border-2 border-slate-100 bg-white px-7 py-4 shadow-lg ring-2 ring-[#126BFF]/15 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:ring-[#126BFF]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/35 sm:rounded-3xl sm:px-9 sm:py-5"
+                      >
+                        <Image
+                          src="/mundial-2026-world-cup.svg"
+                          alt="FIFA World Cup 2026"
+                          width={606}
+                          height={650}
+                          className="h-auto w-auto max-h-[min(104px,30vw)] max-w-[min(260px,85vw)] object-contain sm:max-h-[120px] sm:max-w-[280px]"
+                          priority
+                          unoptimized
+                        />
+                      </Link>
+                    </div>
+
+                    <div className="mt-6">
+                      <Link
+                        href="/worldcup/login"
+                        className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#126BFF] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:bg-[#0f5fdf] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/40"
+                      >
+                        Enter Competition
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-label="Product highlights"
+              className="mt-10 border-t border-slate-100 pt-8 sm:mt-12 sm:pt-10"
+            >
+              <ul className="flex flex-wrap items-center justify-center gap-3 sm:justify-start sm:gap-3.5">
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                  No spreadsheets
+                </li>
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                  Private leaderboards
+                </li>
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                  Mobile friendly
+                </li>
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                  Built for mates, offices, and clubs
+                </li>
+              </ul>
+            </section>
+          </div>
+        </div>
+
+        <section
+          id="how-it-works"
+          className="mx-auto mt-10 w-full max-w-6xl scroll-mt-24 rounded-[28px] border-2 border-slate-200 bg-white/96 shadow-[0_16px_50px_rgba(15,23,42,0.12)] backdrop-blur-[2px] sm:mt-12"
+        >
+          <div className="border-b border-slate-100 px-6 py-8 text-center sm:px-10 sm:py-10">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
               How it works
             </h2>
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+              PaperPunter gives your group one place to pick, compare, and
+              celebrate — whether it&apos;s the weekend footy or a global event.
+            </p>
           </div>
 
-          <div className="mt-8 grid gap-5 sm:grid-cols-3 sm:gap-6">
-            <div className="rounded-2xl border border-white/15 bg-[#0546A8]/45 p-6 shadow-lg shadow-black/20 backdrop-blur-sm">
-              <TrophyIcon
-                className="mb-4 h-9 w-9 text-white"
+          <div className="grid gap-5 px-6 pb-8 sm:grid-cols-3 sm:gap-6 sm:px-10 sm:pb-10">
+            <div className="rounded-xl border-2 border-slate-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-[#126BFF]/40 hover:shadow-lg">
+              <RocketLaunchIcon
+                className="mb-4 h-10 w-10 text-[#1068f4]"
                 aria-hidden
               />
-              <p className="text-sm font-semibold text-white">Pick Match Results</p>
-              <p className="mt-2 text-sm leading-relaxed text-white/85">
-                Choose winners (and draws) for each fixture as the tournament unfolds.
+              <p className="text-sm font-semibold text-slate-900">
+                Create A Competition
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Spin up a competition with rounds, scoring, and cut-offs built
+                in — no manual sheets or broken formulas.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-[#0546A8]/45 p-6 shadow-lg shadow-black/20 backdrop-blur-sm">
+            <div className="rounded-xl border-2 border-slate-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-[#126BFF]/40 hover:shadow-lg">
               <UserGroupIcon
-                className="mb-4 h-9 w-9 text-white"
+                className="mb-4 h-10 w-10 text-[#1068f4]"
                 aria-hidden
               />
-              <p className="text-sm font-semibold text-white">
-                Predict Tournament Outcomes
+              <p className="text-sm font-semibold text-slate-900">
+                Invite Your Group
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-white/85">
-                Lock in your winner, semi-finalists, and group finishes before kickoff.
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Send a secure link so players join once and submit picks from
+                phone or desktop — perfect for offices and club chats.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-[#0546A8]/45 p-6 shadow-lg shadow-black/20 backdrop-blur-sm">
+            <div className="rounded-xl border-2 border-slate-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-[#126BFF]/40 hover:shadow-lg">
               <ChartBarIcon
-                className="mb-4 h-9 w-9 text-white"
+                className="mb-4 h-10 w-10 text-[#1068f4]"
                 aria-hidden
               />
-              <p className="text-sm font-semibold text-white">
-                Climb The Leaderboard
+              <p className="text-sm font-semibold text-slate-900">
+                Track The Leaderboard
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-white/85">
-                Track your progress and see how you stack up against friends.
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Results roll into live standings automatically — everyone sees
+                who&apos;s on top after each round or match day.
               </p>
             </div>
           </div>

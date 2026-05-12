@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
+import { WORLD_CUP_PAGE_BACKGROUND, worldCupContentCardClass, worldCupMainContentShellClass } from "@/lib/worldCupBranding";
 
 const STORAGE_KEY = "worldcup_participant_id";
 
@@ -224,21 +225,32 @@ export default function WorldCupCompetitionPicksPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
+      <div
+        className="flex min-h-screen w-full min-w-0 items-center justify-center overflow-x-hidden text-slate-600"
+        style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+      >
         Loading competition picks…
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 font-sans text-slate-900">
-      <WorldCupHeader subtitle="Competition Picks" initialParticipantId={routeParticipantId} />
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
+      <WorldCupHeader
+        subtitle="Competition Picks"
+        initialParticipantId={routeParticipantId}
+        competitionPicksCompletion={loading ? null : completion}
+      />
 
-      <main className="mx-auto max-w-5xl px-4 pb-8 pt-28 sm:px-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+      <main className="w-full">
+        <div className={worldCupMainContentShellClass}>
+        <div className={worldCupContentCardClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold text-[#003A5D]">Competition Picks</h1>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
+            <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
               {completion.completed}/{completion.total} completed
             </span>
           </div>
@@ -252,7 +264,7 @@ export default function WorldCupCompetitionPicksPage() {
           {saveMessage ? <p className="mt-2 text-sm text-red-600">{saveMessage}</p> : null}
 
           <div className="mt-6 space-y-6">
-            <section className="rounded-lg border border-zinc-200 p-4">
+            <section className="rounded-md border border-zinc-200 p-4">
               <h2 className="text-base font-semibold text-zinc-900">Winner</h2>
               <select
                 disabled={locked}
@@ -269,7 +281,7 @@ export default function WorldCupCompetitionPicksPage() {
               </select>
             </section>
 
-            <section className="rounded-lg border border-zinc-200 p-4">
+            <section className="rounded-md border border-zinc-200 p-4">
               <h2 className="text-base font-semibold text-zinc-900">Semi-finalists (max 4)</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {[0, 1, 2, 3].map((idx) => (
@@ -297,7 +309,7 @@ export default function WorldCupCompetitionPicksPage() {
               </div>
             </section>
 
-            <section className="rounded-lg border border-zinc-200 p-4">
+            <section className="rounded-md border border-zinc-200 p-4">
               <h2 className="text-base font-semibold text-zinc-900">Group stage (top 2 per group)</h2>
               <div className="mt-3 grid gap-4 lg:grid-cols-2">
                 {groupNames.map((group) => {
@@ -373,7 +385,7 @@ export default function WorldCupCompetitionPicksPage() {
               </div>
             </section>
 
-            <section className="rounded-lg border border-zinc-200 p-4">
+            <section className="rounded-md border border-zinc-200 p-4">
               <h2 className="text-base font-semibold text-zinc-900">Tournament stats</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <input
@@ -401,6 +413,7 @@ export default function WorldCupCompetitionPicksPage() {
               </div>
             </section>
           </div>
+        </div>
         </div>
       </main>
     </div>

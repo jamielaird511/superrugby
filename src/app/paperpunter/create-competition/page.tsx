@@ -13,7 +13,7 @@ export default function CreateCompetitionComingSoonPage() {
 
   return (
     <div
-      className="relative left-1/2 -ml-[50vw] min-h-screen w-screen max-w-none overflow-x-hidden pb-20 pt-10 text-slate-900 sm:pb-28 sm:pt-12"
+      className="min-h-screen w-full min-w-0 overflow-x-hidden pb-20 pt-10 text-slate-900 sm:pb-28 sm:pt-12"
       style={{
         background: `linear-gradient(165deg, #5AAEFF 0%, #4AA3FF 28%, #2F8EF3 58%, #1769D6 85%, #115CC4 100%)`,
       }}

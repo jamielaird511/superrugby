@@ -27,16 +27,32 @@ export default async function RootLayout({
   const hdrs = await headers();
   const hideFooterForPaperPunterRootRewrite =
     hdrs.get("x-paperpunter-root-rewrite") === "1";
+  const paperPunterFullBleed =
+    hdrs.get("x-paperpunter-full-bleed") === "1";
 
   return (
-    <html lang="en">
+    <html lang="en" className={paperPunterFullBleed ? "!bg-transparent" : undefined}>
       <body
-        className={`${inter.className} ${geistMono.variable} antialiased dark:bg-black min-h-screen flex flex-col`}
+        className={`${inter.className} ${geistMono.variable} antialiased min-h-screen flex flex-col ${
+          paperPunterFullBleed ? "!bg-transparent" : "dark:bg-black"
+        }`}
       >
-        <main className="flex-1 bg-[#EEF6FB]">
-          <div className="mx-auto max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16">
-            {children}
-          </div>
+        <main
+          className={
+            paperPunterFullBleed
+              ? "flex-1 min-h-0 w-full min-w-0 overflow-x-hidden bg-transparent"
+              : "flex-1 bg-[#EEF6FB]"
+          }
+        >
+          {paperPunterFullBleed ? (
+            <div className="min-h-0 w-full min-w-0 overflow-x-hidden">
+              {children}
+            </div>
+          ) : (
+            <div className="mx-auto max-w-6xl px-6 sm:px-8 lg:px-12 xl:px-16">
+              {children}
+            </div>
+          )}
         </main>
         {hideFooterForPaperPunterRootRewrite ? null : <SiteFooter />}
       </body>

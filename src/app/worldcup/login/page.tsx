@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { track } from "@/lib/analytics";
+import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
+import { WORLD_CUP_PAGE_BACKGROUND, worldCupAuthPageContentShellClass, worldCupContentCardClass } from "@/lib/worldCupBranding";
+import { worldCupParticipantSubtitle } from "@/lib/worldCupParticipantDisplay";
 
 const FIFA_WORLD_CUP_2026_COMPETITION_ID =
   "9e60564e-4be5-4756-b6cb-48ae06f45654";
@@ -24,9 +26,9 @@ export default function FifaWorldCup2026LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function fetchParticipants() {
+  const fetchParticipants = useCallback(async () => {
     try {
-      const res = await fetch("/api/worldcup/participants");
+      const res = await fetch("/api/worldcup/participants", { cache: "no-store" });
       const json = (await res.json()) as {
         participants?: Participant[];
         error?: string;
@@ -44,13 +46,21 @@ export default function FifaWorldCup2026LoginPage() {
         `Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}`
       );
     }
-  }
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      await fetchParticipants();
-    })();
-  }, []);
+    void fetchParticipants();
+  }, [fetchParticipants]);
+
+  useEffect(() => {
+    const refresh = () => void fetchParticipants();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [fetchParticipants]);
 
   useEffect(() => {
     const src =
@@ -116,89 +126,84 @@ export default function FifaWorldCup2026LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <div className="w-full max-w-[420px] px-4">
-        <div className="rounded-lg border border-[#D6E3EC] bg-white p-6 shadow-sm">
-          <div className="mb-4">
-            <Link
-              href="/paperpunter"
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D6E3EC] bg-[#F4F8FB] px-3 py-2 text-sm font-semibold text-[#003A5D] shadow-sm ring-1 ring-black/[0.04] transition-colors hover:border-[#003A5D]/35 hover:bg-white hover:text-[#005F8E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003A5D]/40"
-            >
-              <ArrowLeftIcon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-              Home
-            </Link>
-          </div>
-          <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-[#C6A349]">
-            FIFA World Cup 2026
-          </div>
-          <h1 className="mb-4 text-center text-xl font-semibold text-[#003A5D]">
-            FIFA World Cup 2026 Picks Login
-          </h1>
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
+      <WorldCupHeader />
 
-          <form onSubmit={handleLogin} className="space-y-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
-                Your name
-              </label>
-              <select
-                value={selectedParticipantId}
-                onChange={(e) => setSelectedParticipantId(e.target.value)}
-                className="h-10 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black"
-                required
-              >
-                <option value="">Select your name</option>
-                {participants.map((participant) => (
-                  <option key={participant.id} value={participant.id}>
-                    {participant.name}
-                  </option>
-                ))}
-              </select>
+      <div className="flex min-h-screen flex-col">
+        <div className={`${worldCupAuthPageContentShellClass} flex flex-1 flex-col items-center`}>
+          <div className="w-full max-w-md">
+            <div className={worldCupContentCardClass}>
+              <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-amber-700">
+                FIFA World Cup 2026
+              </div>
+              <h1 className="mb-1 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
+                Picks login
+              </h1>
+              <p className="mb-6 text-center text-sm text-slate-500">
+                Sign in with the name you registered and your password.
+              </p>
+
+              <form onSubmit={handleLogin} className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Your name</label>
+                  <select
+                    value={selectedParticipantId}
+                    onChange={(e) => setSelectedParticipantId(e.target.value)}
+                    className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                    required
+                  >
+                    <option value="">Select your name</option>
+                    {participants.map((participant) => (
+                      <option key={participant.id} value={participant.id}>
+                        {worldCupParticipantSubtitle(participant)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                    required
+                  />
+                </div>
+
+                {message && <div className="text-sm text-red-600">{message}</div>}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="h-10 w-full rounded-md bg-[#126BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f5fdf] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? "Logging in…" : "Log in"}
+                </button>
+              </form>
+
+              <div className="mt-5 border-t border-slate-200 pt-5">
+                <Link
+                  href="/worldcup/register"
+                  className="flex h-10 w-full items-center justify-center rounded-md border-2 border-[#126BFF] bg-white px-4 py-2 text-sm font-semibold text-[#126BFF] transition-colors hover:bg-slate-50"
+                >
+                  Create an account
+                </Link>
+              </div>
+
+              <div className="mt-6 flex justify-center">
+                <Link
+                  href="/worldcup/admin/login"
+                  className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 sm:text-xs"
+                >
+                  Admin login
+                </Link>
+              </div>
             </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black"
-                required
-              />
-            </div>
-
-            {message && <div className="text-sm text-red-600">{message}</div>}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-10 w-full rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Logging in..." : "Log in"}
-            </button>
-          </form>
-          <div className="mt-2">
-            <Link
-              href="/worldcup/register"
-              className="flex h-10 w-full items-center justify-center rounded-md bg-[#007DBA] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#005F8E]"
-            >
-              Register
-            </Link>
-          </div>
-          <p className="mt-3 text-center text-sm text-zinc-600">
-            <Link href="/worldcup/register" className="text-[#003A5D] underline hover:text-[#005F8E]">
-              New here? Register for the World Cup picks comp
-            </Link>
-          </p>
-
-          <div className="mt-3 text-center">
-            <Link
-              href="/worldcup/admin/login"
-              className="inline-flex items-center justify-center rounded-md bg-[#003A5D] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#005F8E]"
-            >
-              Admin login
-            </Link>
           </div>
         </div>
       </div>

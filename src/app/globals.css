@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 html {
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
 }
 
 :root {
@@ -32,6 +32,7 @@ body {
 }
 
 html, body {
-  background: #EEF6FB;
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
 }

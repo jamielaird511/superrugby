@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
+import { WORLD_CUP_PAGE_BACKGROUND, worldCupContentCardClass, worldCupMainContentShellClass } from "@/lib/worldCupBranding";
 
 const STORAGE_KEY = "worldcup_participant_id";
 
@@ -114,11 +115,15 @@ export default function WorldCupResultsPage() {
   }, [fetchResults]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 font-sans text-slate-900">
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
       <WorldCupHeader subtitle="Results" />
 
-      <main className="mx-auto max-w-5xl px-4 pb-8 pt-28 sm:px-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+      <main className="w-full">
+        <div className={worldCupMainContentShellClass}>
+        <div className={worldCupContentCardClass}>
           <h1 className="text-2xl font-semibold text-[#003A5D]">Match results</h1>
           <p className="mt-2 text-sm text-slate-600">
             Final scores recorded for the FIFA World Cup 2026 picks competition.
@@ -239,6 +244,7 @@ export default function WorldCupResultsPage() {
               )}
             </div>
           )}
+        </div>
         </div>
       </main>
     </div>

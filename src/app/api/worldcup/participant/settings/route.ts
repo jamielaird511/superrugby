@@ -19,7 +19,15 @@ async function validateWorldCupParticipantScope(participantId: string) {
     .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
     .maybeSingle();
 
-  if (participantError) return { ok: false as const, error: "Failed to load participant" };
+  if (participantError) {
+    console.error("[worldcup/participant/settings] participant lookup:", {
+      participantId,
+      message: participantError.message,
+      code: participantError.code,
+      details: participantError.details,
+    });
+    return { ok: false as const, error: "Failed to load participant" };
+  }
   if (!participant) return { ok: false as const, error: "Participant not found" };
 
   const { data: league, error: leagueError } = await supabaseAdmin
@@ -29,6 +37,12 @@ async function validateWorldCupParticipantScope(participantId: string) {
     .maybeSingle();
 
   if (leagueError || !league || league.competition_id !== wcCompId) {
+    console.error("[worldcup/participant/settings] league scope check failed:", {
+      participantId,
+      leagueError,
+      leagueRow: league,
+      expectedCompetitionId: wcCompId,
+    });
     return { ok: false as const, error: "Participant not in World Cup scope" };
   }
 
@@ -89,12 +103,28 @@ export async function PATCH(req: NextRequest) {
     const confirmNewPassword = String(body?.confirmNewPassword ?? "");
 
     if (displayName) {
-      const { error: updateNameError } = await supabaseAdmin
+      const { data: updatedRow, error: updateNameError } = await supabaseAdmin
         .from("participants")
-        .update({ team_name: displayName, updated_at: new Date().toISOString() })
-        .eq("id", participantId);
+        .update({ team_name: displayName })
+        .eq("id", participantId)
+        .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+        .select("id")
+        .maybeSingle();
 
       if (updateNameError) {
+        console.error("[worldcup/participant/settings] team_name update failed:", {
+          participantId,
+          message: updateNameError.message,
+          code: updateNameError.code,
+          details: updateNameError.details,
+        });
+        return NextResponse.json({ error: "Failed to update display name" }, { status: 500 });
+      }
+
+      if (!updatedRow) {
+        console.error("[worldcup/participant/settings] team_name update affected 0 rows", {
+          participantId,
+        });
         return NextResponse.json({ error: "Failed to update display name" }, { status: 500 });
       }
 
@@ -129,12 +159,28 @@ export async function PATCH(req: NextRequest) {
     }
 
     const nextHash = await hashPassword(newPassword);
-    const { error: updatePwError } = await supabaseAdmin
+    const { data: updatedPwRow, error: updatePwError } = await supabaseAdmin
       .from("participants")
-      .update({ password_hash: nextHash, updated_at: new Date().toISOString() })
-      .eq("id", participantId);
+      .update({ password_hash: nextHash })
+      .eq("id", participantId)
+      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+      .select("id")
+      .maybeSingle();
 
     if (updatePwError) {
+      console.error("[worldcup/participant/settings] password update failed:", {
+        participantId,
+        message: updatePwError.message,
+        code: updatePwError.code,
+        details: updatePwError.details,
+      });
+      return NextResponse.json({ error: "Failed to update password" }, { status: 500 });
+    }
+
+    if (!updatedPwRow) {
+      console.error("[worldcup/participant/settings] password update affected 0 rows", {
+        participantId,
+      });
       return NextResponse.json({ error: "Failed to update password" }, { status: 500 });
     }
 

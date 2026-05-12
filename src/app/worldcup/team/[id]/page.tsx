@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
+import { WORLD_CUP_PAGE_BACKGROUND, worldCupContentCardClass, worldCupFixedHeaderPaddingTopClass } from "@/lib/worldCupBranding";
+import {
+  WORLD_CUP_PARTICIPANT_UPDATED_EVENT,
+  worldCupParticipantSubtitle,
+  type WorldCupParticipantUpdatedDetail,
+} from "@/lib/worldCupParticipantDisplay";
+
+const PICKS_MAIN_SHELL_CLASS = `mx-auto w-full max-w-5xl min-w-0 px-4 pb-8 sm:px-6 ${worldCupFixedHeaderPaddingTopClass}`;
 
 const FIFA_WORLD_CUP_2026_COMPETITION_ID =
   "9e60564e-4be5-4756-b6cb-48ae06f45654";
@@ -200,7 +208,9 @@ function WorldCupFixtureSideText({
           {flagEmoji}
         </span>
       ) : null}
-      <span className={stacked ? "text-center font-semibold leading-tight" : ""}>{label}</span>
+      <span className={stacked ? "text-center font-semibold leading-tight" : "line-clamp-2 max-w-full text-center font-medium leading-snug"}>
+        {label}
+      </span>
     </span>
   );
 }
@@ -249,11 +259,6 @@ function fixtureDateGroupParts(kickoffAt: string | null): { dateKey: string; hea
   return { dateKey, heading };
 }
 
-function entrantDisplayName(p: { name: string; team_name: string }) {
-  const real = p.name?.trim();
-  return real !== "" ? real : p.team_name;
-}
-
 export default function WorldCupTeamDashboardPage() {
   const params = useParams();
   const router = useRouter();
@@ -281,6 +286,52 @@ export default function WorldCupTeamDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [teamsMetadataError, setTeamsMetadataError] = useState<string | null>(null);
   const [pendingPickClear, setPendingPickClear] = useState<PendingPickClear | null>(null);
+
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<WorldCupParticipantUpdatedDetail>;
+      const d = ce.detail;
+      if (!d || d.participantId !== routeParticipantId) return;
+      setParticipant((prev) =>
+        prev && prev.id === d.participantId ? { ...prev, team_name: d.team_name } : prev
+      );
+    };
+    window.addEventListener(WORLD_CUP_PARTICIPANT_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(WORLD_CUP_PARTICIPANT_UPDATED_EVENT, handler);
+  }, [routeParticipantId]);
+
+  useEffect(() => {
+    const syncParticipantFromServer = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      const storedId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      if (!storedId || storedId !== routeParticipantId) return;
+      try {
+        const res = await fetch(
+          `/api/worldcup/participant?participantId=${encodeURIComponent(routeParticipantId)}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          participant?: { id: string; name: string; team_name: string; league_id: string };
+        };
+        const p = json.participant;
+        if (!p || p.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) return;
+        setParticipant((prev) =>
+          prev && prev.id === p.id ? { id: p.id, name: p.name, team_name: p.team_name } : prev
+        );
+      } catch {
+        // ignore transient refetch errors
+      }
+    };
+    const onFocus = () => void syncParticipantFromServer();
+    const onVisibility = () => void syncParticipantFromServer();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [routeParticipantId]);
 
   useEffect(() => {
     if (routeParticipantId) {
@@ -342,7 +393,8 @@ export default function WorldCupTeamDashboardPage() {
       }
 
       const participantRes = await fetch(
-        `/api/worldcup/participant?participantId=${encodeURIComponent(routeParticipantId)}`
+        `/api/worldcup/participant?participantId=${encodeURIComponent(routeParticipantId)}`,
+        { cache: "no-store" }
       );
       if (!participantRes.ok) {
         localStorage.removeItem(STORAGE_KEY);
@@ -610,7 +662,10 @@ export default function WorldCupTeamDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 font-sans text-slate-900">
+      <div
+        className="flex min-h-screen w-full min-w-0 items-center justify-center overflow-x-hidden font-sans text-slate-900"
+        style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+      >
         <p className="text-slate-600">Loading your picks…</p>
       </div>
     );
@@ -618,11 +673,14 @@ export default function WorldCupTeamDashboardPage() {
 
   if (error || !participant) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100 px-4 font-sans text-center">
+      <div
+        className="flex min-h-screen w-full min-w-0 flex-col items-center justify-center gap-4 overflow-x-hidden px-4 font-sans text-center"
+        style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+      >
         <p className="text-red-600">{error || "Entry not found"}</p>
         <Link
           href="/worldcup/login"
-          className="text-sm text-amber-700 underline hover:text-amber-800"
+          className="text-sm font-medium text-white underline decoration-white/80 hover:text-white/90"
         >
           Back to World Cup login
         </Link>
@@ -647,50 +705,47 @@ export default function WorldCupTeamDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 pb-12 font-sans text-slate-900">
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden pb-12 font-sans text-slate-900"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
       <WorldCupHeader
-        subtitle={entrantDisplayName(participant)}
+        subtitle={worldCupParticipantSubtitle(participant)}
         initialParticipantId={participant.id}
+        competitionPicksCompletion={competitionPickMeta}
       />
 
-      <main className="mx-auto max-w-5xl px-4 pt-28 pb-8 sm:px-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
-          <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">Your picks</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Your individual picks for this competition. Everything below is scoped to the FIFA
-            World Cup 2026 competition only.
-          </p>
-          {competitionPickMeta && competitionPickMeta.completed < competitionPickMeta.total ? (
-            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Competition Picks incomplete ({competitionPickMeta.completed}/{competitionPickMeta.total}).
-              Complete them in the Competition Picks tab.
+      <main className="w-full">
+        <div className={PICKS_MAIN_SHELL_CLASS}>
+        <div className={`${worldCupContentCardClass} !p-5 sm:!p-6`}>
+          {teamsMetadataError || pickErrorByFixtureId.__load__ ? (
+            <div className="space-y-2">
+              {teamsMetadataError ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  Could not load team flags and labels: {teamsMetadataError}
+                </div>
+              ) : null}
+
+              {pickErrorByFixtureId.__load__ ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  Could not reload your saved picks: {pickErrorByFixtureId.__load__}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          {teamsMetadataError ? (
-            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              Could not load team flags and labels: {teamsMetadataError}
-            </div>
-          ) : null}
-
-          {pickErrorByFixtureId.__load__ ? (
-            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              Could not reload your saved picks: {pickErrorByFixtureId.__load__}
-            </div>
-          ) : null}
-
-          <section className="mt-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+          <section className="mt-5">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-amber-700 sm:text-sm">
               Upcoming fixtures
             </h2>
             {fixtures.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-500">No upcoming fixtures in this competition.</p>
+              <p className="mt-1.5 text-sm text-slate-500">No upcoming fixtures in this competition.</p>
             ) : (
-              <div className="mt-3 space-y-5">
+              <div className="mx-auto mt-2 w-full max-w-4xl space-y-2">
                 {groupedFixtures.map((group) => (
                   <div key={group.dateKey}>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-700">{group.heading}</h3>
-                    <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-slate-50/40">
+                    <h3 className="mb-1 text-xs font-semibold text-slate-600 sm:text-sm">{group.heading}</h3>
+                    <ul className="flex flex-col gap-2">
                       {group.fixtures.map((f) => {
                         const pick = picksByFixtureId[f.id];
                         const isKnockoutFixture = f.match_number >= 73;
@@ -701,25 +756,26 @@ export default function WorldCupTeamDashboardPage() {
                         const locked = isLockedByKickoffUtc(f.kickoff_at);
                         const result = matchResultsByFixtureId[f.id];
                         const pickErr = pickErrorByFixtureId[f.id];
-                        const baseBtn =
-                          "flex h-20 flex-1 flex-col items-center justify-center rounded-xl border px-3 py-3 text-center text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70";
-                        const lockedBtnTone = "disabled:opacity-85 disabled:border-orange-200 disabled:bg-orange-50";
-                        const idleBtn =
-                          "max-w-[220px] border-gray-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm";
-                        const selectedBtn =
-                          "max-w-[220px] border-2 border-blue-600 bg-blue-50 text-blue-700 shadow-sm";
+                        const pickBtnBase =
+                          "flex min-h-[46px] min-w-0 w-full items-center justify-center rounded-md px-3 py-1.5 text-center text-xs font-medium transition-colors sm:px-4 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-70";
+                        const lockedBtnTone =
+                          "disabled:opacity-85 disabled:border-orange-200 disabled:bg-orange-50";
+                        const idlePick =
+                          "border-2 border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50";
+                        const selectedPick =
+                          "border-2 border-[#126BFF] bg-blue-50 font-semibold text-blue-900 shadow-sm";
 
                         return (
                           <li
                             key={f.id}
-                            className={`mb-4 flex flex-col gap-3 rounded-xl border p-4 text-sm shadow-sm transition-shadow ${
+                            className={`flex flex-col gap-1.5 rounded-md border-2 p-2 text-sm shadow-sm transition-shadow sm:p-2.5 ${
                               locked
-                                ? "border-orange-200 bg-orange-50"
-                                : "border-[#dbe3ef] bg-[#f8fafc] hover:shadow-md"
+                                ? "border-orange-300 bg-orange-50/90 shadow-sm"
+                                : "border-slate-300 bg-white shadow-sm"
                             }`}
                           >
                             <div
-                              className={`mb-3 flex flex-col items-center gap-1 text-center ${
+                              className={`flex flex-col items-center gap-0.5 text-center ${
                                 locked ? "text-slate-600" : ""
                               }`}
                             >
@@ -736,47 +792,53 @@ export default function WorldCupTeamDashboardPage() {
                                 );
                                 return (
                                   <span
-                                    className={`inline-flex items-center justify-center gap-3 text-base font-semibold ${
+                                    className={`inline-flex items-center justify-center gap-1.5 text-sm font-semibold sm:gap-2 sm:text-base ${
                                       locked ? "text-slate-800" : "text-slate-900"
                                     }`}
                                   >
-                                    <span className="inline-flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1">
                                       {home.flagUrl ? (
                                         <img
                                           src={home.flagUrl}
                                           alt=""
-                                          width={28}
-                                          height={20}
-                                          className="h-5 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
+                                          width={24}
+                                          height={16}
+                                          className="h-4 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
                                           loading="lazy"
                                           decoding="async"
                                         />
                                       ) : home.flagEmoji.length > 0 ? (
                                         <span
-                                          className="select-none text-lg leading-none [font-variant-emoji:emoji]"
+                                          className="select-none text-sm leading-none [font-variant-emoji:emoji] sm:text-base"
                                           aria-hidden
                                         >
                                           {home.flagEmoji}
                                         </span>
                                       ) : null}
-                                      <span className="whitespace-nowrap">{home.label}</span>
+                                      <span className="max-w-[42vw] truncate whitespace-nowrap sm:max-w-none">
+                                        {home.label}
+                                      </span>
                                     </span>
-                                    <span className="px-1 text-sm font-medium text-slate-400">vs</span>
-                                    <span className="inline-flex items-center gap-1.5">
-                                      <span className="whitespace-nowrap">{away.label}</span>
+                                    <span className="shrink-0 px-0.5 text-xs font-medium text-slate-400">
+                                      vs
+                                    </span>
+                                    <span className="inline-flex items-center gap-1">
+                                      <span className="max-w-[42vw] truncate whitespace-nowrap sm:max-w-none">
+                                        {away.label}
+                                      </span>
                                       {away.flagUrl ? (
                                         <img
                                           src={away.flagUrl}
                                           alt=""
-                                          width={28}
-                                          height={20}
-                                          className="h-5 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
+                                          width={24}
+                                          height={16}
+                                          className="h-4 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
                                           loading="lazy"
                                           decoding="async"
                                         />
                                       ) : away.flagEmoji.length > 0 ? (
                                         <span
-                                          className="select-none text-lg leading-none [font-variant-emoji:emoji]"
+                                          className="select-none text-sm leading-none [font-variant-emoji:emoji] sm:text-base"
                                           aria-hidden
                                         >
                                           {away.flagEmoji}
@@ -786,28 +848,28 @@ export default function WorldCupTeamDashboardPage() {
                                   </span>
                                 );
                               })()}
-                              <span className={locked ? "text-sm text-slate-700" : "text-sm text-slate-500"}>
+                              <span className={`text-xs ${locked ? "text-slate-700" : "text-slate-500"}`}>
                                 {formatKickoff(f.kickoff_at)}
                               </span>
                             </div>
                             <div
                               className={
                                 isKnockoutFixture
-                                  ? "mt-4 flex justify-center gap-6"
-                                  : "mt-4 flex flex-wrap justify-center gap-6"
+                                  ? "mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 sm:mx-auto sm:grid-cols-2 sm:gap-2"
+                                  : "mt-1 grid w-full max-w-xl grid-cols-1 gap-1.5 sm:mx-auto sm:grid-cols-3 sm:gap-2"
                               }
                             >
                               <button
                                 type="button"
                                 disabled={saving || locked}
                                 onClick={() => void handlePickTeam(f, f.home_team_code)}
-                                className={`${baseBtn} ${isKnockoutFixture ? "w-48 flex-none" : "w-44 flex-none"} ${homeSelected ? selectedBtn : idleBtn} ${locked ? lockedBtnTone : ""}`}
+                                className={`${pickBtnBase} ${homeSelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
                               >
                                 <WorldCupFixtureSideText
                                   code={f.home_team_code}
                                   wcByCode={worldCupTeamsByCode}
                                   rugbyNamesByCode={teamNamesByCode}
-                                  stacked
+                                  stacked={false}
                                 />
                               </button>
                               {!isKnockoutFixture ? (
@@ -815,7 +877,7 @@ export default function WorldCupTeamDashboardPage() {
                                   type="button"
                                   disabled={saving || locked}
                                   onClick={() => void handlePickTeam(f, PICK_DRAW)}
-                                  className={`${baseBtn} w-44 flex-none ${drawSelected ? selectedBtn : idleBtn} ${locked ? lockedBtnTone : ""}`}
+                                  className={`${pickBtnBase} ${drawSelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
                                 >
                                   Draw
                                 </button>
@@ -824,19 +886,19 @@ export default function WorldCupTeamDashboardPage() {
                                 type="button"
                                 disabled={saving || locked}
                                 onClick={() => void handlePickTeam(f, f.away_team_code)}
-                                className={`${baseBtn} ${isKnockoutFixture ? "w-48 flex-none" : "w-44 flex-none"} ${awaySelected ? selectedBtn : idleBtn} ${locked ? lockedBtnTone : ""}`}
+                                className={`${pickBtnBase} ${awaySelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
                               >
                                 <WorldCupFixtureSideText
                                   code={f.away_team_code}
                                   wcByCode={worldCupTeamsByCode}
                                   rugbyNamesByCode={teamNamesByCode}
-                                  stacked
+                                  stacked={false}
                                 />
                               </button>
                             </div>
                             {locked ? (
                               <div className="flex flex-col items-start gap-1">
-                                <span className="inline-flex rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-800">
+                                <span className="inline-flex rounded-md border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-800">
                                   Picks locked
                                 </span>
                                 {result ? (
@@ -881,11 +943,12 @@ export default function WorldCupTeamDashboardPage() {
             )}
           </section>
 
-          <p className="mt-8 text-center text-xs text-slate-500">
+          <p className="mt-6 text-center text-xs text-slate-500">
             <Link href="/" className="text-amber-700 underline hover:text-amber-800">
               Super Rugby competition site
             </Link>
           </p>
+        </div>
         </div>
       </main>
       {pendingPickClear ? (
@@ -895,7 +958,7 @@ export default function WorldCupTeamDashboardPage() {
           role="presentation"
         >
           <div
-            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl"
+            className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="clear-pick-title"

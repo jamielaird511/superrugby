@@ -11,7 +11,7 @@ const BRAND_BLUE = "#126BFF";
 export default function PaperPunterLandingPage() {
   return (
     <div
-      className="relative left-1/2 -ml-[50vw] min-h-screen w-screen max-w-none overflow-x-hidden"
+      className="min-h-screen w-full min-w-0 overflow-x-hidden"
       style={{
         background: `linear-gradient(165deg, #5AAEFF 0%, #4AA3FF 28%, #2F8EF3 58%, #1769D6 85%, #115CC4 100%)`,
       }}

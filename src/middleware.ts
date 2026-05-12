@@ -26,13 +26,33 @@ function matchesPaperPunterHost(
   return Boolean(host && allowed.has(host));
 }
 
+function withPaperPunterFullBleed(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-paperpunter-full-bleed", "1");
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+}
+
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Full-bleed shell: PaperPunter marketing + all World Cup routes (layout skips padded wrapper).
+  if (
+    pathname === "/paperpunter" ||
+    pathname.startsWith("/paperpunter/") ||
+    pathname === "/worldcup" ||
+    pathname.startsWith("/worldcup/")
+  ) {
+    return withPaperPunterFullBleed(request);
+  }
+
   const allowedHosts = allowedPaperPunterHosts();
   if (!matchesPaperPunterHost(request.headers.get("host"), allowedHosts)) {
     return NextResponse.next();
   }
-
-  const { pathname } = request.nextUrl;
 
   // Canonical root: avoid legacy /lander paths on PaperPunter domains.
   if (pathname === "/lander" || pathname.startsWith("/lander/")) {
@@ -47,6 +67,7 @@ export function middleware(request: NextRequest) {
     url.pathname = "/paperpunter";
     const headers = new Headers(request.headers);
     headers.set("x-paperpunter-root-rewrite", "1");
+    headers.set("x-paperpunter-full-bleed", "1");
     return NextResponse.rewrite(url, { request: { headers } });
   }
 
@@ -54,5 +75,13 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/lander", "/lander/(.*)"],
+  matcher: [
+    "/",
+    "/lander",
+    "/lander/(.*)",
+    "/paperpunter",
+    "/paperpunter/:path*",
+    "/worldcup",
+    "/worldcup/:path*",
+  ],
 };

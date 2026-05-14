@@ -7,7 +7,10 @@ import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupContentCardClass,
+  worldCupDataTableWrapClass,
+  worldCupEmptyStateBoxClass,
   worldCupMainContentShellClass,
+  worldCupModalPanelClass,
 } from "@/lib/worldCupBranding";
 
 type FixtureRow = {
@@ -353,7 +356,7 @@ export default function WorldCupAdminResultsPage() {
             onClick={() => setClearModalFixture(null)}
           />
           <div
-            className="relative z-10 w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-2xl"
+            className={worldCupModalPanelClass}
             onClick={(e) => e.stopPropagation()}
           >
             <h2
@@ -418,7 +421,7 @@ export default function WorldCupAdminResultsPage() {
           ) : loadError ? (
             <p className="mt-8 text-red-600">{loadError}</p>
           ) : rounds.length === 0 ? (
-            <p className="mt-8 rounded-md border border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
+            <p className={`mt-8 ${worldCupEmptyStateBoxClass}`}>
               No World Cup fixtures found for the current season.
             </p>
           ) : (
@@ -428,7 +431,7 @@ export default function WorldCupAdminResultsPage() {
                   <h2 className="mb-4 border-b border-zinc-200 pb-2 text-lg font-semibold text-slate-900">
                     {round.label}
                   </h2>
-                  <div className="overflow-x-auto rounded-md border border-zinc-300">
+                  <div className={worldCupDataTableWrapClass}>
                     <table className="min-w-full divide-y divide-zinc-200 bg-white">
                       <thead className="bg-zinc-50">
                         <tr>

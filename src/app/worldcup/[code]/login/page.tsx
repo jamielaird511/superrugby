@@ -7,8 +7,12 @@ import { track } from "@/lib/analytics";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
+  worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupPrimaryButtonClass,
+  worldCupSecondaryOutlineButtonClass,
+  worldCupTertiaryLinkChipClass,
 } from "@/lib/worldCupBranding";
 import { resolveWorldCupTenant } from "@/lib/worldCupIds";
 import { writeWorldCupParticipantId } from "@/lib/worldCupStorage";
@@ -131,7 +135,7 @@ export default function FifaWorldCupTenantLoginPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                    className={worldCupAuthInputClass}
                     required
                   />
                 </div>
@@ -146,7 +150,7 @@ export default function FifaWorldCupTenantLoginPage() {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                    className={worldCupAuthInputClass}
                     required
                   />
                 </div>
@@ -156,7 +160,7 @@ export default function FifaWorldCupTenantLoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-10 w-full rounded-md bg-[#126BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f5fdf] disabled:cursor-not-allowed disabled:opacity-50"
+                  className={worldCupPrimaryButtonClass}
                 >
                   {loading ? "Logging in…" : "Log in"}
                 </button>
@@ -165,7 +169,7 @@ export default function FifaWorldCupTenantLoginPage() {
               <div className="mt-5 border-t border-slate-200 pt-5">
                 <Link
                   href={`/worldcup/${tenant.slug}/register`}
-                  className="flex h-10 w-full items-center justify-center rounded-md border-2 border-[#126BFF] bg-white px-4 py-2 text-sm font-semibold text-[#126BFF] transition-colors hover:bg-slate-50"
+                  className={worldCupSecondaryOutlineButtonClass}
                 >
                   Create an account
                 </Link>
@@ -174,7 +178,7 @@ export default function FifaWorldCupTenantLoginPage() {
               <div className="mt-6 flex justify-center">
                 <Link
                   href="/worldcup/admin/login"
-                  className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 sm:text-xs"
+                  className={worldCupTertiaryLinkChipClass}
                 >
                   Admin login
                 </Link>

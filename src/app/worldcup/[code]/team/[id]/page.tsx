@@ -233,6 +233,53 @@ function isLockedByKickoffUtc(kickoffAt: string | null): boolean {
   return kickoffMs <= Date.now();
 }
 
+function isWorldCupFixtureCompleted(result: MatchResult | undefined): boolean {
+  if (!result) return false;
+  return result.home_goals != null && result.away_goals != null;
+}
+
+/** From final score only (home win / away win / draw). */
+function actualWorldCupResultCodeFromScore(result: MatchResult): string {
+  const h = result.home_goals ?? 0;
+  const a = result.away_goals ?? 0;
+  if (h > a) return worldCupTeamLookupKey(result.home_team_code);
+  if (a > h) return worldCupTeamLookupKey(result.away_team_code);
+  return PICK_DRAW;
+}
+
+type CompletedPickSide = "correct" | "wrong_pick" | "right_outcome" | "muted";
+
+function worldCupCompletedPickSideState(
+  thisCode: string,
+  actualCode: string,
+  pickedNorm: string | null,
+  isThisSelected: boolean
+): CompletedPickSide {
+  if (actualCode === thisCode) {
+    if (isThisSelected && pickedNorm === actualCode) return "correct";
+    return "right_outcome";
+  }
+  if (isThisSelected && pickedNorm === thisCode) return "wrong_pick";
+  return "muted";
+}
+
+function completedPickCellClass(side: CompletedPickSide): string {
+  const base =
+    "flex min-h-[46px] min-w-0 w-full cursor-default select-none items-center justify-center gap-1 rounded-md border-2 px-3 py-1.5 text-center text-xs font-medium sm:px-4 sm:text-[13px]";
+  switch (side) {
+    case "correct":
+      return `${base} border-emerald-500 bg-emerald-50/90 font-semibold text-emerald-950`;
+    case "wrong_pick":
+      return `${base} border-red-400 bg-red-50/90 font-semibold text-red-950`;
+    case "right_outcome":
+      return `${base} border-emerald-400 bg-emerald-50/40 text-slate-800 ring-1 ring-inset ring-emerald-200/80`;
+    case "muted":
+      return `${base} border-slate-200/90 bg-slate-50 text-slate-500 opacity-[0.58]`;
+    default:
+      return base;
+  }
+}
+
 function fixtureDateGroupParts(kickoffAt: string | null): { dateKey: string; heading: string } {
   if (!kickoffAt) return { dateKey: "TBD", heading: "TBD" };
   const d = new Date(kickoffAt);
@@ -563,6 +610,7 @@ export default function WorldCupTeamDashboardPage() {
 
   async function handlePickTeam(fixture: Fixture, pickedTeamCode: string) {
     if (!participant) return;
+    if (isWorldCupFixtureCompleted(matchResultsByFixtureId[fixture.id])) return;
     if (isLockedByKickoffUtc(fixture.kickoff_at)) return;
 
     const currentPick = picksByFixtureId[fixture.id]?.picked_team;
@@ -627,6 +675,10 @@ export default function WorldCupTeamDashboardPage() {
     setSavingFixtureId(fixtureId);
     try {
       const fixture = fixtures.find((f) => f.id === fixtureId);
+      if (fixture && isWorldCupFixtureCompleted(matchResultsByFixtureId[fixture.id])) {
+        setPendingPickClear(null);
+        return;
+      }
       if (fixture && isLockedByKickoffUtc(fixture.kickoff_at)) {
         setPendingPickClear(null);
         return;
@@ -767,102 +819,141 @@ export default function WorldCupTeamDashboardPage() {
                           const saving = savingFixtureId === f.id;
                           const locked = isLockedByKickoffUtc(f.kickoff_at);
                           const result = matchResultsByFixtureId[f.id];
+                          const completed = isWorldCupFixtureCompleted(result);
                           const pickErr = pickErrorByFixtureId[f.id];
+                          const homeParts = worldCupFixtureSideParts(
+                            f.home_team_code,
+                            worldCupTeamsByCode,
+                            teamNamesByCode
+                          );
+                          const awayParts = worldCupFixtureSideParts(
+                            f.away_team_code,
+                            worldCupTeamsByCode,
+                            teamNamesByCode
+                          );
+                          const pickedNorm = pick?.picked_team
+                            ? worldCupTeamLookupKey(pick.picked_team)
+                            : null;
+                          const actualCode =
+                            completed && result ? actualWorldCupResultCodeFromScore(result) : "";
+                          const homeNorm = worldCupTeamLookupKey(f.home_team_code);
+                          const awayNorm = worldCupTeamLookupKey(f.away_team_code);
+                          const homeSideState = completed
+                            ? worldCupCompletedPickSideState(
+                                homeNorm,
+                                actualCode,
+                                pickedNorm,
+                                homeSelected
+                              )
+                            : null;
+                          const drawSideState = completed
+                            ? worldCupCompletedPickSideState(
+                                PICK_DRAW,
+                                actualCode,
+                                pickedNorm,
+                                drawSelected
+                              )
+                            : null;
+                          const awaySideState = completed
+                            ? worldCupCompletedPickSideState(
+                                awayNorm,
+                                actualCode,
+                                pickedNorm,
+                                awaySelected
+                              )
+                            : null;
+
                           const pickBtnBase =
                             "flex min-h-[46px] min-w-0 w-full items-center justify-center rounded-md px-3 py-1.5 text-center text-xs font-medium transition-colors sm:px-4 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-70";
                           const lockedBtnTone =
                             "disabled:opacity-85 disabled:border-orange-200 disabled:bg-orange-50";
                           const idlePick =
-                            "border-2 border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50";
+                            "border-2 border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50";
                           const selectedPick =
                             "border-2 border-[#126BFF] bg-blue-50 font-semibold text-blue-900 shadow-sm";
 
                           return (
                             <li
                               key={f.id}
-                              className={`flex flex-col gap-1.5 rounded-md border-2 p-2 text-sm shadow-sm transition-shadow sm:p-2.5 ${
-                                locked
-                                  ? "border-orange-300 bg-orange-50/90 shadow-sm"
-                                  : "border-slate-300 bg-white shadow-sm"
+                              className={`flex flex-col gap-1.5 rounded-lg border-2 p-2 text-sm shadow-sm transition-shadow sm:p-2.5 ${
+                                completed
+                                  ? "border-slate-300 bg-white shadow-sm"
+                                  : locked
+                                    ? "border-orange-400 bg-orange-50/90 shadow-sm"
+                                    : "border-slate-400 bg-white shadow-sm"
                               }`}
                             >
                               <div
                                 className={`flex flex-col items-center gap-0.5 text-center ${
-                                  locked ? "text-slate-600" : ""
+                                  locked && !completed ? "text-slate-600" : ""
                                 }`}
                               >
-                                {(() => {
-                                  const home = worldCupFixtureSideParts(
-                                    f.home_team_code,
-                                    worldCupTeamsByCode,
-                                    teamNamesByCode
-                                  );
-                                  const away = worldCupFixtureSideParts(
-                                    f.away_team_code,
-                                    worldCupTeamsByCode,
-                                    teamNamesByCode
-                                  );
-                                  return (
-                                    <span
-                                      className={`inline-flex items-center justify-center gap-1.5 text-sm font-semibold sm:gap-2 sm:text-base ${
-                                        locked ? "text-slate-800" : "text-slate-900"
-                                      }`}
-                                    >
-                                      <span className="inline-flex items-center gap-1">
-                                        {home.flagUrl ? (
-                                          <img
-                                            src={home.flagUrl}
-                                            alt=""
-                                            width={24}
-                                            height={16}
-                                            className="h-4 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
-                                            loading="lazy"
-                                            decoding="async"
-                                          />
-                                        ) : home.flagEmoji.length > 0 ? (
-                                          <span
-                                            className="select-none text-sm leading-none [font-variant-emoji:emoji] sm:text-base"
-                                            aria-hidden
-                                          >
-                                            {home.flagEmoji}
-                                          </span>
-                                        ) : null}
-                                        <span className="max-w-[42vw] truncate whitespace-nowrap sm:max-w-none">
-                                          {home.label}
-                                        </span>
+                                <span
+                                  className={`inline-flex items-center justify-center gap-1.5 text-sm font-semibold sm:gap-2 sm:text-base ${
+                                    locked && !completed ? "text-slate-800" : "text-slate-900"
+                                  }`}
+                                >
+                                  <span className="inline-flex items-center gap-1">
+                                    {homeParts.flagUrl ? (
+                                      <img
+                                        src={homeParts.flagUrl}
+                                        alt=""
+                                        width={24}
+                                        height={16}
+                                        className="h-4 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                      />
+                                    ) : homeParts.flagEmoji.length > 0 ? (
+                                      <span
+                                        className="select-none text-sm leading-none [font-variant-emoji:emoji] sm:text-base"
+                                        aria-hidden
+                                      >
+                                        {homeParts.flagEmoji}
                                       </span>
-                                      <span className="shrink-0 px-0.5 text-xs font-medium text-slate-400">
-                                        vs
-                                      </span>
-                                      <span className="inline-flex items-center gap-1">
-                                        <span className="max-w-[42vw] truncate whitespace-nowrap sm:max-w-none">
-                                          {away.label}
-                                        </span>
-                                        {away.flagUrl ? (
-                                          <img
-                                            src={away.flagUrl}
-                                            alt=""
-                                            width={24}
-                                            height={16}
-                                            className="h-4 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
-                                            loading="lazy"
-                                            decoding="async"
-                                          />
-                                        ) : away.flagEmoji.length > 0 ? (
-                                          <span
-                                            className="select-none text-sm leading-none [font-variant-emoji:emoji] sm:text-base"
-                                            aria-hidden
-                                          >
-                                            {away.flagEmoji}
-                                          </span>
-                                        ) : null}
-                                      </span>
+                                    ) : null}
+                                    <span className="max-w-[42vw] truncate whitespace-nowrap sm:max-w-none">
+                                      {homeParts.label}
                                     </span>
-                                  );
-                                })()}
-                                <span className={`text-xs ${locked ? "text-slate-700" : "text-slate-500"}`}>
+                                  </span>
+                                  <span className="shrink-0 px-0.5 text-xs font-medium text-slate-400">
+                                    vs
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="max-w-[42vw] truncate whitespace-nowrap sm:max-w-none">
+                                      {awayParts.label}
+                                    </span>
+                                    {awayParts.flagUrl ? (
+                                      <img
+                                        src={awayParts.flagUrl}
+                                        alt=""
+                                        width={24}
+                                        height={16}
+                                        className="h-4 w-auto shrink-0 rounded-sm border border-slate-200 object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                      />
+                                    ) : awayParts.flagEmoji.length > 0 ? (
+                                      <span
+                                        className="select-none text-sm leading-none [font-variant-emoji:emoji] sm:text-base"
+                                        aria-hidden
+                                      >
+                                        {awayParts.flagEmoji}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                </span>
+                                <span
+                                  className={`text-xs ${locked && !completed ? "text-slate-700" : "text-slate-500"}`}
+                                >
                                   {formatKickoff(f.kickoff_at)}
                                 </span>
+                                {completed && result ? (
+                                  <span className="block max-w-full px-1 text-center text-[11px] leading-tight text-slate-500">
+                                    Final score: {homeParts.label} {result.home_goals}–
+                                    {result.away_goals} {awayParts.label}
+                                  </span>
+                                ) : null}
                               </div>
                               <div
                                 className={
@@ -871,44 +962,120 @@ export default function WorldCupTeamDashboardPage() {
                                     : "mt-1 grid w-full max-w-xl grid-cols-1 gap-1.5 sm:mx-auto sm:grid-cols-3 sm:gap-2"
                                 }
                               >
-                                <button
-                                  type="button"
-                                  disabled={saving || locked}
-                                  onClick={() => void handlePickTeam(f, f.home_team_code)}
-                                  className={`${pickBtnBase} ${homeSelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
-                                >
-                                  <WorldCupFixtureSideText
-                                    code={f.home_team_code}
-                                    wcByCode={worldCupTeamsByCode}
-                                    rugbyNamesByCode={teamNamesByCode}
-                                    stacked={false}
-                                  />
-                                </button>
-                                {!isKnockoutFixture ? (
+                                {completed && homeSideState ? (
+                                  <div
+                                    className={completedPickCellClass(homeSideState)}
+                                    role="group"
+                                    aria-label="Home — result"
+                                  >
+                                    {homeSideState === "correct" ? (
+                                      <span className="shrink-0 text-[11px] leading-none text-emerald-700" aria-hidden>
+                                        ✓
+                                      </span>
+                                    ) : null}
+                                    {homeSideState === "wrong_pick" ? (
+                                      <span className="shrink-0 text-[11px] leading-none text-red-600" aria-hidden>
+                                        ✕
+                                      </span>
+                                    ) : null}
+                                    <WorldCupFixtureSideText
+                                      code={f.home_team_code}
+                                      wcByCode={worldCupTeamsByCode}
+                                      rugbyNamesByCode={teamNamesByCode}
+                                      stacked={false}
+                                    />
+                                  </div>
+                                ) : (
                                   <button
                                     type="button"
                                     disabled={saving || locked}
-                                    onClick={() => void handlePickTeam(f, PICK_DRAW)}
-                                    className={`${pickBtnBase} ${drawSelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
+                                    onClick={() => void handlePickTeam(f, f.home_team_code)}
+                                    className={`${pickBtnBase} ${homeSelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
                                   >
-                                    Draw
+                                    <WorldCupFixtureSideText
+                                      code={f.home_team_code}
+                                      wcByCode={worldCupTeamsByCode}
+                                      rugbyNamesByCode={teamNamesByCode}
+                                      stacked={false}
+                                    />
                                   </button>
+                                )}
+                                {!isKnockoutFixture ? (
+                                  completed && drawSideState ? (
+                                    <div
+                                      className={completedPickCellClass(drawSideState)}
+                                      role="group"
+                                      aria-label="Draw — result"
+                                    >
+                                      {drawSideState === "correct" ? (
+                                        <span
+                                          className="shrink-0 text-[11px] leading-none text-emerald-700"
+                                          aria-hidden
+                                        >
+                                          ✓
+                                        </span>
+                                      ) : null}
+                                      {drawSideState === "wrong_pick" ? (
+                                        <span
+                                          className="shrink-0 text-[11px] leading-none text-red-600"
+                                          aria-hidden
+                                        >
+                                          ✕
+                                        </span>
+                                      ) : null}
+                                      Draw
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      disabled={saving || locked}
+                                      onClick={() => void handlePickTeam(f, PICK_DRAW)}
+                                      className={`${pickBtnBase} ${drawSelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
+                                    >
+                                      Draw
+                                    </button>
+                                  )
                                 ) : null}
-                                <button
-                                  type="button"
-                                  disabled={saving || locked}
-                                  onClick={() => void handlePickTeam(f, f.away_team_code)}
-                                  className={`${pickBtnBase} ${awaySelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
-                                >
-                                  <WorldCupFixtureSideText
-                                    code={f.away_team_code}
-                                    wcByCode={worldCupTeamsByCode}
-                                    rugbyNamesByCode={teamNamesByCode}
-                                    stacked={false}
-                                  />
-                                </button>
+                                {completed && awaySideState ? (
+                                  <div
+                                    className={completedPickCellClass(awaySideState)}
+                                    role="group"
+                                    aria-label="Away — result"
+                                  >
+                                    {awaySideState === "correct" ? (
+                                      <span className="shrink-0 text-[11px] leading-none text-emerald-700" aria-hidden>
+                                        ✓
+                                      </span>
+                                    ) : null}
+                                    {awaySideState === "wrong_pick" ? (
+                                      <span className="shrink-0 text-[11px] leading-none text-red-600" aria-hidden>
+                                        ✕
+                                      </span>
+                                    ) : null}
+                                    <WorldCupFixtureSideText
+                                      code={f.away_team_code}
+                                      wcByCode={worldCupTeamsByCode}
+                                      rugbyNamesByCode={teamNamesByCode}
+                                      stacked={false}
+                                    />
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={saving || locked}
+                                    onClick={() => void handlePickTeam(f, f.away_team_code)}
+                                    className={`${pickBtnBase} ${awaySelected ? selectedPick : idlePick} ${locked ? lockedBtnTone : ""}`}
+                                  >
+                                    <WorldCupFixtureSideText
+                                      code={f.away_team_code}
+                                      wcByCode={worldCupTeamsByCode}
+                                      rugbyNamesByCode={teamNamesByCode}
+                                      stacked={false}
+                                    />
+                                  </button>
+                                )}
                               </div>
-                              {locked ? (
+                              {locked && !completed ? (
                                 <div className="flex flex-col items-start gap-1">
                                   <span className="inline-flex rounded-md border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-800">
                                     Picks locked

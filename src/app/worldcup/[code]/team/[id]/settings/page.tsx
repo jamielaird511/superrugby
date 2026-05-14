@@ -5,8 +5,11 @@ import { notFound, useParams, useRouter } from "next/navigation";
 import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
+  worldCupAuthInputClass,
   worldCupContentCardClass,
   worldCupMainContentShellClass,
+  worldCupPrimaryButtonInlineClass,
+  worldCupSectionPanelClass,
 } from "@/lib/worldCupBranding";
 import {
   WORLD_CUP_PARTICIPANT_UPDATED_EVENT,
@@ -198,7 +201,7 @@ export default function WorldCupParticipantSettingsPage() {
               <p className="mt-8 text-slate-600">Loading settings…</p>
             ) : (
               <div className="mt-8 grid gap-6 lg:grid-cols-2">
-                <section className="rounded-md border border-zinc-200 p-4">
+                <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Display name</h2>
                   <p className="mt-1 text-sm text-zinc-600">Shown on leaderboard and picks pages.</p>
                   <div className="mt-4 space-y-3">
@@ -210,7 +213,7 @@ export default function WorldCupParticipantSettingsPage() {
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                      className={worldCupAuthInputClass}
                       placeholder="Enter display name"
                     />
                     {nameMessage ? (
@@ -226,14 +229,14 @@ export default function WorldCupParticipantSettingsPage() {
                       type="button"
                       disabled={nameSaving}
                       onClick={saveDisplayName}
-                      className="rounded-md bg-[#126BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f5fdf] disabled:opacity-50"
+                      className={worldCupPrimaryButtonInlineClass}
                     >
                       {nameSaving ? "Saving…" : "Save display name"}
                     </button>
                   </div>
                 </section>
 
-                <section className="rounded-md border border-zinc-200 p-4">
+                <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Change password</h2>
                   <p className="mt-1 text-sm text-zinc-600">
                     Enter your current password to set a new password.
@@ -243,21 +246,21 @@ export default function WorldCupParticipantSettingsPage() {
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                      className={worldCupAuthInputClass}
                       placeholder="Current password"
                     />
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                      className={worldCupAuthInputClass}
                       placeholder="New password"
                     />
                     <input
                       type="password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                      className={worldCupAuthInputClass}
                       placeholder="Confirm new password"
                     />
                     {passwordMessage ? (
@@ -273,7 +276,7 @@ export default function WorldCupParticipantSettingsPage() {
                       type="button"
                       disabled={passwordSaving}
                       onClick={savePassword}
-                      className="rounded-md bg-[#126BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f5fdf] disabled:opacity-50"
+                      className={worldCupPrimaryButtonInlineClass}
                     >
                       {passwordSaving ? "Saving…" : "Update password"}
                     </button>

@@ -6,8 +6,12 @@ import { supabase } from "@/lib/supabaseClient";
 import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
+  worldCupAdminSaveButtonClass,
   worldCupContentCardClass,
   worldCupMainContentShellClass,
+  worldCupNestedPanelClass,
+  worldCupSectionPanelClass,
+  worldCupSelectControlClass,
 } from "@/lib/worldCupBranding";
 
 const GROUP_LABELS = Array.from({ length: 12 }, (_, i) => `Group ${String.fromCharCode(65 + i)}`);
@@ -248,12 +252,12 @@ export default function WorldCupAdminCompetitionResultsPage() {
           ) : (
             <>
               <div className="mt-8 space-y-8">
-                <section className="rounded-lg border border-zinc-200 p-4">
+                <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Winner</h2>
                   <select
                     value={winner}
                     onChange={(e) => setWinner(e.target.value)}
-                    className="mt-3 h-10 w-full rounded-md border border-zinc-300 px-3 text-sm"
+                    className={`mt-3 ${worldCupSelectControlClass}`}
                   >
                     <option value="">Select winner</option>
                     {teams.map((t) => (
@@ -264,7 +268,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                   </select>
                 </section>
 
-                <section className="rounded-lg border border-zinc-200 p-4">
+                <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Semi-finalists</h2>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {[0, 1, 2, 3].map((idx) => (
@@ -276,7 +280,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                           next[idx] = e.target.value;
                           setSemiFinalists(next);
                         }}
-                        className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                        className={worldCupSelectControlClass}
                       >
                         <option value="">Semi-finalist {idx + 1}</option>
                         {teams.map((t) => (
@@ -289,7 +293,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-zinc-200 p-4">
+                <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Group results (1st / 2nd)</h2>
                   <div className="mt-3 grid gap-4 lg:grid-cols-2">
                     {GROUP_LABELS.map((group) => {
@@ -302,7 +306,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                         (t) => !row.first || t.code !== row.first || t.code === row.second
                       );
                       return (
-                        <div key={group} className="rounded-md border border-zinc-200 p-3">
+                        <div key={group} className={worldCupNestedPanelClass}>
                           <p className="text-sm font-semibold text-zinc-800">{group}</p>
                           {pool.length === 0 ? (
                             <p className="mt-2 text-xs text-amber-800">
@@ -322,7 +326,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                                   return { ...prev, [group]: next };
                                 });
                               }}
-                              className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                              className={worldCupSelectControlClass}
                             >
                               <option value="">1st place</option>
                               {firstOptions.map((t) => (
@@ -342,7 +346,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                                   return { ...prev, [group]: next };
                                 });
                               }}
-                              className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                              className={worldCupSelectControlClass}
                             >
                               <option value="">2nd place</option>
                               {secondOptions.map((t) => (
@@ -358,7 +362,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-zinc-200 p-4">
+                <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Tournament stats</h2>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <input
@@ -366,13 +370,13 @@ export default function WorldCupAdminCompetitionResultsPage() {
                       min={0}
                       value={totalGoals}
                       onChange={(e) => setTotalGoals(e.target.value)}
-                      className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                      className={worldCupSelectControlClass}
                       placeholder="Total goals"
                     />
                     <select
                       value={topScoringTeam}
                       onChange={(e) => setTopScoringTeam(e.target.value)}
-                      className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                      className={worldCupSelectControlClass}
                     >
                       <option value="">Top scoring team</option>
                       {teams.map((t) => (
@@ -390,7 +394,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
                   type="button"
                   onClick={() => void handleSave()}
                   disabled={saving}
-                  className="rounded-md bg-[#126BFF] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f5fdf] disabled:opacity-50"
+                  className={worldCupAdminSaveButtonClass}
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>

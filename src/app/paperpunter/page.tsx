@@ -5,6 +5,17 @@ import {
   RocketLaunchIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/solid";
+import {
+  paperPunterCompactPrimaryButtonClass,
+  paperPunterFeaturedCardClass,
+  paperPunterHowItWorksCardClass,
+  paperPunterLargePanelClass,
+  paperPunterNavLinkClass,
+  paperPunterNavLinkOutlineClass,
+  paperPunterPrimaryCtaButtonClass,
+  paperPunterSecondaryOutlineCtaButtonClass,
+  paperPunterWorldCupLogoLinkClass,
+} from "@/lib/worldCupBranding";
 
 const BRAND_BLUE = "#126BFF";
 
@@ -50,16 +61,10 @@ export default function PaperPunterLandingPage() {
         className="relative z-20 border-b border-[#0d52d4] bg-[#126BFF] text-white"
       >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-2 gap-y-1.5 px-4 py-1.5 sm:justify-end sm:gap-x-2 sm:px-6 sm:py-2">
-          <Link
-            href="/worldcup/login"
-            className="rounded-md px-2.5 py-1 text-[13px] font-semibold text-white/95 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:px-3 sm:text-sm"
-          >
+          <Link href="/worldcup/login" className={paperPunterNavLinkClass}>
             Log In
           </Link>
-          <Link
-            href="/paperpunter/create-competition"
-            className="rounded-md border border-white/25 bg-white/10 px-2.5 py-1 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:px-3 sm:text-sm"
-          >
+          <Link href="/paperpunter/create-competition" className={paperPunterNavLinkOutlineClass}>
             Create Competition
           </Link>
         </div>
@@ -68,7 +73,7 @@ export default function PaperPunterLandingPage() {
 
       <main className="relative z-10 mx-auto flex min-h-0 max-w-6xl flex-col px-4 pb-20 pt-[calc(146px+1.5rem)] text-slate-900 sm:px-6 sm:pb-28 sm:pt-[calc(132px+2rem)] md:pt-[calc(136px+2.25rem)] lg:pt-[calc(140px+2.25rem)]">
         {/* Hero — white panel: product pitch + featured competition + proof pills */}
-        <div className="rounded-[28px] border-2 border-slate-200 bg-white/96 shadow-[0_20px_60px_rgba(15,23,42,0.18)] backdrop-blur-[2px]">
+        <div className={paperPunterLargePanelClass}>
           <div className="p-6 sm:p-8 lg:p-10">
             <section className="grid w-full gap-10 lg:grid-cols-2 lg:items-start lg:gap-12">
               <div className="flex flex-col text-center sm:text-left">
@@ -81,23 +86,17 @@ export default function PaperPunterLandingPage() {
                   and results in one place.
                 </p>
                 <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:flex-wrap">
-                  <Link
-                    href="/worldcup/login"
-                    className="inline-flex min-h-12 w-full flex-1 items-center justify-center rounded-xl bg-[#126BFF] px-5 py-3 text-center text-sm font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:bg-[#0f5fdf] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/40 sm:min-w-[220px] sm:flex-none sm:px-8"
-                  >
+                  <Link href="/worldcup/login" className={paperPunterPrimaryCtaButtonClass}>
                     Join World Cup Competition
                   </Link>
-                  <a
-                    href="#"
-                    className="inline-flex min-h-11 w-full flex-1 items-center justify-center rounded-xl border-2 border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 transition-all duration-200 hover:scale-[1.01] hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:min-w-[200px] sm:flex-none"
-                  >
+                  <a href="#" className={paperPunterSecondaryOutlineCtaButtonClass}>
                     Create Your Own Competition
                   </a>
                 </div>
               </div>
 
               <div className="flex justify-center lg:justify-end lg:pt-1">
-                <div className="w-full max-w-md overflow-hidden rounded-2xl border-2 border-[#2E7BFF]/20 bg-white shadow-[0_18px_40px_rgba(37,99,235,0.18)]">
+                <div className={paperPunterFeaturedCardClass}>
                   <div className="bg-gradient-to-r from-[#126BFF] to-[#0F5BE8] px-4 py-3 text-center">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/95">
                       Featured Competition
@@ -115,7 +114,7 @@ export default function PaperPunterLandingPage() {
                       <Link
                         href="/worldcup/login"
                         aria-label="FIFA World Cup tipping — log in"
-                        className="inline-flex rounded-2xl border-2 border-slate-100 bg-white px-7 py-4 shadow-lg ring-2 ring-[#126BFF]/15 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:ring-[#126BFF]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/35 sm:rounded-3xl sm:px-9 sm:py-5"
+                        className={paperPunterWorldCupLogoLinkClass}
                       >
                         <Image
                           src="/mundial-2026-world-cup.svg"
@@ -130,10 +129,7 @@ export default function PaperPunterLandingPage() {
                     </div>
 
                     <div className="mt-6">
-                      <Link
-                        href="/worldcup/login"
-                        className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#126BFF] px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:bg-[#0f5fdf] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/40"
-                      >
+                      <Link href="/worldcup/login" className={paperPunterCompactPrimaryButtonClass}>
                         Enter Competition
                       </Link>
                     </div>
@@ -166,7 +162,7 @@ export default function PaperPunterLandingPage() {
 
         <section
           id="how-it-works"
-          className="mx-auto mt-10 w-full max-w-6xl scroll-mt-24 rounded-[28px] border-2 border-slate-200 bg-white/96 shadow-[0_16px_50px_rgba(15,23,42,0.12)] backdrop-blur-[2px] sm:mt-12"
+          className={`mx-auto mt-10 w-full max-w-6xl scroll-mt-24 sm:mt-12 ${paperPunterLargePanelClass}`}
         >
           <div className="border-b border-slate-100 px-6 py-8 text-center sm:px-10 sm:py-10">
             <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
@@ -179,7 +175,7 @@ export default function PaperPunterLandingPage() {
           </div>
 
           <div className="grid gap-5 px-6 pb-8 sm:grid-cols-3 sm:gap-6 sm:px-10 sm:pb-10">
-            <div className="rounded-xl border-2 border-slate-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-[#126BFF]/40 hover:shadow-lg">
+            <div className={paperPunterHowItWorksCardClass}>
               <RocketLaunchIcon
                 className="mb-4 h-10 w-10 text-[#1068f4]"
                 aria-hidden
@@ -192,7 +188,7 @@ export default function PaperPunterLandingPage() {
                 in — no manual sheets or broken formulas.
               </p>
             </div>
-            <div className="rounded-xl border-2 border-slate-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-[#126BFF]/40 hover:shadow-lg">
+            <div className={paperPunterHowItWorksCardClass}>
               <UserGroupIcon
                 className="mb-4 h-10 w-10 text-[#1068f4]"
                 aria-hidden
@@ -205,7 +201,7 @@ export default function PaperPunterLandingPage() {
                 phone or desktop — perfect for offices and club chats.
               </p>
             </div>
-            <div className="rounded-xl border-2 border-slate-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-[#126BFF]/40 hover:shadow-lg">
+            <div className={paperPunterHowItWorksCardClass}>
               <ChartBarIcon
                 className="mb-4 h-10 w-10 text-[#1068f4]"
                 aria-hidden

@@ -272,6 +272,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const semiNonEmpty = semifinalistTeamCodes.filter((c) => c.length > 0);
+    const semiUnique = new Set(semiNonEmpty);
+    if (semiUnique.size !== semiNonEmpty.length) {
+      return NextResponse.json({ error: "Choose four different semi-finalists." }, { status: 400 });
+    }
+
+    for (const g of Object.values(normalizedGroupPicks)) {
+      if (g.first && g.second && g.first === g.second) {
+        return NextResponse.json(
+          { error: "Group picks must have different 1st and 2nd teams." },
+          { status: 400 }
+        );
+      }
+    }
+
     const rowToSave = {
       participant_id: participantId,
       competition_id: tenant.competitionId,

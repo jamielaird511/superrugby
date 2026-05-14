@@ -8,6 +8,9 @@ import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupContentCardClass,
   worldCupMainContentShellClass,
+  worldCupNestedPanelClass,
+  worldCupSectionPanelClass,
+  worldCupSelectControlClass,
 } from "@/lib/worldCupBranding";
 import { resolveWorldCupTenant } from "@/lib/worldCupIds";
 import { readWorldCupParticipantId } from "@/lib/worldCupStorage";
@@ -58,6 +61,17 @@ function getGroupLabel(row: WorldCupTeamRow): string {
   if (/^group\s/i.test(normalized)) return normalized;
   return `Group ${normalized}`;
 }
+
+function isSemiTeamTakenInOtherSlot(
+  semiFinalists: string[],
+  slotIndex: number,
+  teamCode: string
+): boolean {
+  if (!teamCode) return false;
+  return semiFinalists.some((c, j) => j !== slotIndex && c === teamCode);
+}
+
+const helperTextClass = "mt-1.5 max-w-prose text-xs leading-snug text-zinc-600";
 
 export default function WorldCupCompetitionPicksPage() {
   const params = useParams();
@@ -264,7 +278,7 @@ export default function WorldCupCompetitionPicksPage() {
           <div className={worldCupContentCardClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h1 className="text-2xl font-semibold text-[#003A5D]">Competition Picks</h1>
-              <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
+              <span className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
                 {completion.completed}/{completion.total} completed
               </span>
             </div>
@@ -278,13 +292,14 @@ export default function WorldCupCompetitionPicksPage() {
             {saveMessage ? <p className="mt-2 text-sm text-red-600">{saveMessage}</p> : null}
 
             <div className="mt-6 space-y-6">
-              <section className="rounded-md border border-zinc-200 p-4">
+              <section className={worldCupSectionPanelClass}>
                 <h2 className="text-base font-semibold text-zinc-900">Winner</h2>
+                <p className={helperTextClass}>Pick the tournament winner.</p>
                 <select
                   disabled={locked}
                   value={picks.winner}
                   onChange={(e) => setPicks((prev) => ({ ...prev, winner: e.target.value }))}
-                  className="mt-3 h-10 w-full rounded-md border border-zinc-300 px-3 text-sm disabled:bg-zinc-100"
+                  className={`mt-2 ${worldCupSelectControlClass}`}
                 >
                   <option value="">Select winner</option>
                   {allTeams.map((t) => (
@@ -295,48 +310,53 @@ export default function WorldCupCompetitionPicksPage() {
                 </select>
               </section>
 
-              <section className="rounded-md border border-zinc-200 p-4">
+              <section className={worldCupSectionPanelClass}>
                 <h2 className="text-base font-semibold text-zinc-900">Semi-finalists (max 4)</h2>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {[0, 1, 2, 3].map((idx) => (
-                    <select
-                      key={idx}
-                      disabled={locked}
-                      value={picks.semiFinalists[idx] || ""}
-                      onChange={(e) =>
-                        setPicks((prev) => {
-                          const next = [...prev.semiFinalists];
-                          next[idx] = e.target.value;
-                          return { ...prev, semiFinalists: next };
-                        })
-                      }
-                      className="h-10 rounded-md border border-zinc-300 px-3 text-sm disabled:bg-zinc-100"
-                    >
-                      <option value="">Semi-finalist {idx + 1}</option>
-                      {allTeams.map((t) => (
-                        <option key={t.code} value={t.code}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  ))}
+                <p className={helperTextClass}>Pick four different teams to reach the semi-finals.</p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  {[0, 1, 2, 3].map((idx) => {
+                    const current = picks.semiFinalists[idx] || "";
+                    return (
+                      <select
+                        key={idx}
+                        disabled={locked}
+                        value={current}
+                        onChange={(e) =>
+                          setPicks((prev) => {
+                            const next = [...prev.semiFinalists];
+                            next[idx] = e.target.value;
+                            return { ...prev, semiFinalists: next };
+                          })
+                        }
+                        className={worldCupSelectControlClass}
+                      >
+                        <option value="">Semi-finalist {idx + 1}</option>
+                        {allTeams.map((t) => {
+                          const takenElsewhere =
+                            !locked &&
+                            isSemiTeamTakenInOtherSlot(picks.semiFinalists, idx, t.code) &&
+                            t.code !== current;
+                          return (
+                            <option key={t.code} value={t.code} disabled={takenElsewhere}>
+                              {t.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    );
+                  })}
                 </div>
               </section>
 
-              <section className="rounded-md border border-zinc-200 p-4">
+              <section className={worldCupSectionPanelClass}>
                 <h2 className="text-base font-semibold text-zinc-900">Group stage (top 2 per group)</h2>
-                <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                <p className={helperTextClass}>Pick each group&apos;s 1st and 2nd placed teams.</p>
+                <div className="mt-2 grid gap-4 lg:grid-cols-2">
                   {groupNames.map((group) => {
                     const teams = teamsByGroup[group] || [];
                     const row = picks.groupStage[group] || { first: "", second: "" };
-                    const firstOptions = teams.filter(
-                      (t) => !row.second || t.code !== row.second || t.code === row.first
-                    );
-                    const secondOptions = teams.filter(
-                      (t) => !row.first || t.code !== row.first || t.code === row.second
-                    );
                     return (
-                      <div key={group} className="rounded-md border border-zinc-200 p-3">
+                      <div key={group} className={worldCupNestedPanelClass}>
                         <p className="text-sm font-semibold text-zinc-800">{group}</p>
                         <div className="mt-2 grid gap-2">
                           <select
@@ -356,14 +376,21 @@ export default function WorldCupCompetitionPicksPage() {
                                 };
                               });
                             }}
-                            className="h-10 rounded-md border border-zinc-300 px-3 text-sm disabled:bg-zinc-100"
+                            className={worldCupSelectControlClass}
                           >
                             <option value="">1st place</option>
-                            {firstOptions.map((t) => (
-                              <option key={t.code} value={t.code}>
-                                {t.name}
-                              </option>
-                            ))}
+                            {teams.map((t) => {
+                              const disabledFirst =
+                                !locked &&
+                                !!row.second &&
+                                t.code === row.second &&
+                                t.code !== row.first;
+                              return (
+                                <option key={t.code} value={t.code} disabled={disabledFirst}>
+                                  {t.name}
+                                </option>
+                              );
+                            })}
                           </select>
                           <select
                             disabled={locked}
@@ -382,14 +409,21 @@ export default function WorldCupCompetitionPicksPage() {
                                 };
                               });
                             }}
-                            className="h-10 rounded-md border border-zinc-300 px-3 text-sm disabled:bg-zinc-100"
+                            className={worldCupSelectControlClass}
                           >
                             <option value="">2nd place</option>
-                            {secondOptions.map((t) => (
-                              <option key={t.code} value={t.code}>
-                                {t.name}
-                              </option>
-                            ))}
+                            {teams.map((t) => {
+                              const disabledSecond =
+                                !locked &&
+                                !!row.first &&
+                                t.code === row.first &&
+                                t.code !== row.second;
+                              return (
+                                <option key={t.code} value={t.code} disabled={disabledSecond}>
+                                  {t.name}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       </div>
@@ -398,31 +432,53 @@ export default function WorldCupCompetitionPicksPage() {
                 </div>
               </section>
 
-              <section className="rounded-md border border-zinc-200 p-4">
+              <section className={worldCupSectionPanelClass}>
                 <h2 className="text-base font-semibold text-zinc-900">Tournament stats</h2>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <input
-                    type="number"
-                    min={0}
-                    disabled={locked}
-                    value={picks.totalGoals}
-                    onChange={(e) => setPicks((prev) => ({ ...prev, totalGoals: e.target.value }))}
-                    className="h-10 rounded-md border border-zinc-300 px-3 text-sm disabled:bg-zinc-100"
-                    placeholder="Total goals"
-                  />
-                  <select
-                    disabled={locked}
-                    value={picks.topScoringTeam}
-                    onChange={(e) => setPicks((prev) => ({ ...prev, topScoringTeam: e.target.value }))}
-                    className="h-10 rounded-md border border-zinc-300 px-3 text-sm disabled:bg-zinc-100"
-                  >
-                    <option value="">Top scoring team</option>
-                    {allTeams.map((t) => (
-                      <option key={t.code} value={t.code}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="mt-2 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="wc-total-goals"
+                      className="text-sm font-medium text-zinc-800"
+                    >
+                      Total goals in the tournament
+                    </label>
+                    <p className={helperTextClass}>
+                      Closest gets 40 pts; exact and within-10 bonuses apply.
+                    </p>
+                    <input
+                      id="wc-total-goals"
+                      type="number"
+                      min={0}
+                      disabled={locked}
+                      value={picks.totalGoals}
+                      onChange={(e) => setPicks((prev) => ({ ...prev, totalGoals: e.target.value }))}
+                      className={`mt-1.5 block w-full ${worldCupSelectControlClass}`}
+                      placeholder="Predict total goals"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="wc-pool-attacking" className="text-sm font-semibold text-zinc-900">
+                      Most attacking team in pool play
+                    </label>
+                    <p id="wc-pool-attacking-hint" className={helperTextClass}>
+                      Group-stage goals only.
+                    </p>
+                    <select
+                      id="wc-pool-attacking"
+                      aria-describedby="wc-pool-attacking-hint"
+                      disabled={locked}
+                      value={picks.topScoringTeam}
+                      onChange={(e) => setPicks((prev) => ({ ...prev, topScoringTeam: e.target.value }))}
+                      className={`mt-2 block w-full sm:max-w-md ${worldCupSelectControlClass}`}
+                    >
+                      <option value="">Select team</option>
+                      {allTeams.map((t) => (
+                        <option key={t.code} value={t.code}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </section>
             </div>

@@ -12,14 +12,14 @@ import {
 } from "@/lib/worldCupStorage";
 
 const pillActive =
-  "rounded-lg border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#126BFF]";
+  "rounded-full border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#126BFF]";
 const pillIdle =
-  "rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20";
+  "rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20";
 
 const pillCompetitionIncompleteIdle =
-  "rounded-lg border border-orange-300 bg-orange-100 px-3 py-1.5 text-sm font-medium text-orange-800 hover:bg-orange-200/90";
+  "rounded-full border border-orange-300 bg-orange-100 px-3 py-1.5 text-sm font-medium text-orange-800 hover:bg-orange-200/90";
 const pillCompetitionIncompleteActive =
-  "rounded-lg border-2 border-white bg-orange-100 px-3 py-1.5 text-sm font-semibold text-orange-900 shadow-sm";
+  "rounded-full border-2 border-white bg-orange-100 px-3 py-1.5 text-sm font-semibold text-orange-900 shadow-sm";
 
 export type WorldCupCompetitionPicksCompletion = { completed: number; total: number };
 
@@ -200,7 +200,7 @@ export default function WorldCupHeader({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
                 >
                   <ArrowRightOnRectangleIcon className="h-4 w-4" />
                   Log out

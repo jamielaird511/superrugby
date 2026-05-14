@@ -7,8 +7,10 @@ import { supabase } from "@/lib/supabaseClient";
 import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
+  worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupPrimaryButtonClass,
 } from "@/lib/worldCupBranding";
 
 export default function WorldCupAdminLoginPage() {
@@ -86,7 +88,7 @@ export default function WorldCupAdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                  className={worldCupAuthInputClass}
                   required
                 />
               </div>
@@ -99,7 +101,7 @@ export default function WorldCupAdminLoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                  className={worldCupAuthInputClass}
                   required
                 />
               </div>
@@ -109,7 +111,7 @@ export default function WorldCupAdminLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-10 w-full rounded-md bg-[#126BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f5fdf] disabled:cursor-not-allowed disabled:opacity-50"
+                className={worldCupPrimaryButtonClass}
               >
                 {loading ? "Logging in..." : "Log in"}
               </button>

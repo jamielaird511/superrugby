@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import {
+  paperPunterCreateFormSubmitClass,
+  paperPunterInlinePrimaryButtonClass,
+  paperPunterLargePanelClass,
+  paperPunterTextInputClass,
+} from "@/lib/worldCupBranding";
 
 export default function CreateCompetitionComingSoonPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -29,17 +35,14 @@ export default function CreateCompetitionComingSoonPage() {
           Back to Home
         </Link>
 
-        <div className="mt-8 rounded-[28px] border-2 border-slate-200 bg-white/96 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.18)] backdrop-blur-[2px] sm:p-8 sm:mt-10">
+        <div className={`mt-8 p-6 sm:mt-10 sm:p-8 ${paperPunterLargePanelClass}`}>
           {submitted ? (
             <div className="text-center">
               <p className="text-lg font-semibold text-slate-900 sm:text-xl">
                 Thanks — we&apos;ll let you know when custom competitions
                 launch.
               </p>
-              <Link
-                href="/paperpunter"
-                className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-[#126BFF] px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:bg-[#0f5fdf] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/40"
-              >
+              <Link href="/paperpunter" className={paperPunterInlinePrimaryButtonClass}>
                 Back to PaperPunter
               </Link>
             </div>
@@ -74,7 +77,7 @@ export default function CreateCompetitionComingSoonPage() {
                     name="name"
                     type="text"
                     autoComplete="name"
-                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-[#126BFF] focus:ring-2 focus:ring-[#126BFF]/25"
+                    className={paperPunterTextInputClass}
                     placeholder="Your name"
                   />
                 </div>
@@ -90,7 +93,7 @@ export default function CreateCompetitionComingSoonPage() {
                     name="email"
                     type="email"
                     autoComplete="email"
-                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-[#126BFF] focus:ring-2 focus:ring-[#126BFF]/25"
+                    className={paperPunterTextInputClass}
                     placeholder="you@example.com"
                   />
                 </div>
@@ -106,14 +109,11 @@ export default function CreateCompetitionComingSoonPage() {
                     id="interest-competition"
                     name="competition"
                     rows={4}
-                    className="w-full resize-y rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-[#126BFF] focus:ring-2 focus:ring-[#126BFF]/25"
+                    className={paperPunterTextInputClass}
                     placeholder="e.g. office Rugby World Cup pool, local club league…"
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="mt-1 min-h-12 w-full rounded-xl bg-[#126BFF] px-5 py-3 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:bg-[#0f5fdf] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#126BFF]/40"
-                >
+                <button type="submit" className={paperPunterCreateFormSubmitClass}>
                   Register Interest
                 </button>
               </form>

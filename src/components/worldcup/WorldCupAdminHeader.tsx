@@ -7,9 +7,9 @@ import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 import PaperPunterBrandStrip from "@/components/paperpunter/PaperPunterBrandStrip";
 
 const pillActive =
-  "rounded-lg border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#126BFF]";
+  "rounded-full border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#126BFF]";
 const pillIdle =
-  "rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20";
+  "rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20";
 
 type AdminTab = "match-results" | "competition-results";
 
@@ -74,7 +74,7 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
               <button
                 type="button"
                 onClick={onLogout}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
+                className="inline-flex items-center gap-1.5 rounded-md border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4" />
                 Logout

@@ -1,9 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
+import {
+  WORLD_CUP_PAGE_BACKGROUND,
+  worldCupContentCardClass,
+  worldCupMainContentShellClass,
+} from "@/lib/worldCupBranding";
 
 const GROUP_LABELS = Array.from({ length: 12 }, (_, i) => `Group ${String.fromCharCode(65 + i)}`);
 
@@ -19,27 +24,6 @@ type CompetitionResultRow = {
   top_scoring_team_code: string | null;
   updated_at?: string;
 };
-
-function AdminNavTabs() {
-  const pathname = usePathname();
-  const normalized = pathname.replace(/\/$/, "") || "/";
-  const matchActive = normalized === "/worldcup/admin";
-  const compActive = normalized.includes("/worldcup/admin/competition-results");
-  const linkClass = (active: boolean) =>
-    `rounded-md px-3 py-1.5 text-sm font-medium ${
-      active ? "bg-white/25 text-white" : "text-white/90 hover:bg-white/15"
-    }`;
-  return (
-    <nav className="mt-2 flex flex-wrap gap-2 border-t border-white/20 pt-2">
-      <Link href="/worldcup/admin" className={linkClass(matchActive)}>
-        Match Results
-      </Link>
-      <Link href="/worldcup/admin/competition-results" className={linkClass(compActive)}>
-        Competition Results
-      </Link>
-    </nav>
-  );
-}
 
 export default function WorldCupAdminCompetitionResultsPage() {
   const router = useRouter();
@@ -224,7 +208,10 @@ export default function WorldCupAdminCompetitionResultsPage() {
 
   if (!authChecked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
+      <div
+        className="flex min-h-screen w-full items-center justify-center overflow-x-hidden text-white"
+        style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+      >
         Checking access…
       </div>
     );
@@ -235,43 +222,16 @@ export default function WorldCupAdminCompetitionResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 font-sans text-slate-900">
-      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-[#004765] shadow-md">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-xl font-bold uppercase tracking-wide text-white">
-              FIFA World Cup 2026
-            </span>
-            <span className="text-sm font-medium text-white/80">Admin — competition results</span>
-            <AdminNavTabs />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/worldcup/results"
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-            >
-              Public results
-            </Link>
-            <Link
-              href="/"
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-            >
-              Home
-            </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
+      <WorldCupAdminHeader subtitle="Admin — competition results" onLogout={handleLogout} />
 
-      <main className="mx-auto max-w-5xl px-4 pb-12 pt-28 sm:px-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
-          <h1 className="text-2xl font-semibold text-[#003A5D]">Competition picks — actual results</h1>
+      <main className="w-full">
+        <div className={worldCupMainContentShellClass}>
+          <div className={worldCupContentCardClass}>
+          <h1 className="text-2xl font-semibold text-slate-900">Competition picks — actual results</h1>
           <p className="mt-2 text-sm text-slate-600">
             Enter official outcomes for pre-tournament competition picks (winner, semi-finalists,
             group finishing order, tournament stats). Scoring against participants is not applied
@@ -430,13 +390,14 @@ export default function WorldCupAdminCompetitionResultsPage() {
                   type="button"
                   onClick={() => void handleSave()}
                   disabled={saving}
-                  className="rounded-md bg-[#004765] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#00354d] disabled:opacity-50"
+                  className="rounded-md bg-[#126BFF] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f5fdf] disabled:opacity-50"
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </>
           )}
+          </div>
         </div>
       </main>
     </div>

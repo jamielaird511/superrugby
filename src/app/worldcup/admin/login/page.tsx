@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
+import {
+  WORLD_CUP_PAGE_BACKGROUND,
+  worldCupAuthPageContentShellClass,
+  worldCupContentCardClass,
+} from "@/lib/worldCupBranding";
 
 export default function WorldCupAdminLoginPage() {
   const router = useRouter();
@@ -55,59 +61,69 @@ export default function WorldCupAdminLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <div className="w-full max-w-[420px] px-4">
-        <div className="rounded-lg border border-[#D6E3EC] bg-white p-6 shadow-sm">
-          <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-[#C6A349]">
-            FIFA World Cup 2026
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
+      <WorldCupAdminHeader subtitle="Admin login" showTabs={false} />
+
+      <div className={`${worldCupAuthPageContentShellClass} flex flex-col items-center`}>
+        <div className="w-full max-w-md">
+          <div className={worldCupContentCardClass}>
+            <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-amber-700">
+              FIFA World Cup 2026
+            </div>
+            <h1 className="mb-4 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
+              Admin login
+            </h1>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Admin email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Admin password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
+                  required
+                />
+              </div>
+
+              {message ? <p className="text-sm text-red-600">{message}</p> : null}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-10 w-full rounded-md bg-[#126BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f5fdf] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? "Logging in..." : "Log in"}
+              </button>
+            </form>
+
+            <p className="mt-4 text-center text-xs text-slate-500">
+              <Link
+                href="/worldcup/login"
+                className="font-medium text-[#126BFF] hover:underline"
+              >
+                Back to World Cup login
+              </Link>
+            </p>
           </div>
-          <h1 className="mb-4 text-center text-xl font-semibold text-[#003A5D]">
-            Admin Login
-          </h1>
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
-                Admin email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-10 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
-                Admin password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-black"
-                required
-              />
-            </div>
-
-            {message ? <p className="text-sm text-red-600">{message}</p> : null}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-10 w-full rounded-md bg-[#003A5D] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#005F8E] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Logging in..." : "Log in"}
-            </button>
-          </form>
-
-          <p className="mt-4 text-center text-xs text-zinc-500">
-            <Link href="/worldcup/login" className="text-[#0B1F3A] underline hover:text-[#152a45]">
-              Back to World Cup login
-            </Link>
-          </p>
         </div>
       </div>
     </div>

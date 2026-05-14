@@ -1,9 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
+import {
+  WORLD_CUP_PAGE_BACKGROUND,
+  worldCupContentCardClass,
+  worldCupMainContentShellClass,
+} from "@/lib/worldCupBranding";
 
 type FixtureRow = {
   id: string;
@@ -27,27 +32,6 @@ type RoundSection = {
 
 function teamLabel(code: string, teamNames: Record<string, string>) {
   return teamNames[code.trim().toUpperCase()] || code;
-}
-
-function AdminNavTabs() {
-  const pathname = usePathname();
-  const normalized = pathname.replace(/\/$/, "") || "/";
-  const matchActive = normalized === "/worldcup/admin";
-  const compActive = normalized.includes("/worldcup/admin/competition-results");
-  const linkClass = (active: boolean) =>
-    `rounded-md px-3 py-1.5 text-sm font-medium ${
-      active ? "bg-white/25 text-white" : "text-white/90 hover:bg-white/15"
-    }`;
-  return (
-    <nav className="mt-2 flex flex-wrap gap-2 border-t border-white/20 pt-2">
-      <Link href="/worldcup/admin" className={linkClass(matchActive)}>
-        Match Results
-      </Link>
-      <Link href="/worldcup/admin/competition-results" className={linkClass(compActive)}>
-        Competition Results
-      </Link>
-    </nav>
-  );
 }
 
 function formatKickoffNz(kickoffAt: string | null) {
@@ -335,7 +319,10 @@ export default function WorldCupAdminResultsPage() {
 
   if (!authChecked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
+      <div
+        className="flex min-h-screen w-full items-center justify-center overflow-x-hidden text-white"
+        style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+      >
         Checking access…
       </div>
     );
@@ -346,39 +333,11 @@ export default function WorldCupAdminResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-sky-50 font-sans text-slate-900">
-      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-[#004765] shadow-md">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-xl font-bold uppercase tracking-wide text-white">
-              FIFA World Cup 2026
-            </span>
-            <span className="text-sm font-medium text-white/80">Admin — results</span>
-            <AdminNavTabs />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/worldcup/results"
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-            >
-              Public results
-            </Link>
-            <Link
-              href="/"
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-            >
-              Home
-            </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
+      style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
+    >
+      <WorldCupAdminHeader subtitle="Admin — match results" onLogout={handleLogout} />
 
       {clearModalFixture && (
         <div
@@ -394,12 +353,12 @@ export default function WorldCupAdminResultsPage() {
             onClick={() => setClearModalFixture(null)}
           />
           <div
-            className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80"
+            className="relative z-10 w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
               id="wc-clear-modal-title"
-              className="text-lg font-semibold text-[#003A5D]"
+              className="text-lg font-semibold text-slate-900"
             >
               Clear saved result?
             </h2>
@@ -437,9 +396,10 @@ export default function WorldCupAdminResultsPage() {
         </div>
       )}
 
-      <main className="mx-auto max-w-5xl px-4 pb-12 pt-28 sm:px-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
-          <h1 className="text-2xl font-semibold text-[#003A5D]">Enter match scores</h1>
+      <main className="w-full">
+        <div className={worldCupMainContentShellClass}>
+          <div className={worldCupContentCardClass}>
+          <h1 className="text-2xl font-semibold text-slate-900">Enter match scores</h1>
           <p className="mt-2 text-sm text-slate-600">
             Enter full-time scores (home and away). The winner is derived from the scores (home
             team code, away team code, or DRAW). Rugby margin bands are not used.
@@ -465,7 +425,7 @@ export default function WorldCupAdminResultsPage() {
             <div className="mt-8 space-y-10">
               {rounds.map((round) => (
                 <section key={round.id}>
-                  <h2 className="mb-4 border-b border-zinc-200 pb-2 text-lg font-semibold text-[#003A5D]">
+                  <h2 className="mb-4 border-b border-zinc-200 pb-2 text-lg font-semibold text-slate-900">
                     {round.label}
                   </h2>
                   <div className="overflow-x-auto rounded-md border border-zinc-300">
@@ -562,7 +522,7 @@ export default function WorldCupAdminResultsPage() {
                                     type="button"
                                     disabled={savingId === f.id || clearingId === f.id}
                                     onClick={() => saveFixture(f.id)}
-                                    className="rounded-md bg-[#004765] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#00354d] disabled:opacity-50"
+                                    className="rounded-md bg-[#126BFF] px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f5fdf] disabled:opacity-50"
                                   >
                                     {savingId === f.id ? "Saving…" : "Save"}
                                   </button>
@@ -593,6 +553,7 @@ export default function WorldCupAdminResultsPage() {
               ))}
             </div>
           )}
+          </div>
         </div>
       </main>
     </div>

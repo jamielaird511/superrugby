@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { notFound, useParams, useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
@@ -10,15 +10,8 @@ import {
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
 } from "@/lib/worldCupBranding";
-import { worldCupParticipantSubtitle } from "@/lib/worldCupParticipantDisplay";
 import { resolveWorldCupTenant } from "@/lib/worldCupIds";
 import { writeWorldCupParticipantId } from "@/lib/worldCupStorage";
-
-type Participant = {
-  id: string;
-  name: string;
-  team_name: string;
-};
 
 export default function FifaWorldCupTenantLoginPage() {
   const params = useParams<{ code: string }>();
@@ -29,44 +22,11 @@ export default function FifaWorldCupTenantLoginPage() {
     notFound();
   }
 
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
-  const fetchParticipants = useCallback(async () => {
-    if (!tenant) return;
-    try {
-      const res = await fetch(`/api/worldcup/participants?tenant=${tenant.slug}`, {
-        cache: "no-store",
-      });
-      const json = (await res.json()) as { participants?: Participant[]; error?: string };
-      if (!res.ok) {
-        setMessage(json.error || "Error loading entrants");
-        return;
-      }
-      setParticipants(json.participants || []);
-    } catch (err) {
-      console.error("Unexpected error:", err);
-      setMessage(`Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}`);
-    }
-  }, [tenant]);
-
-  useEffect(() => {
-    void fetchParticipants();
-  }, [fetchParticipants]);
-
-  useEffect(() => {
-    const refresh = () => void fetchParticipants();
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [fetchParticipants]);
 
   useEffect(() => {
     if (!tenant) return;
@@ -91,13 +51,9 @@ export default function FifaWorldCupTenantLoginPage() {
     setLoading(true);
 
     try {
-      if (!selectedParticipantId) {
-        setMessage("Please select your name");
-        setLoading(false);
-        return;
-      }
-      if (!password) {
-        setMessage("Please enter a password");
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail || !password) {
+        setMessage("Invalid email or password");
         setLoading(false);
         return;
       }
@@ -106,21 +62,25 @@ export default function FifaWorldCupTenantLoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          participantId: selectedParticipantId,
-          password,
           tenant: tenant.slug,
+          email: trimmedEmail,
+          password,
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error || "Login failed");
+      const data = (await response.json()) as {
+        participantId?: string;
+        team_name?: string | null;
+        error?: string;
+      };
+      if (!response.ok || !data.participantId) {
+        setMessage(data.error || "Invalid email or password");
         setLoading(false);
         return;
       }
 
       track("login_success", {
-        participantId: selectedParticipantId,
+        participantId: data.participantId,
         metadata: {
           page: "worldcup_login",
           tenant: tenant.slug,
@@ -128,11 +88,11 @@ export default function FifaWorldCupTenantLoginPage() {
         },
       });
 
-      writeWorldCupParticipantId(tenant.slug, selectedParticipantId);
-      router.push(`/worldcup/${tenant.slug}/team/${selectedParticipantId}`);
+      writeWorldCupParticipantId(tenant.slug, data.participantId);
+      router.push(`/worldcup/${tenant.slug}/team/${data.participantId}`);
     } catch (err) {
       console.error("Unexpected error:", err);
-      setMessage(`Unexpected error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      setMessage("Invalid email or password");
       setLoading(false);
     }
   };
@@ -157,31 +117,33 @@ export default function FifaWorldCupTenantLoginPage() {
                 Picks login
               </h1>
               <p className="mb-6 text-center text-sm text-slate-500">
-                Sign in with the name you registered and your password.
+                Sign in with the email and password you registered with.
               </p>
 
               <form onSubmit={handleLogin} className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Your name</label>
-                  <select
-                    value={selectedParticipantId}
-                    onChange={(e) => setSelectedParticipantId(e.target.value)}
+                  <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="login-email">
+                    Email
+                  </label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"
                     required
-                  >
-                    <option value="">Select your name</option>
-                    {participants.map((participant) => (
-                      <option key={participant.id} value={participant.id}>
-                        {worldCupParticipantSubtitle(participant)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="login-password">
+                    Password
+                  </label>
                   <input
+                    id="login-password"
                     type="password"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#126BFF] focus:ring-1 focus:ring-[#126BFF]/30"

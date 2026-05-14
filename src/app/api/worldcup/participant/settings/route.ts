@@ -1,27 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { comparePassword, hashPassword } from "@/lib/password";
-import { FIFA_WORLD_CUP_2026_LEAGUE_ID } from "@/lib/worldCupIds";
-import { getWorldCupCompetitionId } from "@/lib/worldCupScope";
+import { resolveWorldCupCompetitionIdForTenant } from "@/lib/worldCupScope";
+import {
+  resolveTenantFromBodyOrUrl,
+  resolveTenantFromRequest,
+} from "@/lib/worldCupRequestTenant";
+import type { WorldCupTenant } from "@/lib/worldCupIds";
 
 function asTrimmedString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-async function validateWorldCupParticipantScope(participantId: string) {
-  const wcCompId = await getWorldCupCompetitionId(supabaseAdmin);
+async function validateWorldCupParticipantScope(
+  participantId: string,
+  tenant: WorldCupTenant
+) {
+  const wcCompId = await resolveWorldCupCompetitionIdForTenant(supabaseAdmin, tenant);
   if (!wcCompId) return { ok: false as const, error: "World Cup competition could not be resolved" };
 
   const { data: participant, error: participantError } = await supabaseAdmin
     .from("participants")
     .select("id, name, team_name, password_hash, league_id")
     .eq("id", participantId)
-    .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+    .eq("league_id", tenant.leagueId)
     .maybeSingle();
 
   if (participantError) {
     console.error("[worldcup/participant/settings] participant lookup:", {
       participantId,
+      tenant: tenant.slug,
       message: participantError.message,
       code: participantError.code,
       details: participantError.details,
@@ -39,6 +47,7 @@ async function validateWorldCupParticipantScope(participantId: string) {
   if (leagueError || !league || league.competition_id !== wcCompId) {
     console.error("[worldcup/participant/settings] league scope check failed:", {
       participantId,
+      tenant: tenant.slug,
       leagueError,
       leagueRow: league,
       expectedCompetitionId: wcCompId,
@@ -57,7 +66,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "participantId is required" }, { status: 400 });
     }
 
-    const scoped = await validateWorldCupParticipantScope(participantId);
+    const tenantRes = resolveTenantFromRequest(req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
+    const scoped = await validateWorldCupParticipantScope(participantId, tenant);
     if (!scoped.ok) {
       return NextResponse.json(
         { error: scoped.error },
@@ -72,6 +85,7 @@ export async function GET(req: NextRequest) {
           name: scoped.participant.name,
           team_name: scoped.participant.team_name,
         },
+        tenant: tenant.slug,
       },
       { status: 200 }
     );
@@ -89,7 +103,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "participantId is required" }, { status: 400 });
     }
 
-    const scoped = await validateWorldCupParticipantScope(participantId);
+    const tenantRes = resolveTenantFromBodyOrUrl(body, req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
+    const scoped = await validateWorldCupParticipantScope(participantId, tenant);
     if (!scoped.ok) {
       return NextResponse.json(
         { error: scoped.error },
@@ -107,13 +125,14 @@ export async function PATCH(req: NextRequest) {
         .from("participants")
         .update({ team_name: displayName })
         .eq("id", participantId)
-        .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+        .eq("league_id", tenant.leagueId)
         .select("id")
         .maybeSingle();
 
       if (updateNameError) {
         console.error("[worldcup/participant/settings] team_name update failed:", {
           participantId,
+          tenant: tenant.slug,
           message: updateNameError.message,
           code: updateNameError.code,
           details: updateNameError.details,
@@ -124,6 +143,7 @@ export async function PATCH(req: NextRequest) {
       if (!updatedRow) {
         console.error("[worldcup/participant/settings] team_name update affected 0 rows", {
           participantId,
+          tenant: tenant.slug,
         });
         return NextResponse.json({ error: "Failed to update display name" }, { status: 500 });
       }
@@ -163,13 +183,14 @@ export async function PATCH(req: NextRequest) {
       .from("participants")
       .update({ password_hash: nextHash })
       .eq("id", participantId)
-      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+      .eq("league_id", tenant.leagueId)
       .select("id")
       .maybeSingle();
 
     if (updatePwError) {
       console.error("[worldcup/participant/settings] password update failed:", {
         participantId,
+        tenant: tenant.slug,
         message: updatePwError.message,
         code: updatePwError.code,
         details: updatePwError.details,
@@ -180,6 +201,7 @@ export async function PATCH(req: NextRequest) {
     if (!updatedPwRow) {
       console.error("[worldcup/participant/settings] password update affected 0 rows", {
         participantId,
+        tenant: tenant.slug,
       });
       return NextResponse.json({ error: "Failed to update password" }, { status: 500 });
     }
@@ -190,4 +212,3 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-

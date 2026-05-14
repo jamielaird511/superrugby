@@ -1,16 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
+import { resolveTenantFromRequest } from "@/lib/worldCupRequestTenant";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const tenantRes = resolveTenantFromRequest(req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
     const { data, error } = await supabaseAdmin
       .from("participants")
       .select("id, name, team_name")
-      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+      .eq("league_id", tenant.leagueId)
       .order("team_name", { ascending: true });
 
     if (error) {

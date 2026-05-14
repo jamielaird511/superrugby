@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { hashPassword } from "@/lib/password";
-
-const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
+import { readWorldCupAccessCode } from "@/lib/worldCupIds";
+import { resolveTenantFromBodyOrUrl } from "@/lib/worldCupRequestTenant";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -30,70 +30,83 @@ export async function POST(req: NextRequest) {
     if (!password) {
       return NextResponse.json({ error: "Password is required" }, { status: 400 });
     }
-    const configuredAccessCode = process.env.WORLDCUP_ACCESS_CODE;
-    if (!configuredAccessCode || !configuredAccessCode.trim()) {
+
+    const tenantRes = resolveTenantFromBodyOrUrl(body, req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
+    const configuredAccessCode = readWorldCupAccessCode(tenant);
+    if (!configuredAccessCode) {
       console.error(
-        "[worldcup/register] WORLDCUP_ACCESS_CODE missing; denying registration"
+        `[worldcup/register] access code env (${tenant.accessCodeEnvName}) missing; denying registration`
       );
       return NextResponse.json({ error: "Invalid access code." }, { status: 403 });
     }
-    if (accessCode.trim().toLowerCase() !== configuredAccessCode.trim().toLowerCase()) {
+    if (accessCode.trim().toLowerCase() !== configuredAccessCode.toLowerCase()) {
       return NextResponse.json({ error: "Invalid access code." }, { status: 403 });
     }
 
     const fullName = `${firstName} ${lastName}`;
     const passwordHash = await hashPassword(password);
 
-    // Avoid duplicate World Cup registrations by email where possible.
+    // Per-tenant duplicate-email check: only block if the same email is already
+    // registered to a participant in the **same tenant's league**. The same email
+    // can join different World Cup tenants.
     const { data: existingContacts, error: existingContactsError } = await supabaseAdmin
       .from("participant_contacts")
       .select("participant_id")
-      .ilike("email", email)
-      .limit(1);
+      .ilike("email", email);
 
     if (existingContactsError) {
       console.error("Error checking existing contact:", existingContactsError);
       return NextResponse.json({ error: "Failed to validate registration" }, { status: 500 });
     }
 
-    const existingParticipantId = existingContacts?.[0]?.participant_id as string | undefined;
-    if (existingParticipantId) {
-      const { data: existingParticipant, error: existingParticipantError } = await supabaseAdmin
+    const existingParticipantIds = (existingContacts || [])
+      .map((c) => c.participant_id as string | undefined)
+      .filter((id): id is string => !!id);
+
+    if (existingParticipantIds.length > 0) {
+      const { data: existingParticipants, error: existingParticipantError } = await supabaseAdmin
         .from("participants")
         .select("id, name, league_id")
-        .eq("id", existingParticipantId)
-        .maybeSingle();
+        .in("id", existingParticipantIds);
 
       if (existingParticipantError) {
         console.error("Error checking existing participant:", existingParticipantError);
         return NextResponse.json({ error: "Failed to validate registration" }, { status: 500 });
       }
 
-      if (existingParticipant?.league_id === FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+      const existingInTenant = (existingParticipants || []).find(
+        (p) => p.league_id === tenant.leagueId
+      );
+
+      if (existingInTenant) {
         const { error: updateExistingPasswordError } = await supabaseAdmin
           .from("participants")
           .update({ password_hash: passwordHash })
-          .eq("id", existingParticipant.id);
+          .eq("id", existingInTenant.id);
 
         if (updateExistingPasswordError) {
-          console.error("Error updating existing world cup password:", updateExistingPasswordError);
+          console.error(
+            "Error updating existing world cup password:",
+            updateExistingPasswordError
+          );
           return NextResponse.json({ error: "Failed to update registration" }, { status: 500 });
         }
 
         return NextResponse.json(
           {
-            participantId: existingParticipant.id,
-            name: existingParticipant.name || fullName,
+            participantId: existingInTenant.id,
+            name: existingInTenant.name || fullName,
             email,
+            tenant: tenant.slug,
           },
           { status: 200 }
         );
       }
-
-      return NextResponse.json(
-        { error: "This email is already registered in another competition" },
-        { status: 409 }
-      );
+      // Email exists in a different World Cup tenant or in Super Rugby — allow a new
+      // participant row in this tenant and link a fresh contact row.
     }
 
     const { data: participant, error: participantError } = await supabaseAdmin
@@ -101,7 +114,7 @@ export async function POST(req: NextRequest) {
       .insert({
         name: fullName,
         team_name: fullName,
-        league_id: FIFA_WORLD_CUP_2026_LEAGUE_ID,
+        league_id: tenant.leagueId,
         password_hash: passwordHash,
       })
       .select("id, name")
@@ -129,6 +142,7 @@ export async function POST(req: NextRequest) {
         participantId: participant.id,
         name: participant.name || fullName,
         email,
+        tenant: tenant.slug,
       },
       { status: 200 }
     );

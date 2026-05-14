@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
+import { resolveTenantFromRequest } from "@/lib/worldCupRequestTenant";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,11 +11,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "participantId is required" }, { status: 400 });
     }
 
+    const tenantRes = resolveTenantFromRequest(req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
     const { data, error } = await supabaseAdmin
       .from("participants")
       .select("id, name, team_name, league_id")
       .eq("id", participantId)
-      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+      .eq("league_id", tenant.leagueId)
       .maybeSingle();
 
     if (error) {
@@ -28,7 +31,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Participant not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ participant: data }, { status: 200 });
+    return NextResponse.json({ participant: data, tenant: tenant.slug }, { status: 200 });
   } catch (err) {
     console.error("World Cup participant route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

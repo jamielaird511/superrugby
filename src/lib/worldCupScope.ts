@@ -2,54 +2,47 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   FIFA_WORLD_CUP_2026_COMPETITION_ID,
   FIFA_WORLD_CUP_2026_LEAGUE_ID,
+  getDefaultWorldCupTenant,
+  type WorldCupTenant,
 } from "./worldCupIds";
 
-/**
- * Expected `leagues.league_code` for the FIFA World Cup picks league (when present).
- * If your row uses a different code, prefer resolving via `league_id` below or align the DB.
- */
+/** Legacy: World Cup league_code for the default tenant. */
 export const WORLD_CUP_LEAGUE_CODE = "FIFAWC2026" as const;
 
-/**
- * Canonical FIFA World Cup 2026 competition id (always safe for query filters).
- */
+/** Legacy: canonical default-tenant competition id for safe query filters. */
 export const WORLD_CUP_COMPETITION_ID = FIFA_WORLD_CUP_2026_COMPETITION_ID;
 
 /**
- * Resolves the World Cup `competition_id` for scoping World Cup admin and APIs.
- * 1) Validates `leagues` row by `WORLD_CUP_LEAGUE_CODE` when it matches the canonical id.
- * 2) Else validates by known `league` UUID (`FIFA_WORLD_CUP_2026_LEAGUE_ID`).
- * 3) If the league row is missing, returns the hardcoded competition id (same constant as public WC routes).
- * Returns `null` only when a league row exists but its `competition_id` does not match the canonical World Cup id.
+ * Validates that the given tenant's competition_id is reachable via the tenant's `leagues` row,
+ * returning the competition_id. If the league row is missing, falls back to the registered
+ * competition_id. Returns `null` if a league row exists but does not match the expected competition.
+ */
+export async function resolveWorldCupCompetitionIdForTenant(
+  client: SupabaseClient,
+  tenant: WorldCupTenant
+): Promise<string | null> {
+  const { data, error } = await client
+    .from("leagues")
+    .select("competition_id")
+    .eq("id", tenant.leagueId)
+    .maybeSingle();
+
+  if (!error && data?.competition_id) {
+    if (data.competition_id !== tenant.competitionId) return null;
+    return data.competition_id as string;
+  }
+  return tenant.competitionId;
+}
+
+/**
+ * Legacy single-tenant resolver — preserved for admin code paths that have not yet
+ * been migrated. Resolves the default tenant only.
  */
 export async function getWorldCupCompetitionId(
   client: SupabaseClient
 ): Promise<string | null> {
-  const { data: byCode, error: errCode } = await client
-    .from("leagues")
-    .select("competition_id")
-    .eq("league_code", WORLD_CUP_LEAGUE_CODE)
-    .maybeSingle();
-
-  if (!errCode && byCode?.competition_id) {
-    if (byCode.competition_id !== FIFA_WORLD_CUP_2026_COMPETITION_ID) {
-      return null;
-    }
-    return byCode.competition_id as string;
-  }
-
-  const { data: byId, error: errId } = await client
-    .from("leagues")
-    .select("competition_id")
-    .eq("id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
-    .maybeSingle();
-
-  if (!errId && byId?.competition_id) {
-    if (byId.competition_id !== FIFA_WORLD_CUP_2026_COMPETITION_ID) {
-      return null;
-    }
-    return byId.competition_id as string;
-  }
-
-  return FIFA_WORLD_CUP_2026_COMPETITION_ID;
+  return resolveWorldCupCompetitionIdForTenant(client, getDefaultWorldCupTenant());
 }
+
+/** Re-export for callers importing from the scope module. */
+export { FIFA_WORLD_CUP_2026_COMPETITION_ID, FIFA_WORLD_CUP_2026_LEAGUE_ID };

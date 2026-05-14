@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
 import PaperPunterBrandStrip from "@/components/paperpunter/PaperPunterBrandStrip";
-
-const STORAGE_KEY = "worldcup_participant_id";
+import { resolveWorldCupTenantOrDefault } from "@/lib/worldCupIds";
+import {
+  clearWorldCupParticipantId,
+  readWorldCupParticipantId,
+} from "@/lib/worldCupStorage";
 
 const pillActive =
   "rounded-lg border border-white/30 bg-white px-3 py-1.5 text-sm font-semibold text-[#126BFF]";
@@ -30,46 +33,66 @@ type Props = {
   initialParticipantId?: string | null;
   /** When set, drives incomplete styling on the Competition Picks nav item (no extra fetch in the header). */
   competitionPicksCompletion?: WorldCupCompetitionPicksCompletion | null;
+  /** URL `/worldcup/[code]/...` slug for the active tenant. Defaults to fifawc2026. */
+  tenantSlug?: string;
+  /** Display name shown in the nav header. Falls back to the tenant's registered displayName. */
+  tenantDisplayName?: string;
 };
 
 export default function WorldCupHeader({
   subtitle,
   initialParticipantId = null,
   competitionPicksCompletion = null,
+  tenantSlug,
+  tenantDisplayName,
 }: Props) {
   const pathname = usePathname();
+
+  const tenant = useMemo(
+    () => resolveWorldCupTenantOrDefault(tenantSlug ?? null),
+    [tenantSlug]
+  );
+  const headingDisplayName = tenantDisplayName?.trim() || tenant.displayName;
+
   const [participantId, setParticipantId] = useState<string | null>(initialParticipantId);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const id = localStorage.getItem(STORAGE_KEY);
+    const id = readWorldCupParticipantId(tenant.slug);
     setParticipantId(id || initialParticipantId || null);
-  }, [initialParticipantId]);
+  }, [initialParticipantId, tenant.slug]);
 
-  const isLoginPage = pathname === "/worldcup/login";
-  const isRegisterPage = pathname === "/worldcup/register";
+  const tenantPrefix = `/worldcup/${tenant.slug}`;
+  const legacyPrefix = "/worldcup";
+
+  // Detect both new (`/worldcup/[code]/...`) and legacy (`/worldcup/...`) paths.
+  const isLoginPage =
+    pathname === `${tenantPrefix}/login` || pathname === `${legacyPrefix}/login`;
+  const isRegisterPage =
+    pathname === `${tenantPrefix}/register` || pathname === `${legacyPrefix}/register`;
   const isAuthShell = isLoginPage || isRegisterPage;
 
   const activeTab: "picks" | "competition-picks" | "results" | "settings" = useMemo(() => {
-    if (pathname?.startsWith("/worldcup/team/") && pathname.endsWith("/competition-picks")) {
-      return "competition-picks";
+    if (!pathname) return "picks";
+    if (pathname.endsWith("/competition-picks")) return "competition-picks";
+    if (pathname.endsWith("/settings")) return "settings";
+    if (pathname === `${tenantPrefix}/results` || pathname === `${legacyPrefix}/results`) {
+      return "results";
     }
-    if (pathname?.startsWith("/worldcup/team/") && pathname.endsWith("/settings")) return "settings";
-    if (pathname === "/worldcup/results") return "results";
     return "picks";
-  }, [pathname]);
+  }, [pathname, tenantPrefix]);
 
-  const picksHref = participantId ? `/worldcup/team/${participantId}` : null;
+  const picksHref = participantId ? `${tenantPrefix}/team/${participantId}` : null;
   const competitionPicksHref = participantId
-    ? `/worldcup/team/${participantId}/competition-picks`
+    ? `${tenantPrefix}/team/${participantId}/competition-picks`
     : null;
-  const settingsHref = participantId ? `/worldcup/team/${participantId}/settings` : null;
+  const settingsHref = participantId ? `${tenantPrefix}/team/${participantId}/settings` : null;
 
   const competitionPicksIncomplete = isCompetitionPicksIncomplete(competitionPicksCompletion);
 
   function handleLogout() {
-    localStorage.removeItem(STORAGE_KEY);
-    window.location.href = "/worldcup/login";
+    clearWorldCupParticipantId(tenant.slug);
+    window.location.href = `${tenantPrefix}/login`;
   }
 
   return (
@@ -89,14 +112,14 @@ export default function WorldCupHeader({
             </Link>
             {isLoginPage ? (
               <Link
-                href="/worldcup/register"
+                href={`${tenantPrefix}/register`}
                 className="rounded-md border-2 border-white bg-white px-3 py-1.5 text-[13px] font-semibold text-[#126BFF] shadow-sm transition-colors hover:bg-white/95 sm:text-sm"
               >
                 Register
               </Link>
             ) : (
               <Link
-                href="/worldcup/login"
+                href={`${tenantPrefix}/login`}
                 className="rounded-md border-2 border-white bg-white px-3 py-1.5 text-[13px] font-semibold text-[#126BFF] shadow-sm transition-colors hover:bg-white/95 sm:text-sm"
               >
                 Log In
@@ -107,7 +130,7 @@ export default function WorldCupHeader({
           <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="text-lg font-bold uppercase tracking-wide text-white sm:text-xl">
-                FIFA World Cup 2026
+                {headingDisplayName}
               </span>
               {subtitle ? (
                 <span className="truncate text-xs font-medium text-white/80 sm:text-sm">{subtitle}</span>
@@ -119,7 +142,7 @@ export default function WorldCupHeader({
                   Picks
                 </Link>
               ) : (
-                <Link href="/worldcup/login" className={pillIdle}>
+                <Link href={`${tenantPrefix}/login`} className={pillIdle}>
                   Log in
                 </Link>
               )}
@@ -159,7 +182,7 @@ export default function WorldCupHeader({
                 </button>
               )}
 
-              <Link href="/worldcup/results" className={activeTab === "results" ? pillActive : pillIdle}>
+              <Link href={`${tenantPrefix}/results`} className={activeTab === "results" ? pillActive : pillIdle}>
                 Results
               </Link>
 

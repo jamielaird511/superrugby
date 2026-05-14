@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import {
-  FIFA_WORLD_CUP_2026_COMPETITION_ID,
-  FIFA_WORLD_CUP_2026_LEAGUE_ID,
-} from "@/lib/worldCupIds";
+import { resolveTenantFromRequest } from "@/lib/worldCupRequestTenant";
 
 function roundLabel(season: number, roundNumber: number): string {
   if (roundNumber >= 101 && roundNumber <= 199) {
@@ -12,15 +9,19 @@ function roundLabel(season: number, roundNumber: number): string {
   return `Season ${season} · Round ${roundNumber}`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const tenantRes = resolveTenantFromRequest(req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
     const currentSeason = new Date().getFullYear();
 
     const { data: rounds, error: roundsError } = await supabaseAdmin
       .from("rounds")
       .select("id, season, round_number")
       .eq("season", currentSeason)
-      .eq("competition_id", FIFA_WORLD_CUP_2026_COMPETITION_ID)
+      .eq("competition_id", tenant.competitionId)
       .order("round_number", { ascending: true });
 
     if (roundsError) {
@@ -29,7 +30,10 @@ export async function GET() {
     }
 
     if (!rounds?.length) {
-      return NextResponse.json({ rounds: [], teamNames: {} }, { status: 200 });
+      return NextResponse.json(
+        { rounds: [], teamNames: {}, leaderboard: [], tenant: tenant.slug },
+        { status: 200 }
+      );
     }
 
     const roundIds = rounds.map((r) => r.id);
@@ -37,8 +41,8 @@ export async function GET() {
     const { data: fixtures, error: fixturesError } = await supabaseAdmin
       .from("fixtures")
       .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
-      .eq("competition_id", FIFA_WORLD_CUP_2026_COMPETITION_ID)
-      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+      .eq("competition_id", tenant.competitionId)
+      .eq("league_id", tenant.leagueId)
       .in("round_id", roundIds)
       .order("kickoff_at", { ascending: true });
 
@@ -51,7 +55,10 @@ export async function GET() {
     const fixtureIds = fixtureList.map((f) => f.id);
 
     if (fixtureIds.length === 0) {
-      return NextResponse.json({ rounds: [], teamNames: {} }, { status: 200 });
+      return NextResponse.json(
+        { rounds: [], teamNames: {}, leaderboard: [], tenant: tenant.slug },
+        { status: 200 }
+      );
     }
 
     const { data: resultsRows, error: resultsError } = await supabaseAdmin
@@ -128,7 +135,7 @@ export async function GET() {
     const { data: participants, error: participantsError } = await supabaseAdmin
       .from("participants")
       .select("id, team_name")
-      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID);
+      .eq("league_id", tenant.leagueId);
 
     if (participantsError) {
       console.error("World Cup results participants:", participantsError);
@@ -185,7 +192,7 @@ export async function GET() {
     leaderboardRows.sort((a, b) => b.points - a.points || a.team_name.localeCompare(b.team_name));
 
     return NextResponse.json(
-      { rounds: roundsFiltered, teamNames, leaderboard: leaderboardRows },
+      { rounds: roundsFiltered, teamNames, leaderboard: leaderboardRows, tenant: tenant.slug },
       { status: 200 }
     );
   } catch (err) {

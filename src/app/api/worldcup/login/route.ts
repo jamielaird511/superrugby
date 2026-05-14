@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { comparePassword } from "@/lib/password";
-
-const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
+import { resolveTenantFromBodyOrUrl } from "@/lib/worldCupRequestTenant";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +15,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const tenantRes = resolveTenantFromBodyOrUrl(body, request);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
 
     const { data: participant, error } = await supabaseAdmin
       .from("participants")
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid participant" }, { status: 404 });
     }
 
-    if (participant.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+    if (participant.league_id !== tenant.leagueId) {
       return NextResponse.json({ error: "Invalid participant" }, { status: 400 });
     }
 
@@ -51,7 +54,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
 
-    return NextResponse.json({ participantId: participant.id }, { status: 200 });
+    return NextResponse.json(
+      { participantId: participant.id, tenant: tenant.slug },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("World Cup login error:", err);
     return NextResponse.json(

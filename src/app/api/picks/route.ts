@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncPaperBetsForFixture } from "@/lib/syncPaperBetsForFixture";
+import { findWorldCupTenantByLeagueId } from "@/lib/worldCupIds";
 
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
-const FIFA_WORLD_CUP_2026_COMPETITION_ID = "9e60564e-4be5-4756-b6cb-48ae06f45654";
 
 // Create a server Supabase client using ANON key + request cookies/session (NOT service role)
 // This ensures RLS policies are enforced based on the authenticated user
@@ -137,7 +136,8 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      if (worldCupParticipant.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+      const wcTenant = findWorldCupTenantByLeagueId(worldCupParticipant.league_id);
+      if (!wcTenant) {
         return NextResponse.json(
           { error: "FORBIDDEN" },
           { status: 403 }
@@ -307,13 +307,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid participant" }, { status: 400 });
       }
 
-      if (worldCupParticipant.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+      const wcTenant = findWorldCupTenantByLeagueId(worldCupParticipant.league_id);
+      if (!wcTenant) {
         return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
       }
 
       participantId = worldCupParticipant.id;
       participantLeagueId = worldCupParticipant.league_id;
-      competitionId = FIFA_WORLD_CUP_2026_COMPETITION_ID;
+      competitionId = wcTenant.competitionId;
     }
 
     // Enforce the new margin encoding: DRAW=0, non-DRAW must be 1 or 13
@@ -637,12 +638,13 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: "Invalid participant", details: "Participant not found" }, { status: 400 });
       }
 
-      if (worldCupParticipant.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+      const wcTenant = findWorldCupTenantByLeagueId(worldCupParticipant.league_id);
+      if (!wcTenant) {
         return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
       }
 
       participantId = worldCupParticipant.id;
-      competitionId = FIFA_WORLD_CUP_2026_COMPETITION_ID;
+      competitionId = wcTenant.competitionId;
     }
 
     const { data: fixture, error: fixtureError } = await supabaseAdmin

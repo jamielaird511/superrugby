@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-const FIFA_WORLD_CUP_2026_COMPETITION_ID = "9e60564e-4be5-4756-b6cb-48ae06f45654";
-const FIFA_WORLD_CUP_2026_LEAGUE_ID = "a908c579-842c-43c8-85d3-229b543bb2a3";
+import { resolveTenantFromRequest } from "@/lib/worldCupRequestTenant";
 
 export async function GET(req: Request) {
   try {
@@ -10,11 +8,15 @@ export async function GET(req: Request) {
     const includePast = searchParams.get("includePast") === "true";
     const nowISO = new Date().toISOString();
 
+    const tenantRes = resolveTenantFromRequest(req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
     let query = supabaseAdmin
       .from("fixtures")
       .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
-      .eq("competition_id", FIFA_WORLD_CUP_2026_COMPETITION_ID)
-      .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+      .eq("competition_id", tenant.competitionId)
+      .eq("league_id", tenant.leagueId)
       .order("kickoff_at", { ascending: true });
 
     if (!includePast) {
@@ -28,7 +30,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Failed to load fixtures" }, { status: 500 });
     }
 
-    return NextResponse.json({ fixtures: data || [] }, { status: 200 });
+    return NextResponse.json({ fixtures: data || [], tenant: tenant.slug }, { status: 200 });
   } catch (err) {
     console.error("World Cup fixtures route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

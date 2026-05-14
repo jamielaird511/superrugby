@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import type { WorldCupTenant } from "@/lib/worldCupIds";
 import {
-  FIFA_WORLD_CUP_2026_COMPETITION_ID,
-  FIFA_WORLD_CUP_2026_LEAGUE_ID,
-} from "@/lib/worldCupIds";
+  resolveTenantFromBodyOrUrl,
+  resolveTenantFromRequest,
+} from "@/lib/worldCupRequestTenant";
 
 type StoredCompetitionPicks = {
   winner_team_code: string | null;
@@ -51,7 +52,10 @@ function completionFromStored(
   return { completed, total: 1 + 4 + groupCount * 2 + 2 };
 }
 
-async function validateWorldCupParticipant(participantId: string): Promise<
+async function validateWorldCupParticipant(
+  participantId: string,
+  tenant: WorldCupTenant
+): Promise<
   | { ok: true }
   | {
       ok: false;
@@ -80,11 +84,11 @@ async function validateWorldCupParticipant(participantId: string): Promise<
   if (!participant) {
     return { ok: false, httpStatus: 404, error: "Participant not found" };
   }
-  if (participant.league_id !== FIFA_WORLD_CUP_2026_LEAGUE_ID) {
+  if (participant.league_id !== tenant.leagueId) {
     return {
       ok: false,
       httpStatus: 400,
-      error: "Participant is not in the FIFA World Cup league",
+      error: "Participant is not in this World Cup tenant",
     };
   }
 
@@ -109,12 +113,12 @@ async function getGroupCount(): Promise<{ count: number; error?: string; code?: 
   return { count: groups.size };
 }
 
-async function isLocked(competitionId: string): Promise<boolean> {
+async function isLocked(tenant: WorldCupTenant): Promise<boolean> {
   const { data: firstFixture, error } = await supabaseAdmin
     .from("fixtures")
     .select("kickoff_at")
-    .eq("competition_id", competitionId)
-    .eq("league_id", FIFA_WORLD_CUP_2026_LEAGUE_ID)
+    .eq("competition_id", tenant.competitionId)
+    .eq("league_id", tenant.leagueId)
     .not("kickoff_at", "is", null)
     .order("kickoff_at", { ascending: true })
     .limit(1)
@@ -131,7 +135,9 @@ async function isLocked(competitionId: string): Promise<boolean> {
 
 export async function GET(req: NextRequest) {
   try {
-    const competitionId = FIFA_WORLD_CUP_2026_COMPETITION_ID;
+    const tenantRes = resolveTenantFromRequest(req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
 
     const participantId = asTrimmedString(new URL(req.url).searchParams.get("participantId"));
     if (!participantId) {
@@ -141,7 +147,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const scoped = await validateWorldCupParticipant(participantId);
+    const scoped = await validateWorldCupParticipant(participantId, tenant);
     if (!scoped.ok) {
       return NextResponse.json(
         {
@@ -160,10 +166,10 @@ export async function GET(req: NextRequest) {
           "winner_team_code, semifinalist_team_codes, group_picks, total_goals, top_scoring_team_code"
         )
         .eq("participant_id", participantId)
-        .eq("competition_id", competitionId)
+        .eq("competition_id", tenant.competitionId)
         .maybeSingle(),
       getGroupCount(),
-      isLocked(competitionId),
+      isLocked(tenant),
     ]);
 
     if (groupRes.error) {
@@ -191,7 +197,7 @@ export async function GET(req: NextRequest) {
 
     const picks = (rowRes.data || null) as StoredCompetitionPicks | null;
     return NextResponse.json(
-      { picks, completion: completionFromStored(picks, groupRes.count), locked },
+      { picks, completion: completionFromStored(picks, groupRes.count), locked, tenant: tenant.slug },
       { status: 200 }
     );
   } catch (err) {
@@ -208,9 +214,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const competitionId = FIFA_WORLD_CUP_2026_COMPETITION_ID;
-
     const body = await req.json().catch(() => ({}));
+    const tenantRes = resolveTenantFromBodyOrUrl(body, req);
+    if (!tenantRes.ok) return tenantRes.response;
+    const { tenant } = tenantRes;
+
     const participantId = asTrimmedString(body?.participantId);
     if (!participantId) {
       return NextResponse.json(
@@ -219,7 +227,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const scoped = await validateWorldCupParticipant(participantId);
+    const scoped = await validateWorldCupParticipant(participantId, tenant);
     if (!scoped.ok) {
       return NextResponse.json(
         {
@@ -231,7 +239,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const locked = await isLocked(competitionId);
+    const locked = await isLocked(tenant);
     if (locked) {
       return NextResponse.json(
         { error: "Competition picks are locked", details: "Tournament has started (first kickoff in the past)" },
@@ -266,7 +274,7 @@ export async function POST(req: NextRequest) {
 
     const rowToSave = {
       participant_id: participantId,
-      competition_id: competitionId,
+      competition_id: tenant.competitionId,
       winner_team_code: asTrimmedString(body?.winner_team_code) || null,
       semifinalist_team_codes: semifinalistTeamCodes,
       group_picks: normalizedGroupPicks,
@@ -301,7 +309,7 @@ export async function POST(req: NextRequest) {
     const groupCount = groupRes.error ? 8 : groupRes.count;
     const picks = data as StoredCompetitionPicks;
     return NextResponse.json(
-      { picks, completion: completionFromStored(picks, groupCount), locked: false },
+      { picks, completion: completionFromStored(picks, groupCount), locked: false, tenant: tenant.slug },
       { status: 200 }
     );
   } catch (err) {

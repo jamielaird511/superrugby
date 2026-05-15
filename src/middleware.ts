@@ -44,7 +44,11 @@ export function middleware(request: NextRequest) {
     pathname === "/paperpunter" ||
     pathname.startsWith("/paperpunter/") ||
     pathname === "/worldcup" ||
-    pathname.startsWith("/worldcup/")
+    pathname.startsWith("/worldcup/") ||
+    pathname === "/about" ||
+    pathname === "/contact" ||
+    pathname === "/privacy" ||
+    pathname === "/terms"
   ) {
     return withPaperPunterFullBleed(request);
   }
@@ -83,5 +87,9 @@ export const config = {
     "/paperpunter/:path*",
     "/worldcup",
     "/worldcup/:path*",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
   ],
 };

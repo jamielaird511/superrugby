@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   ChartBarIcon,
   RocketLaunchIcon,
@@ -19,6 +20,12 @@ import {
 } from "@/lib/worldCupBranding";
 
 const BRAND_BLUE = "#126BFF";
+
+export const metadata: Metadata = {
+  title: "Private tipping without spreadsheet chaos",
+  description:
+    "PaperPunter runs private tipping competitions and World Cup pools—picks, results, and leaderboards in one place.",
+};
 
 /** Single create-competition flow — matches navbar target. */
 const PAPER_PUNTER_CREATE_COMPETITION_HREF = "/paperpunter/create-competition" as const;
@@ -223,6 +230,35 @@ export default function PaperPunterLandingPage() {
             </div>
           </div>
         </section>
+
+        <div className="mx-auto mt-8 w-full max-w-6xl pb-10 text-center">
+          <nav
+            aria-label="Legal and company"
+            className="rounded-lg border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur-[2px]"
+          >
+            <Link href="/about" className="font-medium text-[#126BFF] hover:underline">
+              About
+            </Link>
+            <span className="mx-2 text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/contact" className="font-medium text-[#126BFF] hover:underline">
+              Contact
+            </Link>
+            <span className="mx-2 text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/privacy" className="font-medium text-[#126BFF] hover:underline">
+              Privacy
+            </Link>
+            <span className="mx-2 text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/terms" className="font-medium text-[#126BFF] hover:underline">
+              Terms
+            </Link>
+          </nav>
+        </div>
       </main>
     </div>
   );

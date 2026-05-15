@@ -10,11 +10,41 @@ import {
 } from "@/lib/worldCupBranding";
 
 export default function CreateCompetitionComingSoonPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [competitionIdea, setCompetitionIdea] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/paperpunter/interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          competitionIdea,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setError(json.error || "Something went wrong. Please try again.");
+        return;
+      }
+      setName("");
+      setEmail("");
+      setCompetitionIdea("");
+      setSubmitted(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -39,10 +69,9 @@ export default function CreateCompetitionComingSoonPage() {
           {submitted ? (
             <div className="text-center">
               <p className="text-lg font-semibold text-slate-900 sm:text-xl">
-                Thanks — we&apos;ll let you know when custom competitions
-                launch.
+                Thanks — we&apos;ll be in touch when custom competitions are ready.
               </p>
-              <Link href="/paperpunter" className={paperPunterInlinePrimaryButtonClass}>
+              <Link href="/paperpunter" className={`${paperPunterInlinePrimaryButtonClass} mt-6 inline-flex`}>
                 Back to PaperPunter
               </Link>
             </div>
@@ -65,6 +94,11 @@ export default function CreateCompetitionComingSoonPage() {
                 onSubmit={handleSubmit}
                 noValidate
               >
+                {error && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+                    {error}
+                  </p>
+                )}
                 <div>
                   <label
                     htmlFor="interest-name"
@@ -77,8 +111,12 @@ export default function CreateCompetitionComingSoonPage() {
                     name="name"
                     type="text"
                     autoComplete="name"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className={paperPunterTextInputClass}
                     placeholder="Your name"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -93,8 +131,12 @@ export default function CreateCompetitionComingSoonPage() {
                     name="email"
                     type="email"
                     autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className={paperPunterTextInputClass}
                     placeholder="you@example.com"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -107,14 +149,21 @@ export default function CreateCompetitionComingSoonPage() {
                   </label>
                   <textarea
                     id="interest-competition"
-                    name="competition"
+                    name="competitionIdea"
                     rows={4}
+                    value={competitionIdea}
+                    onChange={(e) => setCompetitionIdea(e.target.value)}
                     className={paperPunterTextInputClass}
                     placeholder="e.g. office Rugby World Cup pool, local club league…"
+                    disabled={loading}
                   />
                 </div>
-                <button type="submit" className={paperPunterCreateFormSubmitClass}>
-                  Register Interest
+                <button
+                  type="submit"
+                  className={paperPunterCreateFormSubmitClass}
+                  disabled={loading}
+                >
+                  {loading ? "Sending…" : "Register Interest"}
                 </button>
               </form>
             </>

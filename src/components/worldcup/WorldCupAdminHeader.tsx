@@ -11,7 +11,12 @@ const pillActive =
 const pillIdle =
   "rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20";
 
-type AdminTab = "match-results" | "competition-results" | "participants" | "knockout-fixtures";
+type AdminTab =
+  | "match-results"
+  | "competition-results"
+  | "participants"
+  | "knockout-fixtures"
+  | "interest";
 
 type Props = {
   subtitle?: string;
@@ -32,6 +37,9 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
     }
     if (normalized.includes("/worldcup/admin/knockout-fixtures")) {
       return "knockout-fixtures";
+    }
+    if (normalized.includes("/worldcup/admin/interest")) {
+      return "interest";
     }
     return "match-results";
   }, [pathname]);
@@ -78,6 +86,12 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
                   className={activeTab === "knockout-fixtures" ? pillActive : pillIdle}
                 >
                   Knockout Fixtures
+                </Link>
+                <Link
+                  href="/worldcup/admin/interest"
+                  className={activeTab === "interest" ? pillActive : pillIdle}
+                >
+                  Interest
                 </Link>
               </>
             ) : null}

@@ -19,6 +19,9 @@ import {
 
 const BRAND_BLUE = "#126BFF";
 
+/** Single create-competition flow — matches navbar target. */
+const PAPER_PUNTER_CREATE_COMPETITION_HREF = "/paperpunter/create-competition" as const;
+
 export default function PaperPunterLandingPage() {
   return (
     <div
@@ -64,7 +67,7 @@ export default function PaperPunterLandingPage() {
           <Link href="/worldcup/login" className={paperPunterNavLinkClass}>
             Log In
           </Link>
-          <Link href="/paperpunter/create-competition" className={paperPunterNavLinkOutlineClass}>
+          <Link href={PAPER_PUNTER_CREATE_COMPETITION_HREF} className={paperPunterNavLinkOutlineClass}>
             Create Competition
           </Link>
         </div>
@@ -89,9 +92,12 @@ export default function PaperPunterLandingPage() {
                   <Link href="/worldcup/register" className={paperPunterPrimaryCtaButtonClass}>
                     Join World Cup Competition
                   </Link>
-                  <a href="#" className={paperPunterSecondaryOutlineCtaButtonClass}>
+                  <Link
+                    href={PAPER_PUNTER_CREATE_COMPETITION_HREF}
+                    className={paperPunterSecondaryOutlineCtaButtonClass}
+                  >
                     Create Your Own Competition
-                  </a>
+                  </Link>
                 </div>
               </div>
 

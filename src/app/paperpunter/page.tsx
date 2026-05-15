@@ -27,9 +27,6 @@ export const metadata: Metadata = {
     "PaperPunter runs private tipping competitions and World Cup pools—picks, results, and leaderboards in one place.",
 };
 
-/** ANZ network fallback: same app on Vercel when custom domain is blocked. */
-const PAPERPUNTER_ANZ_FALLBACK_APP_URL = "https://superrugby.vercel.app" as const;
-
 /** Single create-competition flow — matches navbar target. */
 const PAPER_PUNTER_CREATE_COMPETITION_HREF = "/paperpunter/create-competition" as const;
 
@@ -110,14 +107,6 @@ export default function PaperPunterLandingPage() {
                     Create Your Own Competition
                   </Link>
                 </div>
-                <p className="mx-auto mt-4 max-w-xl text-center text-sm text-slate-600 sm:mx-0 sm:text-left">
-                  <a
-                    href={PAPERPUNTER_ANZ_FALLBACK_APP_URL}
-                    className="font-medium text-[#126BFF] underline decoration-[#126BFF]/40 underline-offset-2 hover:text-[#0f5fdf]"
-                  >
-                    Having trouble loading? Open the app here
-                  </a>
-                </p>
               </div>
 
               <div className="flex justify-center lg:justify-end lg:pt-1">

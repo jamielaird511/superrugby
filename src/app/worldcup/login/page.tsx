@@ -138,6 +138,14 @@ export default function WorldCupPublicLoginPage() {
         <div className={`${worldCupAuthPageContentShellClass} flex flex-1 flex-col items-center`}>
           <div className="w-full max-w-md">
             <div className={worldCupContentCardClass}>
+              <p className="mb-3 text-center text-xs leading-snug text-slate-500 sm:mb-4 sm:text-sm">
+                <a
+                  href="https://superrugby.vercel.app/worldcup/login"
+                  className="font-medium text-[#126BFF] underline decoration-[#126BFF]/30 underline-offset-2 hover:text-[#0f5fdf]"
+                >
+                  Having trouble loading? Open the app here
+                </a>
+              </p>
               <h1 className="mb-1 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
                 World Cup — Log In
               </h1>

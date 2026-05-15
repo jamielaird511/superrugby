@@ -11,7 +11,7 @@ const pillActive =
 const pillIdle =
   "rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20";
 
-type AdminTab = "match-results" | "competition-results";
+type AdminTab = "match-results" | "competition-results" | "participants" | "knockout-fixtures";
 
 type Props = {
   subtitle?: string;
@@ -26,6 +26,12 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
     const normalized = (pathname || "").replace(/\/$/, "");
     if (normalized.includes("/worldcup/admin/competition-results")) {
       return "competition-results";
+    }
+    if (normalized.includes("/worldcup/admin/participants")) {
+      return "participants";
+    }
+    if (normalized.includes("/worldcup/admin/knockout-fixtures")) {
+      return "knockout-fixtures";
     }
     return "match-results";
   }, [pathname]);
@@ -61,15 +67,21 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
                 >
                   Competition Results
                 </Link>
+                <Link
+                  href="/worldcup/admin/participants"
+                  className={activeTab === "participants" ? pillActive : pillIdle}
+                >
+                  Participants
+                </Link>
+                <Link
+                  href="/worldcup/admin/knockout-fixtures"
+                  className={activeTab === "knockout-fixtures" ? pillActive : pillIdle}
+                >
+                  Knockout Fixtures
+                </Link>
               </>
             ) : null}
 
-            <Link href="/worldcup/results" className={pillIdle}>
-              Public results
-            </Link>
-            <Link href="/paperpunter" className={pillIdle}>
-              Home
-            </Link>
             {onLogout ? (
               <button
                 type="button"

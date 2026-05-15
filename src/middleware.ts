@@ -39,7 +39,7 @@ function withPaperPunterFullBleed(request: NextRequest) {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Full-bleed shell: PaperPunter marketing + all World Cup routes (layout skips padded wrapper).
+  // Full-bleed shell: PaperPunter marketing (incl. `/` on PaperPunter hosts), World Cup, trust pages.
   if (
     pathname === "/paperpunter" ||
     pathname.startsWith("/paperpunter/") ||
@@ -54,7 +54,16 @@ export function middleware(request: NextRequest) {
   }
 
   const allowedHosts = allowedPaperPunterHosts();
-  if (!matchesPaperPunterHost(request.headers.get("host"), allowedHosts)) {
+  const isPaperPunterHost = matchesPaperPunterHost(
+    request.headers.get("host"),
+    allowedHosts
+  );
+
+  if (isPaperPunterHost && pathname === "/") {
+    return withPaperPunterFullBleed(request);
+  }
+
+  if (!isPaperPunterHost) {
     return NextResponse.next();
   }
 
@@ -63,16 +72,6 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url, 308);
-  }
-
-  // Serve PaperPunter marketing at `/` while keeping `/paperpunter` as a working path.
-  if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/paperpunter";
-    const headers = new Headers(request.headers);
-    headers.set("x-paperpunter-root-rewrite", "1");
-    headers.set("x-paperpunter-full-bleed", "1");
-    return NextResponse.rewrite(url, { request: { headers } });
   }
 
   return NextResponse.next();

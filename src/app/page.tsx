@@ -1,13 +1,308 @@
+import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import {
+  ChartBarIcon,
+  RocketLaunchIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/solid";
+import {
+  paperPunterCompactPrimaryButtonClass,
+  paperPunterFeaturedCardClass,
+  paperPunterHowItWorksCardClass,
+  paperPunterLargePanelClass,
+  paperPunterMarketingPageBackground,
+  paperPunterNavLinkClass,
+  paperPunterNavLinkOutlineClass,
+  paperPunterPrimaryCtaButtonClass,
+  paperPunterSecondaryOutlineCtaButtonClass,
+  paperPunterWorldCupLogoLinkClass,
+} from "@/lib/worldCupBranding";
 import SuperRugbyLoginHomeClient from "./SuperRugbyLoginHomeClient";
 
-/** Tab title on non–PaperPunter hosts where `/` is the Super Rugby sign-in. */
-export const metadata: Metadata = {
-  title: { absolute: "Super Rugby competition — sign in" },
-  description: "Sign in to your private Super Rugby tipping competition.",
-};
+const BRAND_BLUE = "#126BFF";
 
-/** Root `/` — Super Rugby login. PaperPunter domains rewrite `/` → `/paperpunter` in middleware. */
-export default function Home() {
+const DEFAULT_PAPERPUNTER_HOSTS = [
+  "paperpunter.com",
+  "www.paperpunter.com",
+  "paperpunter.co.nz",
+  "www.paperpunter.co.nz",
+];
+
+function requestIsPaperPunterHost(hostHeader: string | null): boolean {
+  const raw = process.env.PAPERPUNTER_HOSTS?.trim();
+  const list =
+    raw && raw.length > 0 ? raw.split(",") : DEFAULT_PAPERPUNTER_HOSTS;
+  const allowed = new Set(
+    list.map((h) => h.trim().toLowerCase()).filter(Boolean)
+  );
+  if (!hostHeader) return false;
+  const host = hostHeader.split(",")[0].split(":")[0]?.trim().toLowerCase();
+  return Boolean(host && allowed.has(host));
+}
+
+async function isPaperPunterHostRequest(): Promise<boolean> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  return requestIsPaperPunterHost(host);
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  if (await isPaperPunterHostRequest()) {
+    return {
+      title: "Private tipping without spreadsheet chaos",
+      description:
+        "PaperPunter runs private tipping competitions and World Cup pools—picks, results, and leaderboards in one place.",
+    };
+  }
+  return {
+    title: { absolute: "Super Rugby competition — sign in" },
+    description: "Sign in to your private Super Rugby tipping competition.",
+  };
+}
+
+/** Single create-competition flow — matches navbar target. */
+const PAPER_PUNTER_CREATE_COMPETITION_HREF = "/paperpunter/create-competition" as const;
+
+function PaperPunterLanding() {
+  return (
+    <div
+      className="min-h-screen w-full min-w-0 overflow-x-hidden"
+      style={{
+        background: paperPunterMarketingPageBackground,
+      }}
+    >
+      <div className="fixed top-0 left-0 right-0 z-50 shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
+        {/* Brand bar — single sharp diagonal via two solid stops (no clip-path wedges); wordmark centered */}
+        <header className="relative z-20 overflow-hidden">
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(118deg, ${BRAND_BLUE} 50%, #ffffff 50%)`,
+            }}
+          />
+          <h1 className="relative z-10 flex min-h-[52px] w-full translate-x-1 items-center justify-center gap-3 whitespace-nowrap px-4 py-2.5 font-black italic tracking-tight [-webkit-text-size-adjust:100%] sm:min-h-[58px] sm:translate-x-1.5 sm:gap-4 sm:px-6 sm:py-3 md:min-h-[60px] md:translate-x-2 md:gap-5 lg:min-h-[64px] lg:translate-x-3 lg:py-3">
+            <span
+              className="leading-none pr-0.5 text-white sm:pr-1"
+              style={{ fontSize: "clamp(1.35rem, 3.25vw + 0.38rem, 3.5rem)" }}
+            >
+              Paper
+            </span>
+            <span
+              className="pl-0.5 leading-none sm:pl-1"
+              style={{
+                fontSize: "clamp(1.35rem, 3.25vw + 0.38rem, 3.5rem)",
+                color: BRAND_BLUE,
+              }}
+            >
+              Punter
+            </span>
+          </h1>
+        </header>
+
+        <nav
+          aria-label="Primary"
+          className="relative z-20 border-b border-[#0d52d4] bg-[#126BFF] text-white"
+        >
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-2 gap-y-1.5 px-4 py-1.5 sm:justify-end sm:gap-x-2 sm:px-6 sm:py-2">
+            <Link href="/worldcup/login" className={paperPunterNavLinkClass}>
+              Log In
+            </Link>
+            <Link href={PAPER_PUNTER_CREATE_COMPETITION_HREF} className={paperPunterNavLinkOutlineClass}>
+              Create Competition
+            </Link>
+          </div>
+        </nav>
+      </div>
+
+      <main className="relative z-10 mx-auto flex min-h-0 max-w-6xl flex-col px-4 pb-16 pt-[calc(140px+1.25rem)] text-slate-900 sm:px-6 sm:pb-24 sm:pt-[calc(128px+1.75rem)] md:pt-[calc(132px+2rem)] lg:pt-[calc(136px+2rem)]">
+        {/* Hero — white panel: product pitch + featured competition + proof pills */}
+        <div className={paperPunterLargePanelClass}>
+          <div className="p-5 sm:p-7 lg:p-8">
+            <section className="grid w-full gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
+              <div className="flex flex-col text-center sm:text-left">
+                <h2 className="text-[1.65rem] font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-4xl md:text-[2.35rem] md:leading-[1.1] lg:max-w-xl">
+                  Run private tipping competitions without the spreadsheet chaos.
+                </h2>
+                <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-slate-600 sm:mx-0 sm:mt-4 sm:text-lg sm:text-slate-700">
+                  PaperPunter makes it easy to run prediction comps for mates,
+                  offices, clubs, and major sporting events — with picks, leaderboards,
+                  and results in one place.
+                </p>
+                <div className="mx-auto mt-6 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:flex-wrap">
+                  <Link href="/worldcup/register" className={paperPunterPrimaryCtaButtonClass}>
+                    Join World Cup Competition
+                  </Link>
+                  <Link
+                    href={PAPER_PUNTER_CREATE_COMPETITION_HREF}
+                    className={paperPunterSecondaryOutlineCtaButtonClass}
+                  >
+                    Create Your Own Competition
+                  </Link>
+                </div>
+              </div>
+
+              <div className="flex justify-center lg:justify-end lg:pt-1">
+                <div className={paperPunterFeaturedCardClass}>
+                  <div className="bg-gradient-to-r from-[#126BFF] to-[#0F5BE8] px-4 py-2.5 text-center">
+                    <p className="text-xs font-semibold text-white/95 sm:text-sm">
+                      Featured Competition
+                    </p>
+                  </div>
+                  <div className="bg-white px-5 pb-6 pt-5 sm:px-6 sm:pb-7">
+                    <h3 className="text-center text-xl font-bold text-slate-900 sm:text-2xl">
+                      FIFA World Cup 2026
+                    </h3>
+                    <p className="mt-2 text-center text-sm text-slate-600">
+                      104 matches · Private leaderboard · Free to enter
+                    </p>
+
+                    <div className="mt-5 flex justify-center">
+                      <Link
+                        href="/worldcup/login"
+                        aria-label="FIFA World Cup tipping — log in"
+                        className={paperPunterWorldCupLogoLinkClass}
+                      >
+                        <Image
+                          src="/mundial-2026-world-cup.svg"
+                          alt="FIFA World Cup 2026"
+                          width={606}
+                          height={650}
+                          className="h-auto w-auto max-h-[min(104px,30vw)] max-w-[min(260px,85vw)] object-contain sm:max-h-[120px] sm:max-w-[280px]"
+                          priority
+                          unoptimized
+                        />
+                      </Link>
+                    </div>
+
+                    <div className="mt-6">
+                      <Link href="/worldcup/login" className={paperPunterCompactPrimaryButtonClass}>
+                        Enter Competition
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-label="Product highlights"
+              className="mt-10 border-t border-slate-100 pt-8 sm:mt-12 sm:pt-10"
+            >
+              <ul className="flex flex-wrap items-center justify-center gap-3 sm:justify-start sm:gap-3.5">
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
+                  No spreadsheets
+                </li>
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
+                  Private leaderboards
+                </li>
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
+                  Mobile friendly
+                </li>
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
+                  Built for mates, offices, and clubs
+                </li>
+              </ul>
+            </section>
+          </div>
+        </div>
+
+        <section
+          id="how-it-works"
+          className={`mx-auto mt-10 w-full max-w-6xl scroll-mt-24 sm:mt-12 ${paperPunterLargePanelClass}`}
+        >
+          <div className="border-b border-slate-100 px-6 py-8 text-center sm:px-10 sm:py-10">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+              How it works
+            </h2>
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+              PaperPunter gives your group one place to pick, compare, and
+              celebrate — whether it&apos;s the weekend footy or a global event.
+            </p>
+          </div>
+
+          <div className="grid gap-5 px-6 pb-8 sm:grid-cols-3 sm:gap-6 sm:px-10 sm:pb-10">
+            <div className={paperPunterHowItWorksCardClass}>
+              <RocketLaunchIcon
+                className="mb-4 h-10 w-10 text-[#1068f4]"
+                aria-hidden
+              />
+              <p className="text-sm font-semibold text-slate-900">
+                Create a Competition
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Spin up a competition with rounds, scoring, and cut-offs built
+                in — no manual sheets or broken formulas.
+              </p>
+            </div>
+            <div className={paperPunterHowItWorksCardClass}>
+              <UserGroupIcon
+                className="mb-4 h-10 w-10 text-[#1068f4]"
+                aria-hidden
+              />
+              <p className="text-sm font-semibold text-slate-900">
+                Invite Your Group
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Send a secure link so players join once and submit picks from
+                phone or desktop — perfect for offices and club chats.
+              </p>
+            </div>
+            <div className={paperPunterHowItWorksCardClass}>
+              <ChartBarIcon
+                className="mb-4 h-10 w-10 text-[#1068f4]"
+                aria-hidden
+              />
+              <p className="text-sm font-semibold text-slate-900">
+                Track The Leaderboard
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Results roll into live standings automatically — everyone sees
+                who&apos;s on top after each round or match day.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="mx-auto mt-8 w-full max-w-6xl pb-10 text-center">
+          <nav
+            aria-label="Legal and company"
+            className="rounded-lg border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur-[2px]"
+          >
+            <Link href="/about" className="font-medium text-[#126BFF] hover:underline">
+              About
+            </Link>
+            <span className="mx-2 text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/contact" className="font-medium text-[#126BFF] hover:underline">
+              Contact
+            </Link>
+            <span className="mx-2 text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/privacy" className="font-medium text-[#126BFF] hover:underline">
+              Privacy
+            </Link>
+            <span className="mx-2 text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/terms" className="font-medium text-[#126BFF] hover:underline">
+              Terms
+            </Link>
+          </nav>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/** Root `/` — PaperPunter marketing on PaperPunter hosts; Super Rugby sign-in elsewhere. */
+export default async function Home() {
+  if (await isPaperPunterHostRequest()) {
+    return <PaperPunterLanding />;
+  }
   return <SuperRugbyLoginHomeClient />;
 }

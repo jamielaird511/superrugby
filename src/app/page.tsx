@@ -51,12 +51,16 @@ async function isPaperPunterHostRequest(): Promise<boolean> {
 export async function generateMetadata(): Promise<Metadata> {
   if (await isPaperPunterHostRequest()) {
     return {
+      metadataBase: new URL("https://paperpunter.co.nz"),
+      alternates: { canonical: "https://paperpunter.co.nz/" },
       title: "Private tipping without spreadsheet chaos",
       description:
         "PaperPunter runs private tipping competitions and World Cup pools—picks, results, and leaderboards in one place.",
     };
   }
   return {
+    metadataBase: new URL("https://superrugby.vercel.app"),
+    alternates: { canonical: "https://superrugby.vercel.app/" },
     title: { absolute: "Super Rugby competition — sign in" },
     description: "Sign in to your private Super Rugby tipping competition.",
   };

@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://paperpunter.co.nz"),
+  alternates: { canonical: "https://paperpunter.co.nz/privacy" },
   title: "Privacy",
   description: "How PaperPunter handles personal information and cookies at a high level.",
 };

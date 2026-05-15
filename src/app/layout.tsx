@@ -15,7 +15,6 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://paperpunter.com"),
   title: {
     default: "PaperPunter — private tipping competitions",
     template: "%s · PaperPunter",

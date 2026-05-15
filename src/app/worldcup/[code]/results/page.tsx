@@ -8,7 +8,9 @@ import {
   worldCupContentCardClass,
   worldCupDataTableWrapClass,
   worldCupEmptyStateBoxClass,
+  worldCupFormAlertErrorClass,
   worldCupMainContentShellClass,
+  worldCupTableThClass,
 } from "@/lib/worldCupBranding";
 import { resolveWorldCupTenant } from "@/lib/worldCupIds";
 
@@ -93,7 +95,7 @@ function LeaderboardBreakdownPanel({ b }: { b: LeaderboardBreakdown }) {
           <span className="shrink-0 tabular-nums font-medium text-zinc-900">{line.pts}</span>
         </div>
       ))}
-      <div className="col-span-1 mt-1 flex justify-between gap-4 border-t border-zinc-300 pt-1.5 font-semibold leading-snug sm:col-span-2">
+      <div className="col-span-1 mt-1 flex justify-between gap-4 border-t border-slate-200 pt-1.5 font-semibold leading-snug sm:col-span-2">
         <span className="text-zinc-800">Total:</span>
         <span className="shrink-0 tabular-nums font-bold text-[#0B5CAD]">{b.total}</span>
       </div>
@@ -111,11 +113,11 @@ function LeaderboardScoringKey() {
     "Winner: 50 pts",
   ];
   return (
-    <div className="mb-3 border border-zinc-300 bg-zinc-50 px-2.5 py-2 text-xs leading-tight text-zinc-700">
-      <p className="font-semibold uppercase tracking-wide text-zinc-600">Scoring key</p>
+    <div className="mb-3 rounded-lg border border-slate-200 bg-zinc-50 px-2.5 py-2 text-xs leading-tight text-zinc-700">
+      <p className="font-semibold text-zinc-700">Scoring Key</p>
       <div className="mt-1.5 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((t) => (
-          <p key={t} className="border-l-2 border-zinc-300 pl-2">
+          <p key={t} className="border-l-2 border-slate-200 pl-2">
             {t}
           </p>
         ))}
@@ -207,13 +209,13 @@ export default function WorldCupTenantResultsPage() {
           <div className={worldCupContentCardClass}>
             <h1 className="text-2xl font-semibold text-[#003A5D]">Results & Leaderboard</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Track match results, leaderboard points, and competition-pick scoring.
+              Match results, leaderboard points, and your competition picks in one place.
             </p>
 
             {loading ? (
               <p className="mt-8 text-slate-600">Loading results…</p>
             ) : error ? (
-              <p className="mt-8 text-red-600">{error}</p>
+              <p className={`mt-8 ${worldCupFormAlertErrorClass}`}>{error}</p>
             ) : (
               <div className="mt-8 space-y-10">
                 <section>
@@ -227,60 +229,60 @@ export default function WorldCupTenantResultsPage() {
                   ) : (
                     <div className={worldCupDataTableWrapClass}>
                       <LeaderboardScoringKey />
-                      <table className="min-w-full border-collapse border border-zinc-300 bg-white text-sm">
-                        <thead className="border-b border-zinc-300 bg-zinc-50">
+                      <table className="min-w-full divide-y divide-slate-200 border border-slate-200 bg-white text-sm">
+                        <thead className="border-b border-slate-200 bg-zinc-50">
                           <tr>
-                            <th className="w-12 whitespace-nowrap border-b border-zinc-300 px-1 py-1.5 text-left text-xs font-semibold text-zinc-800">
+                            <th className="w-12 whitespace-nowrap border-b border-slate-200 px-1 py-1.5 text-left text-xs font-semibold text-zinc-800">
                               #
                             </th>
-                            <th className="min-w-[180px] border-b border-zinc-300 px-2 py-1.5 text-left text-xs font-semibold text-zinc-800 sm:min-w-[240px]">
+                            <th className="min-w-[180px] border-b border-slate-200 px-2 py-1.5 text-left text-xs font-semibold text-zinc-800 sm:min-w-[240px]">
                               Player
                             </th>
                             <th
-                              className="w-11 border-b border-zinc-300 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
+                              className="w-11 border-b border-slate-200 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
                               title="Correct match result (home, draw, or away): 5 pts each"
                             >
                               <span className="block">Match</span>
                               <span className="block font-normal text-zinc-500">results</span>
                             </th>
                             <th
-                              className="w-11 border-b border-zinc-300 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
+                              className="w-11 border-b border-slate-200 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
                               title="Correct group 1st and 2nd: 15 pts each"
                             >
                               <span className="block">Group</span>
                               <span className="block font-normal text-zinc-500">order</span>
                             </th>
                             <th
-                              className="w-11 border-b border-zinc-300 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
+                              className="w-11 border-b border-slate-200 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
                               title="Each correct semi-finalist: 20 pts"
                             >
                               Semis
                             </th>
                             <th
-                              className="w-11 border-b border-zinc-300 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
+                              className="w-11 border-b border-slate-200 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
                               title="Pool top scorer (group stage): 25 pts if correct"
                             >
                               <span className="block">Pool</span>
                               <span className="block font-normal text-zinc-500">scorer</span>
                             </th>
                             <th
-                              className="w-11 border-b border-zinc-300 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
+                              className="w-11 border-b border-slate-200 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
                               title="Total goals prediction: up to 60 pts (see scoring key)"
                             >
                               Goals
                             </th>
                             <th
-                              className="w-11 border-b border-zinc-300 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
+                              className="w-11 border-b border-slate-200 px-0.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-zinc-800 sm:w-12 sm:text-xs"
                               title="Tournament winner: 50 pts if correct"
                             >
                               Winner
                             </th>
-                            <th className="w-[3.25rem] whitespace-nowrap border-b border-zinc-300 px-1 py-1.5 text-right text-xs font-semibold text-zinc-800 sm:w-14">
+                            <th className="w-[3.25rem] whitespace-nowrap border-b border-slate-200 px-1 py-1.5 text-right text-xs font-semibold text-zinc-800 sm:w-14">
                               Total
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200">
+                        <tbody className="divide-y divide-slate-200">
                           {leaderboard.map((row, idx) => {
                             const b = row.breakdown;
                             const open = expandedParticipantId === row.participant_id;
@@ -350,7 +352,7 @@ export default function WorldCupTenantResultsPage() {
                                       id={panelId}
                                       role="region"
                                       aria-labelledby={`${panelId}-trigger`}
-                                      className="border-t border-zinc-300 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-800"
+                                      className="border-t border-slate-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-800"
                                     >
                                       <LeaderboardBreakdownPanel b={b} />
                                     </td>
@@ -380,24 +382,24 @@ export default function WorldCupTenantResultsPage() {
                         {round.label}
                       </h2>
                       <div className={worldCupDataTableWrapClass}>
-                        <table className="min-w-full border-collapse border border-zinc-300 bg-white">
-                          <thead className="border-b border-zinc-300 bg-zinc-50">
+                        <table className="min-w-full divide-y divide-slate-200 border border-slate-200 bg-white">
+                          <thead className="bg-zinc-50">
                             <tr>
-                              <th className="border-b border-zinc-300 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                              <th className={`${worldCupTableThClass} border-b border-slate-200 text-left`}>
                                 Match
                               </th>
-                              <th className="border-b border-zinc-300 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                              <th className={`${worldCupTableThClass} border-b border-slate-200 text-left`}>
                                 Fixture
                               </th>
-                              <th className="border-b border-zinc-300 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                              <th className={`${worldCupTableThClass} border-b border-slate-200 text-left`}>
                                 Kickoff (NZ)
                               </th>
-                              <th className="border-b border-zinc-300 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                              <th className={`${worldCupTableThClass} border-b border-slate-200 text-left`}>
                                 Result
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-200">
+                          <tbody className="divide-y divide-slate-200">
                             {round.fixtures.map((f, fIdx) => (
                               <tr
                                 key={f.id}

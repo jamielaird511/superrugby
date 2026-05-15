@@ -10,6 +10,7 @@ import {
   worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
   worldCupPrimaryButtonClass,
   worldCupSecondaryOutlineButtonClass,
   worldCupTertiaryLinkChipClass,
@@ -114,11 +115,11 @@ export default function FifaWorldCupTenantLoginPage() {
         <div className={`${worldCupAuthPageContentShellClass} flex flex-1 flex-col items-center`}>
           <div className="w-full max-w-md">
             <div className={worldCupContentCardClass}>
-              <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-amber-700">
+              <div className="mb-1 text-center text-xs font-semibold text-amber-800">
                 {tenant.displayName}
               </div>
               <h1 className="mb-1 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-                Picks login
+                Picks Login
               </h1>
               <p className="mb-6 text-center text-sm text-slate-500">
                 Sign in with the email and password you registered with.
@@ -155,14 +156,14 @@ export default function FifaWorldCupTenantLoginPage() {
                   />
                 </div>
 
-                {message && <div className="text-sm text-red-600">{message}</div>}
+                {message ? <p className={worldCupFormAlertErrorClass}>{message}</p> : null}
 
                 <button
                   type="submit"
                   disabled={loading}
                   className={worldCupPrimaryButtonClass}
                 >
-                  {loading ? "Logging in…" : "Log in"}
+                  {loading ? "Logging in…" : "Log In"}
                 </button>
               </form>
 
@@ -171,7 +172,7 @@ export default function FifaWorldCupTenantLoginPage() {
                   href={`/worldcup/${tenant.slug}/register`}
                   className={worldCupSecondaryOutlineButtonClass}
                 >
-                  Create an account
+                  Create an Account
                 </Link>
               </div>
 
@@ -180,7 +181,7 @@ export default function FifaWorldCupTenantLoginPage() {
                   href="/worldcup/admin/login"
                   className={worldCupTertiaryLinkChipClass}
                 >
-                  Admin login
+                  Admin Login
                 </Link>
               </div>
             </div>

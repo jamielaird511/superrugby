@@ -13,6 +13,7 @@ import {
   worldCupModalPanelClass,
   worldCupPrimaryButtonInlineClass,
   worldCupSelectControlClass,
+  worldCupTableThClass,
 } from "@/lib/worldCupBranding";
 import { listWorldCupTenants, WORLD_CUP_DEFAULT_TENANT_SLUG } from "@/lib/worldCupIds";
 
@@ -425,22 +426,22 @@ export default function WorldCupAdminParticipantsPage() {
                   <table className="min-w-[720px] w-full divide-y divide-zinc-200 bg-white">
                     <thead className="bg-zinc-50">
                       <tr>
-                        <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
-                          Player name
+                        <th className={`${worldCupTableThClass} text-left`}>
+                          Player Name
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`${worldCupTableThClass} text-left`}>
                           Email
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`${worldCupTableThClass} text-left`}>
                           Joined
                         </th>
-                        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-700">
-                          Match picks
+                        <th className={`${worldCupTableThClass} text-center`}>
+                          Match Picks
                         </th>
-                        <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-700">
-                          Competition picks
+                        <th className={`${worldCupTableThClass} text-center`}>
+                          Competition Picks
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`${worldCupTableThClass} text-left`}>
                           Actions
                         </th>
                       </tr>

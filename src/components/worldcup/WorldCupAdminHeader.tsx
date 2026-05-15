@@ -53,7 +53,7 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
       >
         <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-lg font-bold uppercase tracking-wide text-white sm:text-xl">
+            <span className="text-lg font-bold tracking-tight text-white sm:text-xl">
               FIFA World Cup 2026
             </span>
             <span className="truncate text-xs font-medium text-white/80 sm:text-sm">
@@ -103,7 +103,7 @@ export default function WorldCupAdminHeader({ subtitle, onLogout, showTabs = tru
                 className="inline-flex items-center gap-1.5 rounded-md border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                Logout
+                Log Out
               </button>
             ) : null}
           </div>

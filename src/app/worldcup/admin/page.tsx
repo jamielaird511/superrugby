@@ -11,6 +11,7 @@ import {
   worldCupEmptyStateBoxClass,
   worldCupMainContentShellClass,
   worldCupModalPanelClass,
+  worldCupTableThClass,
 } from "@/lib/worldCupBranding";
 
 type FixtureRow = {
@@ -402,7 +403,7 @@ export default function WorldCupAdminResultsPage() {
       <main className="w-full">
         <div className={worldCupMainContentShellClass}>
           <div className={worldCupContentCardClass}>
-          <h1 className="text-2xl font-semibold text-slate-900">Enter match scores</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Enter Match Scores</h1>
           <p className="mt-2 text-sm text-slate-600">
             Enter full-time scores (home and away). The winner is derived from the scores (home
             team code, away team code, or DRAW). Rugby margin bands are not used.
@@ -435,22 +436,22 @@ export default function WorldCupAdminResultsPage() {
                     <table className="min-w-full divide-y divide-zinc-200 bg-white">
                       <thead className="bg-zinc-50">
                         <tr>
-                          <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                          <th className={`${worldCupTableThClass} text-left`}>
                             #
                           </th>
-                          <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                          <th className={`${worldCupTableThClass} text-left`}>
                             Fixture
                           </th>
-                          <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                          <th className={`${worldCupTableThClass} text-left`}>
                             Kickoff (NZ)
                           </th>
-                          <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                          <th className={`${worldCupTableThClass} text-center`}>
                             Home score
                           </th>
-                          <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                          <th className={`${worldCupTableThClass} text-center`}>
                             Away score
                           </th>
-                          <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                          <th className={`${worldCupTableThClass} text-left`}>
                             Actions
                           </th>
                         </tr>

@@ -25,8 +25,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const hdrs = await headers();
-  const hideFooterForPaperPunterRootRewrite =
-    hdrs.get("x-paperpunter-root-rewrite") === "1";
   const paperPunterFullBleed =
     hdrs.get("x-paperpunter-full-bleed") === "1";
 
@@ -54,7 +52,7 @@ export default async function RootLayout({
             </div>
           )}
         </main>
-        {hideFooterForPaperPunterRootRewrite ? null : <SiteFooter />}
+        {paperPunterFullBleed ? null : <SiteFooter />}
       </body>
     </html>
   );

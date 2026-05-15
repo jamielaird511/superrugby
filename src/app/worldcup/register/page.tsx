@@ -9,6 +9,7 @@ import {
   worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
   worldCupPrimaryButtonClass,
 } from "@/lib/worldCupBranding";
 import { writeWorldCupParticipantId } from "@/lib/worldCupStorage";
@@ -95,7 +96,7 @@ export default function WorldCupPublicRegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">First name</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">First Name</label>
                 <input
                   type="text"
                   value={firstName}
@@ -105,7 +106,7 @@ export default function WorldCupPublicRegisterPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Last name</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Last Name</label>
                 <input
                   type="text"
                   value={lastName}
@@ -135,7 +136,7 @@ export default function WorldCupPublicRegisterPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Confirm password</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Confirm Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
@@ -145,7 +146,7 @@ export default function WorldCupPublicRegisterPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Access code</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Access Code</label>
                 <input
                   type="text"
                   value={accessCode}
@@ -156,7 +157,7 @@ export default function WorldCupPublicRegisterPage() {
                 />
               </div>
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error ? <p className={worldCupFormAlertErrorClass}>{error}</p> : null}
 
               <button type="submit" disabled={loading} className={worldCupPrimaryButtonClass}>
                 {loading ? "Registering…" : "Register"}
@@ -165,7 +166,7 @@ export default function WorldCupPublicRegisterPage() {
 
             <p className="mt-5 text-center text-xs text-slate-500">
               <Link href="/worldcup/login" className="font-medium text-[#126BFF] hover:underline">
-                Already registered? Log in
+                Already registered? Log In
               </Link>
             </p>
           </div>

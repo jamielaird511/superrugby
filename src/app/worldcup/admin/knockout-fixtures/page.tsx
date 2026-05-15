@@ -12,6 +12,7 @@ import {
   worldCupMainContentShellClass,
   worldCupPrimaryButtonInlineClass,
   worldCupSelectControlClass,
+  worldCupTableThClass,
 } from "@/lib/worldCupBranding";
 
 type TeamOpt = { code: string; name: string };
@@ -306,22 +307,22 @@ export default function WorldCupAdminKnockoutFixturesPage() {
                       <table className="min-w-[880px] w-full divide-y divide-zinc-200 bg-white">
                         <thead className="bg-zinc-50">
                           <tr>
-                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                            <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                               Match #
                             </th>
-                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                            <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                               Phase
                             </th>
-                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                            <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                               Kickoff (NZ)
                             </th>
-                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                            <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                               Home
                             </th>
-                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                            <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                               Away
                             </th>
-                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                            <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                               Save
                             </th>
                           </tr>

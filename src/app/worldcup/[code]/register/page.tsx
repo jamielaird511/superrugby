@@ -9,6 +9,7 @@ import {
   worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
   worldCupPrimaryButtonClass,
 } from "@/lib/worldCupBranding";
 import { resolveWorldCupTenant } from "@/lib/worldCupIds";
@@ -93,7 +94,7 @@ export default function WorldCupTenantRegisterPage() {
       <div className={worldCupAuthPageContentShellClass}>
         <div className="mx-auto w-full max-w-md">
           <div className={worldCupContentCardClass}>
-            <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-amber-700">
+            <div className="mb-1 text-center text-xs font-semibold text-amber-800">
               {tenant.displayName}
             </div>
             <h1 className="mb-1 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
@@ -105,7 +106,7 @@ export default function WorldCupTenantRegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">First name</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">First Name</label>
                 <input
                   type="text"
                   value={firstName}
@@ -115,7 +116,7 @@ export default function WorldCupTenantRegisterPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Last name</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Last Name</label>
                 <input
                   type="text"
                   value={lastName}
@@ -146,7 +147,7 @@ export default function WorldCupTenantRegisterPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Confirm password
+                  Confirm Password
                 </label>
                 <input
                   type="password"
@@ -158,7 +159,7 @@ export default function WorldCupTenantRegisterPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Access code
+                  Access Code
                 </label>
                 <input
                   type="text"
@@ -169,7 +170,7 @@ export default function WorldCupTenantRegisterPage() {
                 />
               </div>
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error ? <p className={worldCupFormAlertErrorClass}>{error}</p> : null}
 
               <button
                 type="submit"
@@ -181,8 +182,11 @@ export default function WorldCupTenantRegisterPage() {
             </form>
 
             <p className="mt-5 text-center text-xs text-slate-500">
-              <Link href="/worldcup/login" className="font-medium text-[#126BFF] hover:underline">
-                Already registered? Log in
+              <Link
+                href={`/worldcup/${tenant.slug}/login`}
+                className="font-medium text-[#126BFF] hover:underline"
+              >
+                Already registered? Log In
               </Link>
             </p>
           </div>

@@ -10,6 +10,7 @@ import {
   worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
   worldCupPrimaryButtonClass,
 } from "@/lib/worldCupBranding";
 
@@ -67,22 +68,22 @@ export default function WorldCupAdminLoginPage() {
       className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
       style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
     >
-      <WorldCupAdminHeader subtitle="Admin login" showTabs={false} />
+      <WorldCupAdminHeader subtitle="Admin Login" showTabs={false} />
 
       <div className={`${worldCupAuthPageContentShellClass} flex flex-col items-center`}>
         <div className="w-full max-w-md">
           <div className={worldCupContentCardClass}>
-            <div className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-amber-700">
+            <div className="mb-1 text-center text-xs font-semibold text-amber-800">
               FIFA World Cup 2026
             </div>
             <h1 className="mb-4 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-              Admin login
+              Admin Login
             </h1>
 
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Admin email
+                  Admin Email
                 </label>
                 <input
                   type="email"
@@ -95,7 +96,7 @@ export default function WorldCupAdminLoginPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Admin password
+                  Admin Password
                 </label>
                 <input
                   type="password"
@@ -106,14 +107,14 @@ export default function WorldCupAdminLoginPage() {
                 />
               </div>
 
-              {message ? <p className="text-sm text-red-600">{message}</p> : null}
+              {message ? <p className={worldCupFormAlertErrorClass}>{message}</p> : null}
 
               <button
                 type="submit"
                 disabled={loading}
                 className={worldCupPrimaryButtonClass}
               >
-                {loading ? "Logging in..." : "Log in"}
+                {loading ? "Logging in…" : "Log In"}
               </button>
             </form>
 
@@ -122,7 +123,7 @@ export default function WorldCupAdminLoginPage() {
                 href="/worldcup/login"
                 className="font-medium text-[#126BFF] hover:underline"
               >
-                Back to World Cup login
+                Back to World Cup Login
               </Link>
             </p>
           </div>

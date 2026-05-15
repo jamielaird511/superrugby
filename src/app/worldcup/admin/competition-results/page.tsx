@@ -8,6 +8,8 @@ import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupAdminSaveButtonClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
+  worldCupFormAlertSuccessClass,
   worldCupMainContentShellClass,
   worldCupNestedPanelClass,
   worldCupSectionPanelClass,
@@ -230,20 +232,20 @@ export default function WorldCupAdminCompetitionResultsPage() {
       className="min-h-screen w-full min-w-0 overflow-x-hidden font-sans text-slate-900"
       style={{ background: WORLD_CUP_PAGE_BACKGROUND }}
     >
-      <WorldCupAdminHeader subtitle="Admin — competition results" onLogout={handleLogout} />
+      <WorldCupAdminHeader subtitle="Competition Results" onLogout={handleLogout} />
 
       <main className="w-full">
         <div className={worldCupMainContentShellClass}>
           <div className={worldCupContentCardClass}>
-          <h1 className="text-2xl font-semibold text-slate-900">Competition picks — actual results</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Competition Picks — Actual Results</h1>
           <p className="mt-2 text-sm text-slate-600">
             Enter official outcomes for pre-tournament competition picks (winner, semi-finalists,
             group finishing order, tournament stats). Scoring against participants is not applied
             yet.
           </p>
 
-          {saveError ? <p className="mt-4 text-sm text-red-600">{saveError}</p> : null}
-          {saveFlash ? <p className="mt-4 text-sm font-medium text-green-700">{saveFlash}</p> : null}
+          {saveError ? <p className={`mt-4 ${worldCupFormAlertErrorClass}`}>{saveError}</p> : null}
+          {saveFlash ? <p className={`mt-4 ${worldCupFormAlertSuccessClass}`}>{saveFlash}</p> : null}
 
           {loading ? (
             <p className="mt-8 text-slate-600">Loading…</p>

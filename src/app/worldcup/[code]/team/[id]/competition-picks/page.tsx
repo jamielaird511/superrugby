@@ -7,6 +7,7 @@ import WorldCupHeader from "@/components/worldcup/WorldCupHeader";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
   worldCupMainContentShellClass,
   worldCupNestedPanelClass,
   worldCupSectionPanelClass,
@@ -288,8 +289,8 @@ export default function WorldCupCompetitionPicksPage() {
                 Competition picks are locked after first kickoff.
               </p>
             ) : null}
-            {message ? <p className="mt-3 text-sm text-red-600">{message}</p> : null}
-            {saveMessage ? <p className="mt-2 text-sm text-red-600">{saveMessage}</p> : null}
+            {message ? <p className={worldCupFormAlertErrorClass}>{message}</p> : null}
+            {saveMessage ? <p className={worldCupFormAlertErrorClass}>{saveMessage}</p> : null}
 
             <div className="mt-6 space-y-6">
               <section className={worldCupSectionPanelClass}>

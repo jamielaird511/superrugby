@@ -8,6 +8,8 @@ import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupContentCardClass,
   worldCupFixedHeaderPaddingTopClass,
+  worldCupFormAlertErrorClass,
+  worldCupModalPanelClass,
 } from "@/lib/worldCupBranding";
 import {
   WORLD_CUP_PARTICIPANT_UPDATED_EVENT,
@@ -785,13 +787,13 @@ export default function WorldCupTeamDashboardPage() {
             {teamsMetadataError || pickErrorByFixtureId.__load__ ? (
               <div className="space-y-2">
                 {teamsMetadataError ? (
-                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  <div className={worldCupFormAlertErrorClass}>
                     Could not load team flags and labels: {teamsMetadataError}
                   </div>
                 ) : null}
 
                 {pickErrorByFixtureId.__load__ ? (
-                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  <div className={worldCupFormAlertErrorClass}>
                     Could not reload your saved picks: {pickErrorByFixtureId.__load__}
                   </div>
                 ) : null}
@@ -799,8 +801,8 @@ export default function WorldCupTeamDashboardPage() {
             ) : null}
 
             <section className="mt-5">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-amber-700 sm:text-sm">
-                Upcoming fixtures
+              <h2 className="text-sm font-semibold text-amber-800 sm:text-base">
+                Upcoming Fixtures
               </h2>
               {fixtures.length === 0 ? (
                 <p className="mt-1.5 text-sm text-slate-500">No upcoming fixtures in this competition.</p>
@@ -864,23 +866,23 @@ export default function WorldCupTeamDashboardPage() {
                             : null;
 
                           const pickBtnBase =
-                            "flex min-h-[46px] min-w-0 w-full items-center justify-center rounded-md px-3 py-1.5 text-center text-xs font-medium transition-colors sm:px-4 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-70";
+                            "flex min-h-[46px] min-w-0 w-full items-center justify-center rounded-md border px-3 py-1.5 text-center text-xs font-medium transition-colors sm:px-4 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-70";
                           const lockedBtnTone =
                             "disabled:opacity-85 disabled:border-orange-200 disabled:bg-orange-50";
                           const idlePick =
-                            "border-2 border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50";
+                            "border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50";
                           const selectedPick =
-                            "border-2 border-[#126BFF] bg-blue-50 font-semibold text-blue-900 shadow-sm";
+                            "border border-[#126BFF] bg-blue-50 font-semibold text-blue-900 shadow-sm";
 
                           return (
                             <li
                               key={f.id}
-                              className={`flex flex-col gap-1.5 rounded-lg border-2 p-2 text-sm shadow-sm transition-shadow sm:p-2.5 ${
+                              className={`flex flex-col gap-1.5 rounded-lg border p-2 text-sm shadow-sm transition-shadow sm:p-2.5 ${
                                 completed
-                                  ? "border-slate-300 bg-white shadow-sm"
+                                  ? "border-slate-200 bg-white shadow-sm"
                                   : locked
-                                    ? "border-orange-400 bg-orange-50/90 shadow-sm"
-                                    : "border-slate-400 bg-white shadow-sm"
+                                    ? "border-orange-300 bg-orange-50/90 shadow-sm"
+                                    : "border-slate-200 bg-white shadow-sm"
                               }`}
                             >
                               <div
@@ -1077,7 +1079,7 @@ export default function WorldCupTeamDashboardPage() {
                               </div>
                               {locked && !completed ? (
                                 <div className="flex flex-col items-start gap-1">
-                                  <span className="inline-flex rounded-md border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-800">
+                                  <span className="inline-flex rounded-md border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
                                     Picks locked
                                   </span>
                                   {result ? (
@@ -1137,7 +1139,7 @@ export default function WorldCupTeamDashboardPage() {
           role="presentation"
         >
           <div
-            className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-2xl"
+            className={worldCupModalPanelClass}
             role="dialog"
             aria-modal="true"
             aria-labelledby="clear-pick-title"
@@ -1156,14 +1158,14 @@ export default function WorldCupTeamDashboardPage() {
                 onClick={() => setPendingPickClear(null)}
                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Keep pick
+                Keep Pick
               </button>
               <button
                 type="button"
                 onClick={() => void handleConfirmClearPick()}
                 className="rounded-md border border-blue-600 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
               >
-                Clear pick
+                Clear Pick
               </button>
             </div>
           </div>

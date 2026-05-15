@@ -12,6 +12,7 @@ import {
   worldCupMainContentShellClass,
   worldCupPrimaryButtonInlineClass,
   worldCupSelectControlClass,
+  worldCupTableThClass,
 } from "@/lib/worldCupBranding";
 
 type Submission = {
@@ -228,22 +229,22 @@ export default function WorldCupAdminInterestPage() {
                   <table className="min-w-[900px] w-full divide-y divide-zinc-200 bg-white">
                     <thead className="bg-zinc-50">
                       <tr>
-                        <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                           Date
                         </th>
-                        <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                           Name
                         </th>
-                        <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                           Email
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
-                          Competition idea
+                        <th className={`${worldCupTableThClass} text-left`}>
+                          Competition Idea
                         </th>
-                        <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                           Status
                         </th>
-                        <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700">
+                        <th className={`whitespace-nowrap ${worldCupTableThClass} text-left`}>
                           Actions
                         </th>
                       </tr>
@@ -295,7 +296,7 @@ export default function WorldCupAdminInterestPage() {
                                   disabled={saving || !dirty}
                                   onClick={() => saveStatus(s.id)}
                                 >
-                                  {saving ? "Saving…" : "Save status"}
+                                  {saving ? "Saving…" : "Save Status"}
                                 </button>
                                 {rowFlash === s.id && (
                                   <span className="text-xs font-medium text-green-700">Saved</span>

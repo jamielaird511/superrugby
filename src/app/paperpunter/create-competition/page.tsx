@@ -6,7 +6,10 @@ import {
   paperPunterCreateFormSubmitClass,
   paperPunterInlinePrimaryButtonClass,
   paperPunterLargePanelClass,
+  paperPunterMarketingPageBackground,
   paperPunterTextInputClass,
+  worldCupFormAlertErrorClass,
+  worldCupFormAlertSuccessClass,
 } from "@/lib/worldCupBranding";
 
 export default function CreateCompetitionComingSoonPage() {
@@ -49,9 +52,9 @@ export default function CreateCompetitionComingSoonPage() {
 
   return (
     <div
-      className="min-h-screen w-full min-w-0 overflow-x-hidden pb-20 pt-10 text-slate-900 sm:pb-28 sm:pt-12"
+      className="min-h-screen w-full min-w-0 overflow-x-hidden pb-16 pt-8 text-slate-900 sm:pb-24 sm:pt-10"
       style={{
-        background: `linear-gradient(165deg, #5AAEFF 0%, #4AA3FF 28%, #2F8EF3 58%, #1769D6 85%, #115CC4 100%)`,
+        background: paperPunterMarketingPageBackground,
       }}
     >
       <div className="mx-auto max-w-lg px-4 sm:px-6">
@@ -65,12 +68,14 @@ export default function CreateCompetitionComingSoonPage() {
           Back to Home
         </Link>
 
-        <div className={`mt-8 p-6 sm:mt-10 sm:p-8 ${paperPunterLargePanelClass}`}>
+        <div className={`mt-6 p-5 sm:mt-8 sm:p-7 ${paperPunterLargePanelClass}`}>
           {submitted ? (
             <div className="text-center">
-              <p className="text-lg font-semibold text-slate-900 sm:text-xl">
-                Thanks — we&apos;ll be in touch when custom competitions are ready.
-              </p>
+              <div className={`mx-auto max-w-md ${worldCupFormAlertSuccessClass}`}>
+                <p className="text-base font-semibold text-emerald-950 sm:text-lg">
+                  Thanks — we&apos;ll be in touch when custom competitions are ready.
+                </p>
+              </div>
               <Link href="/paperpunter" className={`${paperPunterInlinePrimaryButtonClass} mt-6 inline-flex`}>
                 Back to PaperPunter
               </Link>
@@ -80,8 +85,8 @@ export default function CreateCompetitionComingSoonPage() {
               <h1 className="text-center text-[1.65rem] font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-3xl md:text-[2rem] md:leading-[1.1]">
                 Create Your Own Competition
               </h1>
-              <p className="mt-3 text-center text-base font-semibold text-slate-800 sm:text-lg">
-                PaperPunter custom competitions are coming soon.
+              <p className="mt-3 text-center text-base font-medium text-slate-700 sm:text-lg">
+                Custom competitions are on the way.
               </p>
               <p className="mx-auto mt-4 max-w-md text-center text-base leading-relaxed text-slate-600 sm:text-[1.05rem] sm:text-slate-700">
                 Soon you&apos;ll be able to create private tipping competitions
@@ -90,12 +95,12 @@ export default function CreateCompetitionComingSoonPage() {
               </p>
 
               <form
-                className="mx-auto mt-8 flex max-w-md flex-col gap-5"
+                className="mx-auto mt-6 flex max-w-md flex-col gap-4"
                 onSubmit={handleSubmit}
                 noValidate
               >
                 {error && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+                  <p className={worldCupFormAlertErrorClass} role="alert">
                     {error}
                   </p>
                 )}

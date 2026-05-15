@@ -10,6 +10,7 @@ import {
   paperPunterFeaturedCardClass,
   paperPunterHowItWorksCardClass,
   paperPunterLargePanelClass,
+  paperPunterMarketingPageBackground,
   paperPunterNavLinkClass,
   paperPunterNavLinkOutlineClass,
   paperPunterPrimaryCtaButtonClass,
@@ -27,7 +28,7 @@ export default function PaperPunterLandingPage() {
     <div
       className="min-h-screen w-full min-w-0 overflow-x-hidden"
       style={{
-        background: `linear-gradient(165deg, #5AAEFF 0%, #4AA3FF 28%, #2F8EF3 58%, #1769D6 85%, #115CC4 100%)`,
+        background: paperPunterMarketingPageBackground,
       }}
     >
       <div className="fixed top-0 left-0 right-0 z-50 shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
@@ -74,21 +75,21 @@ export default function PaperPunterLandingPage() {
       </nav>
       </div>
 
-      <main className="relative z-10 mx-auto flex min-h-0 max-w-6xl flex-col px-4 pb-20 pt-[calc(146px+1.5rem)] text-slate-900 sm:px-6 sm:pb-28 sm:pt-[calc(132px+2rem)] md:pt-[calc(136px+2.25rem)] lg:pt-[calc(140px+2.25rem)]">
+      <main className="relative z-10 mx-auto flex min-h-0 max-w-6xl flex-col px-4 pb-16 pt-[calc(140px+1.25rem)] text-slate-900 sm:px-6 sm:pb-24 sm:pt-[calc(128px+1.75rem)] md:pt-[calc(132px+2rem)] lg:pt-[calc(136px+2rem)]">
         {/* Hero — white panel: product pitch + featured competition + proof pills */}
         <div className={paperPunterLargePanelClass}>
-          <div className="p-6 sm:p-8 lg:p-10">
-            <section className="grid w-full gap-10 lg:grid-cols-2 lg:items-start lg:gap-12">
+          <div className="p-5 sm:p-7 lg:p-8">
+            <section className="grid w-full gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
               <div className="flex flex-col text-center sm:text-left">
                 <h2 className="text-[1.65rem] font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-4xl md:text-[2.35rem] md:leading-[1.1] lg:max-w-xl">
-                  Run Private Tipping Competitions Without The Spreadsheet
+                  Run private tipping competitions without the spreadsheet chaos.
                 </h2>
-                <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:mx-0 sm:mt-5 sm:text-lg sm:text-slate-700">
+                <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-slate-600 sm:mx-0 sm:mt-4 sm:text-lg sm:text-slate-700">
                   PaperPunter makes it easy to run prediction comps for mates,
                   offices, clubs, and major sporting events — with picks, leaderboards,
                   and results in one place.
                 </p>
-                <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:flex-wrap">
+                <div className="mx-auto mt-6 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:flex-wrap">
                   <Link href="/worldcup/register" className={paperPunterPrimaryCtaButtonClass}>
                     Join World Cup Competition
                   </Link>
@@ -103,8 +104,8 @@ export default function PaperPunterLandingPage() {
 
               <div className="flex justify-center lg:justify-end lg:pt-1">
                 <div className={paperPunterFeaturedCardClass}>
-                  <div className="bg-gradient-to-r from-[#126BFF] to-[#0F5BE8] px-4 py-3 text-center">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/95">
+                  <div className="bg-gradient-to-r from-[#126BFF] to-[#0F5BE8] px-4 py-2.5 text-center">
+                    <p className="text-xs font-semibold text-white/95 sm:text-sm">
                       Featured Competition
                     </p>
                   </div>
@@ -149,16 +150,16 @@ export default function PaperPunterLandingPage() {
               className="mt-10 border-t border-slate-100 pt-8 sm:mt-12 sm:pt-10"
             >
               <ul className="flex flex-wrap items-center justify-center gap-3 sm:justify-start sm:gap-3.5">
-                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
                   No spreadsheets
                 </li>
-                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
                   Private leaderboards
                 </li>
-                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
                   Mobile friendly
                 </li>
-                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm sm:text-xs">
+                <li className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:text-sm">
                   Built for mates, offices, and clubs
                 </li>
               </ul>
@@ -187,7 +188,7 @@ export default function PaperPunterLandingPage() {
                 aria-hidden
               />
               <p className="text-sm font-semibold text-slate-900">
-                Create A Competition
+                Create a Competition
               </p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Spin up a competition with rounds, scoring, and cut-offs built

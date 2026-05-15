@@ -7,6 +7,8 @@ import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupAuthInputClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
+  worldCupFormAlertSuccessClass,
   worldCupMainContentShellClass,
   worldCupPrimaryButtonInlineClass,
   worldCupSectionPanelClass,
@@ -192,7 +194,7 @@ export default function WorldCupParticipantSettingsPage() {
       <main className="w-full">
         <div className={worldCupMainContentShellClass}>
           <div className={worldCupContentCardClass}>
-            <h1 className="text-2xl font-semibold text-[#003A5D]">Participant settings</h1>
+            <h1 className="text-2xl font-semibold text-[#003A5D]">Participant Settings</h1>
             <p className="mt-2 text-sm text-slate-600">
               Update your World Cup display name and password.
             </p>
@@ -202,11 +204,11 @@ export default function WorldCupParticipantSettingsPage() {
             ) : (
               <div className="mt-8 grid gap-6 lg:grid-cols-2">
                 <section className={worldCupSectionPanelClass}>
-                  <h2 className="text-base font-semibold text-zinc-900">Display name</h2>
+                  <h2 className="text-base font-semibold text-zinc-900">Display Name</h2>
                   <p className="mt-1 text-sm text-zinc-600">Shown on leaderboard and picks pages.</p>
                   <div className="mt-4 space-y-3">
                     <label className="block text-sm font-medium text-zinc-800" htmlFor="display-name">
-                      Team / display name
+                      Team / Display Name
                     </label>
                     <input
                       id="display-name"
@@ -217,11 +219,7 @@ export default function WorldCupParticipantSettingsPage() {
                       placeholder="Enter display name"
                     />
                     {nameMessage ? (
-                      <p
-                        className={`text-sm ${
-                          nameMessage.type === "ok" ? "text-green-700" : "text-red-600"
-                        }`}
-                      >
+                      <p className={nameMessage.type === "ok" ? worldCupFormAlertSuccessClass : worldCupFormAlertErrorClass}>
                         {nameMessage.text}
                       </p>
                     ) : null}
@@ -231,13 +229,13 @@ export default function WorldCupParticipantSettingsPage() {
                       onClick={saveDisplayName}
                       className={worldCupPrimaryButtonInlineClass}
                     >
-                      {nameSaving ? "Saving…" : "Save display name"}
+                      {nameSaving ? "Saving…" : "Save Display Name"}
                     </button>
                   </div>
                 </section>
 
                 <section className={worldCupSectionPanelClass}>
-                  <h2 className="text-base font-semibold text-zinc-900">Change password</h2>
+                  <h2 className="text-base font-semibold text-zinc-900">Change Password</h2>
                   <p className="mt-1 text-sm text-zinc-600">
                     Enter your current password to set a new password.
                   </p>
@@ -265,9 +263,11 @@ export default function WorldCupParticipantSettingsPage() {
                     />
                     {passwordMessage ? (
                       <p
-                        className={`text-sm ${
-                          passwordMessage.type === "ok" ? "text-green-700" : "text-red-600"
-                        }`}
+                        className={
+                          passwordMessage.type === "ok"
+                            ? worldCupFormAlertSuccessClass
+                            : worldCupFormAlertErrorClass
+                        }
                       >
                         {passwordMessage.text}
                       </p>
@@ -278,7 +278,7 @@ export default function WorldCupParticipantSettingsPage() {
                       onClick={savePassword}
                       className={worldCupPrimaryButtonInlineClass}
                     >
-                      {passwordSaving ? "Saving…" : "Update password"}
+                      {passwordSaving ? "Saving…" : "Update Password"}
                     </button>
                   </div>
                 </section>

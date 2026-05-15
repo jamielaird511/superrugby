@@ -10,6 +10,7 @@ import {
   worldCupAuthInputClass,
   worldCupAuthPageContentShellClass,
   worldCupContentCardClass,
+  worldCupFormAlertErrorClass,
   worldCupPrimaryButtonClass,
   worldCupSecondaryOutlineButtonClass,
   worldCupTertiaryLinkChipClass,
@@ -138,7 +139,7 @@ export default function WorldCupPublicLoginPage() {
           <div className="w-full max-w-md">
             <div className={worldCupContentCardClass}>
               <h1 className="mb-1 text-center text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-                World Cup — Log in
+                World Cup — Log In
               </h1>
               <p className="mb-6 text-center text-sm text-slate-500">
                 Sign in with the email and password you registered with.
@@ -178,22 +179,22 @@ export default function WorldCupPublicLoginPage() {
                   />
                 </div>
 
-                {message ? <div className="text-sm text-red-600">{message}</div> : null}
+                {message ? <p className={worldCupFormAlertErrorClass}>{message}</p> : null}
 
                 <button type="submit" disabled={loading} className={worldCupPrimaryButtonClass}>
-                  {loading ? "Logging in…" : "Log in"}
+                  {loading ? "Logging in…" : "Log In"}
                 </button>
               </form>
 
               <div className="mt-5 border-t border-slate-200 pt-5">
                 <Link href="/worldcup/register" className={worldCupSecondaryOutlineButtonClass}>
-                  Create an account
+                  Create an Account
                 </Link>
               </div>
 
               <div className="mt-6 flex justify-center">
                 <Link href="/worldcup/admin/login" className={worldCupTertiaryLinkChipClass}>
-                  Admin login
+                  Admin Login
                 </Link>
               </div>
             </div>
@@ -208,14 +209,14 @@ export default function WorldCupPublicLoginPage() {
           onClick={() => setCompetitionOptions(null)}
         >
           <div
-            className={`${worldCupContentCardClass} w-full max-w-md shadow-xl`}
+            className={`${worldCupContentCardClass} w-full max-w-md shadow-md`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="wc-comp-select-title"
             onClick={(ev) => ev.stopPropagation()}
           >
             <h2 id="wc-comp-select-title" className="text-center text-base font-semibold text-slate-900">
-              Choose competition
+              Choose Competition
             </h2>
             <p className="mt-2 text-center text-xs text-slate-600">
               Your account is in more than one World Cup competition. Pick which one to open.

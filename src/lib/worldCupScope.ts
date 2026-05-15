@@ -13,9 +13,12 @@ export const WORLD_CUP_LEAGUE_CODE = "FIFAWC2026" as const;
 export const WORLD_CUP_COMPETITION_ID = FIFA_WORLD_CUP_2026_COMPETITION_ID;
 
 /**
- * Validates that the given tenant's competition_id is reachable via the tenant's `leagues` row,
- * returning the competition_id. If the league row is missing, falls back to the registered
- * competition_id. Returns `null` if a league row exists but does not match the expected competition.
+ * Returns the World Cup `competition_id` for this tenant. Multiple tenants may share the same
+ * competition (shared fixture schedule); participants/picks stay scoped by `league_id` instead.
+ *
+ * Validates that the tenant's `leagues` row matches `tenant.competition_id` when present.
+ * If the league row is missing, falls back to `tenant.competitionId`.
+ * Returns `null` if a league row exists but its `competition_id` does not match the tenant.
  */
 export async function resolveWorldCupCompetitionIdForTenant(
   client: SupabaseClient,

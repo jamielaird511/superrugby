@@ -86,7 +86,7 @@ export default function PaperPunterLandingPage() {
                   and results in one place.
                 </p>
                 <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:flex-wrap">
-                  <Link href="/worldcup/login" className={paperPunterPrimaryCtaButtonClass}>
+                  <Link href="/worldcup/register" className={paperPunterPrimaryCtaButtonClass}>
                     Join World Cup Competition
                   </Link>
                   <a href="#" className={paperPunterSecondaryOutlineCtaButtonClass}>

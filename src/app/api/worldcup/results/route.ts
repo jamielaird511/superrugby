@@ -84,7 +84,6 @@ export async function GET(req: Request) {
         .from("fixtures")
         .select("id, match_number, home_team_code, away_team_code, kickoff_at, round_id")
         .eq("competition_id", tenant.competitionId)
-        .eq("league_id", tenant.leagueId)
         .in("round_id", roundIds)
         .order("kickoff_at", { ascending: true });
 

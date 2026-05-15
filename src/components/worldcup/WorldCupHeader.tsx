@@ -46,7 +46,7 @@ export default function WorldCupHeader({
   tenantSlug,
   tenantDisplayName,
 }: Props) {
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
 
   const tenant = useMemo(
     () => resolveWorldCupTenantOrDefault(tenantSlug ?? null),
@@ -65,12 +65,22 @@ export default function WorldCupHeader({
   const tenantPrefix = `/worldcup/${tenant.slug}`;
   const legacyPrefix = "/worldcup";
 
-  // Detect both new (`/worldcup/[code]/...`) and legacy (`/worldcup/...`) paths.
+  const isPublicWorldCupLogin = pathname === "/worldcup/login";
+  const isPublicWorldCupRegister = pathname === "/worldcup/register";
+
+  // Detect new tenant routes, legacy `/worldcup/login|register`, and public auth URLs.
   const isLoginPage =
-    pathname === `${tenantPrefix}/login` || pathname === `${legacyPrefix}/login`;
+    isPublicWorldCupLogin ||
+    pathname === `${tenantPrefix}/login` ||
+    pathname === `${legacyPrefix}/login`;
   const isRegisterPage =
-    pathname === `${tenantPrefix}/register` || pathname === `${legacyPrefix}/register`;
+    isPublicWorldCupRegister ||
+    pathname === `${tenantPrefix}/register` ||
+    pathname === `${legacyPrefix}/register`;
   const isAuthShell = isLoginPage || isRegisterPage;
+
+  const registerHref = isPublicWorldCupLogin || isPublicWorldCupRegister ? "/worldcup/register" : `${tenantPrefix}/register`;
+  const loginHref = isPublicWorldCupLogin || isPublicWorldCupRegister ? "/worldcup/login" : `${tenantPrefix}/login`;
 
   const activeTab: "picks" | "competition-picks" | "results" | "settings" = useMemo(() => {
     if (!pathname) return "picks";
@@ -112,14 +122,14 @@ export default function WorldCupHeader({
             </Link>
             {isLoginPage ? (
               <Link
-                href={`${tenantPrefix}/register`}
+                href={registerHref}
                 className="rounded-md border-2 border-white bg-white px-3 py-1.5 text-[13px] font-semibold text-[#126BFF] shadow-sm transition-colors hover:bg-white/95 sm:text-sm"
               >
                 Register
               </Link>
             ) : (
               <Link
-                href={`${tenantPrefix}/login`}
+                href={loginHref}
                 className="rounded-md border-2 border-white bg-white px-3 py-1.5 text-[13px] font-semibold text-[#126BFF] shadow-sm transition-colors hover:bg-white/95 sm:text-sm"
               >
                 Log In

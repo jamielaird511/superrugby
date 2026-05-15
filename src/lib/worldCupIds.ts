@@ -3,7 +3,8 @@
  *
  * Each tenant is a self-contained tipping competition. Two tenants may share fixtures
  * (same `competitionId`) while keeping participants/picks/leaderboards separate via
- * different `leagueId`s. Add a new tenant by registering a slug below — no schema
+ * different `leagueId`s. Shared schedules: fixture and round queries use `competitionId`
+ * only, not `leagueId`. Add a new tenant by registering a slug below — no schema
  * changes required if the underlying `leagues` row already exists.
  */
 
@@ -27,6 +28,13 @@ const TENANTS: Record<string, WorldCupTenant> = {
     competitionId: "9e60564e-4be5-4756-b6cb-48ae06f45654",
     displayName: "FIFA World Cup 2026",
     accessCodeEnvName: "WORLDCUP_ACCESS_CODE_FIFAWC2026",
+  },
+  fifaworldcup2026: {
+    slug: "fifaworldcup2026",
+    leagueId: "906573dd-9cbd-475e-9fca-142f5b0f9bc0",
+    competitionId: "9e60564e-4be5-4756-b6cb-48ae06f45654",
+    displayName: "FIFA World Cup 2026 - Super Rugby",
+    accessCodeEnvName: "WORLDCUP_ACCESS_CODE_FIFAWORLDCUP2026",
   },
 };
 

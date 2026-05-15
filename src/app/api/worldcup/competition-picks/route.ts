@@ -118,7 +118,6 @@ async function isLocked(tenant: WorldCupTenant): Promise<boolean> {
     .from("fixtures")
     .select("kickoff_at")
     .eq("competition_id", tenant.competitionId)
-    .eq("league_id", tenant.leagueId)
     .not("kickoff_at", "is", null)
     .order("kickoff_at", { ascending: true })
     .limit(1)

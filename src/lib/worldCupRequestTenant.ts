@@ -18,6 +18,22 @@ export function readTenantSlugFromUrl(req: { url: string }): string | null {
 }
 
 /**
+ * Reads `tenant` from JSON body or `?tenant=` query. Returns `null` if absent (caller may
+ * treat as “no tenant specified” — e.g. public World Cup login across all tenants).
+ */
+export function readOptionalWorldCupTenantSlugFromBodyOrUrl(
+  body: unknown,
+  req: { url: string }
+): string | null {
+  const bodySlug =
+    body && typeof body === "object" && "tenant" in (body as Record<string, unknown>)
+      ? String((body as Record<string, unknown>).tenant ?? "").trim().toLowerCase()
+      : "";
+  if (bodySlug) return bodySlug;
+  return readTenantSlugFromUrl(req);
+}
+
+/**
  * Strict tenant resolution from `?tenant=` — returns `{ ok: false, response }` 400 if a
  * tenant is provided but unknown. If no tenant is provided, uses the default tenant for
  * backwards-compatible legacy callers.

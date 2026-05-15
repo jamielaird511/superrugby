@@ -181,10 +181,7 @@ export default function WorldCupTenantRegisterPage() {
             </form>
 
             <p className="mt-5 text-center text-xs text-slate-500">
-              <Link
-                href={`/worldcup/${tenant.slug}/login`}
-                className="font-medium text-[#126BFF] hover:underline"
-              >
+              <Link href="/worldcup/login" className="font-medium text-[#126BFF] hover:underline">
                 Already registered? Log in
               </Link>
             </p>

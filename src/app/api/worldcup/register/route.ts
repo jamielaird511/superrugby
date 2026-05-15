@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { hashPassword } from "@/lib/password";
-import { readWorldCupAccessCode } from "@/lib/worldCupIds";
-import { resolveTenantFromBodyOrUrl } from "@/lib/worldCupRequestTenant";
+import { listWorldCupTenants, readWorldCupAccessCode, resolveWorldCupTenant, type WorldCupTenant } from "@/lib/worldCupIds";
+import { readOptionalWorldCupTenantSlugFromBodyOrUrl } from "@/lib/worldCupRequestTenant";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,9 +31,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password is required" }, { status: 400 });
     }
 
-    const tenantRes = resolveTenantFromBodyOrUrl(body, req);
-    if (!tenantRes.ok) return tenantRes.response;
-    const { tenant } = tenantRes;
+    const explicitSlug = readOptionalWorldCupTenantSlugFromBodyOrUrl(body, req);
+    let tenant: WorldCupTenant | null = null;
+
+    if (explicitSlug) {
+      tenant = resolveWorldCupTenant(explicitSlug);
+      if (!tenant) {
+        return NextResponse.json(
+          { error: "Unknown competition.", details: `tenant=${explicitSlug}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      const trimmedAccess = accessCode.trim();
+      if (!trimmedAccess) {
+        return NextResponse.json({ error: "Access code is required" }, { status: 400 });
+      }
+      const matching = listWorldCupTenants().filter((t) => {
+        const c = readWorldCupAccessCode(t);
+        return c && c.toLowerCase() === trimmedAccess.toLowerCase();
+      });
+      if (matching.length === 0) {
+        return NextResponse.json({ error: "Invalid access code." }, { status: 403 });
+      }
+      if (matching.length > 1) {
+        return NextResponse.json(
+          {
+            error:
+              "That access code matches more than one competition. Use the registration link you were sent.",
+          },
+          { status: 400 }
+        );
+      }
+      tenant = matching[0];
+    }
 
     const configuredAccessCode = readWorldCupAccessCode(tenant);
     if (!configuredAccessCode) {

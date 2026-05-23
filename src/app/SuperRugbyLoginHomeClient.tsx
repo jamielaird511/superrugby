@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { track } from "@/lib/analytics";
+import { SUPER_RUGBY_ADMIN_LEAGUE_CODE } from "@/lib/superRugbyAdminScope";
 
 type Participant = {
   id: string;
@@ -21,9 +22,23 @@ export default function SuperRugbyLoginHomeClient() {
 
   async function fetchParticipants() {
     try {
+      const { data: league, error: leagueError } = await supabase
+        .from("leagues")
+        .select("competition_id")
+        .eq("league_code", SUPER_RUGBY_ADMIN_LEAGUE_CODE)
+        .maybeSingle();
+
+      const competitionId = league?.competition_id;
+      if (leagueError || !competitionId) {
+        console.error("Error resolving Super Rugby competition:", leagueError);
+        setMessage("Error loading teams: Super Rugby competition not found.");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("participants_public")
         .select("id, team_name")
+        .eq("competition_id", competitionId)
         .order("team_name", { ascending: true });
 
       if (error) {

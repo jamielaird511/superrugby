@@ -50,12 +50,35 @@ async function isPaperPunterHostRequest(): Promise<boolean> {
 
 export async function generateMetadata(): Promise<Metadata> {
   if (await isPaperPunterHostRequest()) {
+    const title = "Private tipping without spreadsheet chaos";
+    const description =
+      "PaperPunter runs private tipping competitions and World Cup pools—picks, results, and leaderboards in one place.";
+    const url = "https://paperpunter.co.nz/";
+    const ogImage = {
+      url: "https://paperpunter.co.nz/opengraph-image.png",
+      width: 1200,
+      height: 630,
+      alt: "PaperPunter private tipping competitions",
+    };
     return {
       metadataBase: new URL("https://paperpunter.co.nz"),
-      alternates: { canonical: "https://paperpunter.co.nz/" },
-      title: "Private tipping without spreadsheet chaos",
-      description:
-        "PaperPunter runs private tipping competitions and World Cup pools—picks, results, and leaderboards in one place.",
+      alternates: { canonical: url },
+      title,
+      description,
+      openGraph: {
+        siteName: "PaperPunter",
+        type: "website",
+        url,
+        title,
+        description,
+        images: [ogImage],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [ogImage.url],
+      },
     };
   }
   return {

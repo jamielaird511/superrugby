@@ -1,11 +1,36 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+const title = "Contact";
+const description = "How to reach PaperPunter or your competition organiser.";
+const url = "https://paperpunter.co.nz/contact";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://paperpunter.co.nz"),
-  alternates: { canonical: "https://paperpunter.co.nz/contact" },
-  title: "Contact",
-  description: "How to reach PaperPunter or your competition organiser.",
+  alternates: { canonical: url },
+  title,
+  description,
+  openGraph: {
+    siteName: "PaperPunter",
+    type: "website",
+    url,
+    title,
+    description,
+    images: [
+      {
+        url: "https://paperpunter.co.nz/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "PaperPunter private tipping competitions",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["https://paperpunter.co.nz/opengraph-image.png"],
+  },
 };
 
 function TrustNav() {

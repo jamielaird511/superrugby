@@ -143,12 +143,13 @@ export function scoreSemiFinalistSlots(
 
 export function scorePoolTopAttackingPick(
   pick: string | null | undefined,
-  topTeamCodes: Set<string>
+  officialTopScoringTeam: string | null | undefined
 ): number {
-  if (topTeamCodes.size === 0) return 0;
+  const actual = normalizeTeamCode(officialTopScoringTeam);
+  if (!actual) return 0;
   const p = normalizeTeamCode(pick);
   if (!p) return 0;
-  return topTeamCodes.has(p) ? WC_POOL_TOP_ATTACKING_POINTS : 0;
+  return p === actual ? WC_POOL_TOP_ATTACKING_POINTS : 0;
 }
 
 export function scoreWinnerPick(pick: string | null | undefined, actualWinner: string | null | undefined): number {

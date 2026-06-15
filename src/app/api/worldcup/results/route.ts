@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveTenantFromRequest } from "@/lib/worldCupRequestTenant";
 import {
-  accumulatePoolPlayGoalsScored,
   computeTotalGoalsPointsByParticipant,
   scorePoolFinishingPositions,
   scorePoolTopAttackingPick,
   scoreSemiFinalistSlots,
   scoreWinnerPick,
   sumBreakdown,
-  topPoolPlayScoringTeamCodes,
   WC_MATCH_PICK_POINTS,
 } from "@/lib/worldCupScoring";
 
@@ -64,11 +62,6 @@ export async function GET(req: Request) {
 
     const roundList = rounds || [];
     const roundIds = roundList.map((r) => r.id);
-
-    const roundNumberByRoundId: Record<string, number> = {};
-    for (const r of roundList) {
-      roundNumberByRoundId[r.id] = r.round_number;
-    }
 
     let fixtureList: Array<{
       id: string;
@@ -157,12 +150,11 @@ export async function GET(req: Request) {
 
     const roundsFiltered = roundsPayload.filter((section) => section.fixtures.length > 0);
 
-    const poolGoalsByTeam = accumulatePoolPlayGoalsScored(fixtureList, roundNumberByRoundId, resultByFixture);
-    const topPoolAttackingCodes = topPoolPlayScoringTeamCodes(poolGoalsByTeam);
-
     const { data: compResultRow } = await supabaseAdmin
       .from("worldcup_competition_results")
-      .select("winner_team_code, semifinalist_team_codes, group_results, total_goals")
+      .select(
+        "winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code"
+      )
       .eq("competition_id", tenant.competitionId)
       .maybeSingle();
 
@@ -279,7 +271,10 @@ export async function GET(req: Request) {
       const matchPts = matchPointsByParticipant.get(row.participant_id) || 0;
       const poolPts = scorePoolFinishingPositions(cp?.group_picks ?? null, groupResults);
       const semiPts = scoreSemiFinalistSlots(cp?.semifinalist_team_codes, compResultRow?.semifinalist_team_codes);
-      const attackingPts = scorePoolTopAttackingPick(cp?.top_scoring_team_code, topPoolAttackingCodes);
+      const attackingPts = scorePoolTopAttackingPick(
+        cp?.top_scoring_team_code,
+        compResultRow?.top_scoring_team_code ?? null
+      );
       const tgPts = totalGoalsPointsByParticipant.get(row.participant_id) || 0;
       const winnerPts = scoreWinnerPick(cp?.winner_team_code, compResultRow?.winner_team_code);
 

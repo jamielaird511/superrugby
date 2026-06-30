@@ -192,7 +192,11 @@ export default function WorldCupHeader({
                 </button>
               )}
 
-              <Link href={`${tenantPrefix}/results`} className={activeTab === "results" ? pillActive : pillIdle}>
+              <Link
+                href={`${tenantPrefix}/results`}
+                prefetch={false}
+                className={activeTab === "results" ? pillActive : pillIdle}
+              >
                 Results
               </Link>
 

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { fetchAllRows } from "@/lib/supabaseFetchAll";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveTenantFromRequest } from "@/lib/worldCupRequestTenant";
 import {
   computeTotalGoalsPointsByParticipant,
+  isWorldCupFootballResultScorable,
+  isWorldCupKnockoutFixture,
   scorePoolFinishingPositions,
   scorePoolTopAttackingPick,
   scoreSemiFinalistSlots,
@@ -10,6 +13,13 @@ import {
   sumBreakdown,
   WC_MATCH_PICK_POINTS,
 } from "@/lib/worldCupScoring";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+} as const;
 
 function roundLabel(season: number, roundNumber: number): string {
   if (roundNumber >= 101 && roundNumber <= 199) {
@@ -57,11 +67,18 @@ export async function GET(req: Request) {
 
     if (roundsError) {
       console.error("World Cup results rounds:", roundsError);
-      return NextResponse.json({ error: "Failed to load rounds" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to load rounds" },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
     }
 
     const roundList = rounds || [];
     const roundIds = roundList.map((r) => r.id);
+    const roundNumberByRoundId: Record<string, number> = {};
+    for (const r of roundList) {
+      roundNumberByRoundId[r.id] = r.round_number;
+    }
 
     let fixtureList: Array<{
       id: string;
@@ -82,7 +99,10 @@ export async function GET(req: Request) {
 
       if (fixturesError) {
         console.error("World Cup results fixtures:", fixturesError);
-        return NextResponse.json({ error: "Failed to load fixtures" }, { status: 500 });
+        return NextResponse.json(
+          { error: "Failed to load fixtures" },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
       }
       fixtureList = fixtures || [];
     }
@@ -93,6 +113,7 @@ export async function GET(req: Request) {
         winning_team: string;
         home_goals: number | null;
         away_goals: number | null;
+        penalty_winner_team_code: string | null;
       }
     > = {};
 
@@ -100,12 +121,17 @@ export async function GET(req: Request) {
     if (fixtureIds.length > 0) {
       const { data: resultsRows, error: resultsError } = await supabaseAdmin
         .from("results")
-        .select("fixture_id, winning_team, home_goals, away_goals")
+        .select(
+          "fixture_id, winning_team, home_goals, away_goals, penalty_winner_team_code"
+        )
         .in("fixture_id", fixtureIds);
 
       if (resultsError) {
         console.error("World Cup results results:", resultsError);
-        return NextResponse.json({ error: "Failed to load results" }, { status: 500 });
+        return NextResponse.json(
+          { error: "Failed to load results" },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
       }
 
       for (const row of resultsRows || []) {
@@ -113,6 +139,7 @@ export async function GET(req: Request) {
           winning_team: row.winning_team,
           home_goals: row.home_goals ?? null,
           away_goals: row.away_goals ?? null,
+          penalty_winner_team_code: row.penalty_winner_team_code ?? null,
         };
       }
     }
@@ -144,6 +171,7 @@ export async function GET(req: Request) {
           winning_team: res.winning_team,
           home_goals: res.home_goals,
           away_goals: res.away_goals,
+          penalty_winner_team_code: res.penalty_winner_team_code,
         };
       }),
     }));
@@ -167,7 +195,7 @@ export async function GET(req: Request) {
       console.error("World Cup results participants:", participantsError);
       return NextResponse.json(
         { error: "Failed to load leaderboard participants" },
-        { status: 500 }
+        { status: 500, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -214,7 +242,10 @@ export async function GET(req: Request) {
 
       if (compPicksError) {
         console.error("World Cup results competition picks:", compPicksError);
-        return NextResponse.json({ error: "Failed to load competition picks" }, { status: 500 });
+        return NextResponse.json(
+          { error: "Failed to load competition picks" },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
       }
 
       for (const row of compPicks || []) {
@@ -235,21 +266,48 @@ export async function GET(req: Request) {
     const matchPointsByParticipant = new Map<string, number>();
     for (const id of participantIds) matchPointsByParticipant.set(id, 0);
 
-    const completedFixtureIds = fixturesWithResults.map((f) => f.id);
+    const scorableFixtureIds = new Set(
+      fixturesWithResults
+        .filter((f) => {
+          const res = resultByFixture[f.id];
+          if (!res) return false;
+          const roundNumber = roundNumberByRoundId[f.round_id] ?? 0;
+          return isWorldCupFootballResultScorable(
+            res,
+            isWorldCupKnockoutFixture(f.match_number, roundNumber)
+          );
+        })
+        .map((f) => f.id)
+    );
+
+    const completedFixtureIds = [...scorableFixtureIds];
 
     if (participantIds.length > 0 && completedFixtureIds.length > 0) {
-      const { data: picksRows, error: picksError } = await supabaseAdmin
-        .from("picks")
-        .select("participant_id, fixture_id, picked_team")
-        .in("participant_id", participantIds)
-        .in("fixture_id", completedFixtureIds);
-
-      if (picksError) {
-        console.error("World Cup results leaderboard picks:", picksError);
-        return NextResponse.json({ error: "Failed to load leaderboard picks" }, { status: 500 });
+      let picksRows: Array<{
+        participant_id: string;
+        fixture_id: string;
+        picked_team: string;
+      }>;
+      try {
+        picksRows = await fetchAllRows(async (from, to) =>
+          supabaseAdmin
+            .from("picks")
+            .select("participant_id, fixture_id, picked_team")
+            .in("participant_id", participantIds)
+            .in("fixture_id", completedFixtureIds)
+            .range(from, to)
+        );
+      } catch (picksErr) {
+        const message = picksErr instanceof Error ? picksErr.message : "Failed to load picks";
+        console.error("World Cup results leaderboard picks:", picksErr);
+        return NextResponse.json(
+          { error: message },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
       }
 
-      for (const pick of picksRows || []) {
+      for (const pick of picksRows) {
+        if (!scorableFixtureIds.has(pick.fixture_id)) continue;
         const fixtureResult = resultByFixture[pick.fixture_id];
         if (!fixtureResult) continue;
         if (pick.picked_team === fixtureResult.winning_team) {
@@ -297,10 +355,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       { rounds: roundsFiltered, teamNames, leaderboard: leaderboardRows, tenant: tenant.slug },
-      { status: 200 }
+      { status: 200, headers: NO_STORE_HEADERS }
     );
   } catch (err) {
     console.error("World Cup results route:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }

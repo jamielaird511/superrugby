@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
 import { FIFA_WORLD_CUP_2026_LEAGUE_ID } from "@/lib/worldCupIds";
 import { getWorldCupCompetitionId } from "@/lib/worldCupScope";
+import { isWorldCupKnockoutFixture, normalizeTeamCode } from "@/lib/worldCupScoring";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -116,6 +117,7 @@ export async function GET(req: NextRequest) {
         margin_band: string | null;
         home_score: number | null;
         away_score: number | null;
+        penalty_winner_team_code: string | null;
       }
     > = {};
 
@@ -126,11 +128,14 @@ export async function GET(req: NextRequest) {
         margin_band: string | null;
         home_goals?: number | null;
         away_goals?: number | null;
+        penalty_winner_team_code?: string | null;
       }[] | null = null;
 
       const withGoals = await supabaseAdmin
         .from("results")
-        .select("fixture_id, winning_team, margin_band, home_goals, away_goals")
+        .select(
+          "fixture_id, winning_team, margin_band, home_goals, away_goals, penalty_winner_team_code"
+        )
         .in("fixture_id", fixtureIds);
 
       if (withGoals.error) {
@@ -164,6 +169,7 @@ export async function GET(req: NextRequest) {
             margin_band: row.margin_band,
             home_score: null,
             away_score: null,
+            penalty_winner_team_code: null,
           };
         }
       } else {
@@ -174,6 +180,7 @@ export async function GET(req: NextRequest) {
             margin_band: row.margin_band,
             home_score: row.home_goals ?? null,
             away_score: row.away_goals ?? null,
+            penalty_winner_team_code: row.penalty_winner_team_code ?? null,
           };
         }
       }
@@ -221,6 +228,7 @@ export async function GET(req: NextRequest) {
           margin_band: res?.margin_band ?? null,
           home_score: res?.home_score ?? null,
           away_score: res?.away_score ?? null,
+          penalty_winner_team_code: res?.penalty_winner_team_code ?? null,
         };
       }),
     }));
@@ -253,6 +261,7 @@ export async function POST(req: NextRequest) {
     const fixtureId = body?.fixture_id as string | undefined;
     const homeScoreRaw = body?.home_score ?? body?.home_goals;
     const awayScoreRaw = body?.away_score ?? body?.away_goals;
+    const penaltyWinnerRaw = body?.penalty_winner_team_code;
 
     if (!fixtureId || !UUID_RE.test(fixtureId)) {
       return NextResponse.json({ error: "fixture_id is required" }, { status: 400 });
@@ -289,13 +298,26 @@ export async function POST(req: NextRequest) {
 
     const { data: fixture, error: fxErr } = await supabaseAdmin
       .from("fixtures")
-      .select("id, home_team_code, away_team_code, competition_id, league_id")
+      .select("id, home_team_code, away_team_code, competition_id, league_id, match_number, round_id")
       .eq("id", fixtureId)
       .single();
 
     if (fxErr || !fixture) {
       return NextResponse.json({ error: "Fixture not found" }, { status: 404 });
     }
+
+    const { data: roundRow, error: roundErr } = await supabaseAdmin
+      .from("rounds")
+      .select("round_number")
+      .eq("id", fixture.round_id)
+      .maybeSingle();
+
+    if (roundErr) {
+      return NextResponse.json({ error: "Failed to load fixture round" }, { status: 500 });
+    }
+
+    const roundNumber = Number(roundRow?.round_number ?? 0);
+    const isKnockout = isWorldCupKnockoutFixture(fixture.match_number, roundNumber);
 
     if (
       fixture.competition_id !== wcCompId ||
@@ -311,9 +333,29 @@ export async function POST(req: NextRequest) {
     }
 
     let winning_team: string;
-    if (hg > ag) winning_team = homeCode;
-    else if (ag > hg) winning_team = awayCode;
-    else winning_team = "DRAW";
+    let penalty_winner_team_code: string | null = null;
+
+    if (hg > ag) {
+      winning_team = homeCode;
+    } else if (ag > hg) {
+      winning_team = awayCode;
+    } else if (isKnockout) {
+      const penNorm = normalizeTeamCode(
+        typeof penaltyWinnerRaw === "string" ? penaltyWinnerRaw : null
+      );
+      const homeNorm = normalizeTeamCode(homeCode);
+      const awayNorm = normalizeTeamCode(awayCode);
+      if (!penNorm || (penNorm !== homeNorm && penNorm !== awayNorm)) {
+        return NextResponse.json(
+          { error: "Penalty winner is required for tied knockout matches" },
+          { status: 400 }
+        );
+      }
+      winning_team = penNorm === homeNorm ? homeCode : awayCode;
+      penalty_winner_team_code = winning_team;
+    } else {
+      winning_team = "DRAW";
+    }
 
     const row = {
       fixture_id: fixtureId,
@@ -322,13 +364,16 @@ export async function POST(req: NextRequest) {
       actual_margin: null as number | null,
       home_goals: hg,
       away_goals: ag,
+      penalty_winner_team_code,
       updated_at: new Date().toISOString(),
     };
 
     const { data: upserted, error: upErr } = await supabaseAdmin
       .from("results")
       .upsert(row, { onConflict: "fixture_id" })
-      .select("fixture_id, winning_team, margin_band, home_goals, away_goals")
+      .select(
+        "fixture_id, winning_team, margin_band, home_goals, away_goals, penalty_winner_team_code"
+      )
       .single();
 
     if (upErr) {
@@ -345,6 +390,7 @@ export async function POST(req: NextRequest) {
       margin_band: string | null;
       home_goals: number | null;
       away_goals: number | null;
+      penalty_winner_team_code: string | null;
     };
 
     return NextResponse.json(
@@ -355,6 +401,7 @@ export async function POST(req: NextRequest) {
           margin_band: payload.margin_band,
           home_score: payload.home_goals ?? null,
           away_score: payload.away_goals ?? null,
+          penalty_winner_team_code: payload.penalty_winner_team_code ?? null,
         },
       },
       { status: 200 }

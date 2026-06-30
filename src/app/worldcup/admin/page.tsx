@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import WorldCupAdminHeader from "@/components/worldcup/WorldCupAdminHeader";
+import { isWorldCupKnockoutFixture } from "@/lib/worldCupScoring";
 import {
   WORLD_CUP_PAGE_BACKGROUND,
   worldCupContentCardClass,
@@ -24,6 +25,13 @@ type FixtureRow = {
   margin_band: string | null;
   home_score: number | null;
   away_score: number | null;
+  penalty_winner_team_code: string | null;
+};
+
+type ScoreDraft = {
+  home: string;
+  away: string;
+  penaltyWinner: string;
 };
 
 type RoundSection = {
@@ -56,7 +64,7 @@ export default function WorldCupAdminResultsPage() {
   const [allowed, setAllowed] = useState(false);
   const [rounds, setRounds] = useState<RoundSection[]>([]);
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
-  const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -71,7 +79,7 @@ export default function WorldCupAdminResultsPage() {
     (payload: { rounds: RoundSection[]; teamNames: Record<string, string> }) => {
       setRounds(payload.rounds);
       setTeamNames(payload.teamNames || {});
-      const next: Record<string, { home: string; away: string }> = {};
+      const next: Record<string, ScoreDraft> = {};
       for (const r of payload.rounds) {
         for (const f of r.fixtures) {
           next[f.id] = {
@@ -83,6 +91,7 @@ export default function WorldCupAdminResultsPage() {
               f.away_score !== null && f.away_score !== undefined
                 ? String(f.away_score)
                 : "",
+            penaltyWinner: f.penalty_winner_team_code ?? "",
           };
         }
       }
@@ -176,7 +185,7 @@ export default function WorldCupAdminResultsPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [clearModalFixture]);
 
-  async function saveFixture(fixtureId: string) {
+  async function saveFixture(fixtureId: string, fixture: FixtureRow, roundNumber: number) {
     setSaveMessage(null);
     const d = drafts[fixtureId];
     if (!d) return;
@@ -185,6 +194,15 @@ export default function WorldCupAdminResultsPage() {
     const ag = parseInt(d.away, 10);
     if (!Number.isFinite(hg) || !Number.isFinite(ag)) {
       setSaveMessage({ type: "err", text: "Enter numeric scores for both teams." });
+      return;
+    }
+
+    const isKnockout = isWorldCupKnockoutFixture(fixture.match_number, roundNumber);
+    if (isKnockout && hg === ag && !d.penaltyWinner) {
+      setSaveMessage({
+        type: "err",
+        text: "Select the penalty winner for this tied knockout match.",
+      });
       return;
     }
 
@@ -207,6 +225,7 @@ export default function WorldCupAdminResultsPage() {
           fixture_id: fixtureId,
           home_score: hg,
           away_score: ag,
+          penalty_winner_team_code: d.penaltyWinner || null,
         }),
       });
       const json = await res.json();
@@ -220,6 +239,7 @@ export default function WorldCupAdminResultsPage() {
         margin_band?: string | null;
         home_score?: number | null;
         away_score?: number | null;
+        penalty_winner_team_code?: string | null;
       };
 
       setRounds((prev) =>
@@ -233,6 +253,8 @@ export default function WorldCupAdminResultsPage() {
                   margin_band: updated?.margin_band ?? null,
                   home_score: updated?.home_score ?? hg,
                   away_score: updated?.away_score ?? ag,
+                  penalty_winner_team_code:
+                    (updated?.penalty_winner_team_code ?? d.penaltyWinner) || null,
                 }
               : f
           ),
@@ -244,6 +266,7 @@ export default function WorldCupAdminResultsPage() {
         [fixtureId]: {
           home: String(updated?.home_score ?? hg),
           away: String(updated?.away_score ?? ag),
+          penaltyWinner: updated?.penalty_winner_team_code ?? d.penaltyWinner ?? "",
         },
       }));
 
@@ -300,6 +323,7 @@ export default function WorldCupAdminResultsPage() {
                   margin_band: null,
                   home_score: null,
                   away_score: null,
+                  penalty_winner_team_code: null,
                 }
               : f
           ),
@@ -308,7 +332,7 @@ export default function WorldCupAdminResultsPage() {
 
       setDrafts((prev) => ({
         ...prev,
-        [fixtureId]: { home: "", away: "" },
+        [fixtureId]: { home: "", away: "", penaltyWinner: "" },
       }));
 
       if (flashSavedId === fixtureId) setFlashSavedId(null);
@@ -405,8 +429,8 @@ export default function WorldCupAdminResultsPage() {
           <div className={worldCupContentCardClass}>
           <h1 className="text-2xl font-semibold text-slate-900">Enter Match Scores</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Enter full-time scores (home and away). The winner is derived from the scores (home
-            team code, away team code, or DRAW). Rugby margin bands are not used.
+            Enter full-time scores (home and away). For tied knockout matches, also select the
+            penalty shootout winner. Group-stage draws do not need a penalty winner.
           </p>
 
           {saveMessage && (
@@ -452,13 +476,27 @@ export default function WorldCupAdminResultsPage() {
                             Away score
                           </th>
                           <th className={`${worldCupTableThClass} text-left`}>
+                            Penalty winner
+                          </th>
+                          <th className={`${worldCupTableThClass} text-left`}>
                             Actions
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-200">
                         {round.fixtures.map((f) => {
-                          const draft = drafts[f.id] ?? { home: "", away: "" };
+                          const draft = drafts[f.id] ?? { home: "", away: "", penaltyWinner: "" };
+                          const hgDraft = parseInt(draft.home, 10);
+                          const agDraft = parseInt(draft.away, 10);
+                          const isKnockout = isWorldCupKnockoutFixture(
+                            f.match_number,
+                            round.round_number
+                          );
+                          const showPenaltyPicker =
+                            isKnockout &&
+                            Number.isFinite(hgDraft) &&
+                            Number.isFinite(agDraft) &&
+                            hgDraft === agDraft;
                           const hasSavedScores =
                             f.home_score !== null &&
                             f.home_score !== undefined &&
@@ -520,12 +558,36 @@ export default function WorldCupAdminResultsPage() {
                                   }
                                 />
                               </td>
+                              <td className="px-3 py-2">
+                                {showPenaltyPicker ? (
+                                  <select
+                                    className="max-w-[11rem] rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm"
+                                    value={draft.penaltyWinner}
+                                    onChange={(e) =>
+                                      setDrafts((prev) => ({
+                                        ...prev,
+                                        [f.id]: { ...draft, penaltyWinner: e.target.value },
+                                      }))
+                                    }
+                                  >
+                                    <option value="">Select team…</option>
+                                    <option value={f.home_team_code}>
+                                      {teamLabel(f.home_team_code, teamNames)}
+                                    </option>
+                                    <option value={f.away_team_code}>
+                                      {teamLabel(f.away_team_code, teamNames)}
+                                    </option>
+                                  </select>
+                                ) : (
+                                  <span className="text-xs text-zinc-400">—</span>
+                                )}
+                              </td>
                               <td className="whitespace-nowrap px-3 py-2">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <button
                                     type="button"
                                     disabled={savingId === f.id || clearingId === f.id}
-                                    onClick={() => saveFixture(f.id)}
+                                    onClick={() => saveFixture(f.id, f, round.round_number)}
                                     className="rounded-md bg-[#126BFF] px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f5fdf] disabled:opacity-50"
                                   >
                                     {savingId === f.id ? "Saving…" : "Save"}

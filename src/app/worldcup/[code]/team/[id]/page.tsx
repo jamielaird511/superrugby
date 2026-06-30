@@ -101,6 +101,7 @@ type MatchResult = {
   home_team_code: string;
   away_team_code: string;
   winning_team: string | null;
+  penalty_winner_team_code?: string | null;
 };
 type CompetitionPickMeta = { completed: number; total: number };
 
@@ -240,8 +241,13 @@ function isWorldCupFixtureCompleted(result: MatchResult | undefined): boolean {
   return result.home_goals != null && result.away_goals != null;
 }
 
-/** From final score only (home win / away win / draw). */
-function actualWorldCupResultCodeFromScore(result: MatchResult): string {
+/** Match pick outcome: uses stored winning_team when set, else derives from score. */
+function actualWorldCupResultCode(result: MatchResult): string {
+  const stored = result.winning_team?.trim();
+  if (stored) {
+    if (stored.toUpperCase() === PICK_DRAW) return PICK_DRAW;
+    return worldCupTeamLookupKey(stored);
+  }
   const h = result.home_goals ?? 0;
   const a = result.away_goals ?? 0;
   if (h > a) return worldCupTeamLookupKey(result.home_team_code);
@@ -539,6 +545,7 @@ export default function WorldCupTeamDashboardPage() {
             winning_team: string | null;
             home_goals: number | null;
             away_goals: number | null;
+            penalty_winner_team_code?: string | null;
           }>;
         }>;
       };
@@ -553,6 +560,7 @@ export default function WorldCupTeamDashboardPage() {
               home_team_code: fx.home_team_code,
               away_team_code: fx.away_team_code,
               winning_team: fx.winning_team,
+              penalty_winner_team_code: fx.penalty_winner_team_code ?? null,
             };
           }
         }
@@ -837,7 +845,7 @@ export default function WorldCupTeamDashboardPage() {
                             ? worldCupTeamLookupKey(pick.picked_team)
                             : null;
                           const actualCode =
-                            completed && result ? actualWorldCupResultCodeFromScore(result) : "";
+                            completed && result ? actualWorldCupResultCode(result) : "";
                           const homeNorm = worldCupTeamLookupKey(f.home_team_code);
                           const awayNorm = worldCupTeamLookupKey(f.away_team_code);
                           const homeSideState = completed
@@ -954,6 +962,9 @@ export default function WorldCupTeamDashboardPage() {
                                   <span className="block max-w-full px-1 text-center text-[11px] leading-tight text-slate-500">
                                     Final score: {homeParts.label} {result.home_goals}–
                                     {result.away_goals} {awayParts.label}
+                                    {result.penalty_winner_team_code
+                                      ? ` (${teamDisplayName(result.penalty_winner_team_code, teamNamesByCode)} pens)`
+                                      : ""}
                                   </span>
                                 ) : null}
                               </div>

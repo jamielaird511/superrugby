@@ -14,6 +14,32 @@ export function isWorldCupGroupStageRoundNumber(roundNumber: number): boolean {
   return Number.isFinite(roundNumber) && roundNumber >= 101 && roundNumber <= 199;
 }
 
+/** Knockout fixtures use match numbers ≥73 and/or round numbers ≥200 (see knockout admin). */
+export function isWorldCupKnockoutFixture(matchNumber: number, roundNumber: number): boolean {
+  if (isWorldCupGroupStageRoundNumber(roundNumber)) return false;
+  return matchNumber >= 73 || roundNumber >= 200;
+}
+
+export type WorldCupFootballResultRow = {
+  home_goals: number | null;
+  away_goals: number | null;
+  winning_team: string | null;
+  penalty_winner_team_code?: string | null;
+};
+
+/** Whether a saved football result is complete enough to award match-pick points. */
+export function isWorldCupFootballResultScorable(
+  result: WorldCupFootballResultRow,
+  isKnockout: boolean
+): boolean {
+  if (result.home_goals == null || result.away_goals == null) return false;
+  if (isKnockout && result.home_goals === result.away_goals) {
+    const winner = normalizeTeamCode(result.winning_team);
+    return Boolean(winner && winner !== "DRAW");
+  }
+  return true;
+}
+
 export function normalizeTeamCode(value: string | null | undefined): string | null {
   if (value == null) return null;
   const t = String(value).trim();

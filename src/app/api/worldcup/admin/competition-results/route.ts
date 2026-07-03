@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
 import { FIFA_WORLD_CUP_2026_COMPETITION_ID } from "@/lib/worldCupIds";
+import {
+  normalizeTeamCode,
+  officialTopScoringTeamCodesFromResult,
+} from "@/lib/worldCupScoring";
 
 async function requireAdmin(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -78,7 +82,7 @@ export async function GET(req: NextRequest) {
     const { data: resultRow, error: resultError } = await supabaseAdmin
       .from("worldcup_competition_results")
       .select(
-        "id, competition_id, winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code, updated_at"
+        "id, competition_id, winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code, top_scoring_team_codes, updated_at"
       )
       .eq("competition_id", competitionId)
       .maybeSingle();
@@ -91,9 +95,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const result = resultRow
+      ? {
+          ...resultRow,
+          top_scoring_team_codes: officialTopScoringTeamCodesFromResult(resultRow),
+        }
+      : null;
+
     return NextResponse.json(
       {
-        result: resultRow,
+        result,
         teams: allTeams,
         teamsByGroup,
       },
@@ -128,12 +139,40 @@ function normalizeGroupResults(raw: unknown): Record<string, { first: string; se
     const first = typeof (v as { first?: unknown }).first === "string" ? (v as { first: string }).first.trim() : "";
     const second =
       typeof (v as { second?: unknown }).second === "string" ? (v as { second: string }).second.trim() : "";
-    let f = first;
+    const f = first;
     let s = second;
     if (f && s && f === s) s = "";
     out[k] = { first: f, second: s };
   }
   return out;
+}
+
+function normalizeTopScoringTeamCodes(
+  raw: unknown,
+  validTeamCodes: Set<string>
+): { codes: string[] | null; error?: string } {
+  if (raw === undefined || raw === null) {
+    return { codes: null };
+  }
+  if (!Array.isArray(raw)) {
+    return { codes: null, error: "Expected top_scoring_team_codes to be an array of team codes" };
+  }
+
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const code = normalizeTeamCode(item);
+    if (!code) continue;
+    if (!validTeamCodes.has(code)) {
+      return { codes: null, error: `Unknown World Cup team code: ${item}` };
+    }
+    if (seen.has(code)) continue;
+    seen.add(code);
+    normalized.push(code);
+  }
+
+  return { codes: normalized.length > 0 ? normalized : null };
 }
 
 export async function POST(req: NextRequest) {
@@ -143,6 +182,24 @@ export async function POST(req: NextRequest) {
   try {
     const competitionId = FIFA_WORLD_CUP_2026_COMPETITION_ID;
     const body = await req.json().catch(() => ({}));
+
+    const { data: teamsRows, error: teamsError } = await supabaseAdmin
+      .from("world_cup_teams")
+      .select("code");
+
+    if (teamsError) {
+      console.error("[WC admin competition-results POST] world_cup_teams", teamsError);
+      return NextResponse.json(
+        { error: "Failed to validate teams", details: teamsError.message },
+        { status: 500 }
+      );
+    }
+
+    const validTeamCodes = new Set<string>();
+    for (const row of teamsRows || []) {
+      const code = normalizeTeamCode(row.code);
+      if (code) validTeamCodes.add(code);
+    }
 
     const winner_team_code =
       typeof body?.winner_team_code === "string" && body.winner_team_code.trim()
@@ -174,10 +231,37 @@ export async function POST(req: NextRequest) {
       total_goals = n;
     }
 
-    const top_scoring_team_code =
-      typeof body?.top_scoring_team_code === "string" && body.top_scoring_team_code.trim()
-        ? body.top_scoring_team_code.trim()
-        : null;
+    let topScoringParsed = normalizeTopScoringTeamCodes(body?.top_scoring_team_codes, validTeamCodes);
+    if (
+      topScoringParsed.error &&
+      body?.top_scoring_team_codes !== undefined &&
+      body?.top_scoring_team_codes !== null
+    ) {
+      return NextResponse.json(
+        { error: "Invalid top_scoring_team_codes", details: topScoringParsed.error },
+        { status: 400 }
+      );
+    }
+
+    if (body?.top_scoring_team_codes === undefined && body?.top_scoring_team_code !== undefined) {
+      const legacy =
+        typeof body.top_scoring_team_code === "string" && body.top_scoring_team_code.trim()
+          ? body.top_scoring_team_code.trim()
+          : null;
+      topScoringParsed = normalizeTopScoringTeamCodes(
+        legacy ? [legacy] : [],
+        validTeamCodes
+      );
+      if (topScoringParsed.error) {
+        return NextResponse.json(
+          { error: "Invalid top_scoring_team_code", details: topScoringParsed.error },
+          { status: 400 }
+        );
+      }
+    }
+
+    const top_scoring_team_codes = topScoringParsed.codes;
+    const top_scoring_team_code = top_scoring_team_codes?.[0] ?? null;
 
     const row = {
       competition_id: competitionId,
@@ -186,6 +270,7 @@ export async function POST(req: NextRequest) {
       group_results,
       total_goals,
       top_scoring_team_code,
+      top_scoring_team_codes,
       updated_at: new Date().toISOString(),
     };
 
@@ -193,7 +278,7 @@ export async function POST(req: NextRequest) {
       .from("worldcup_competition_results")
       .upsert(row, { onConflict: "competition_id" })
       .select(
-        "id, competition_id, winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code, updated_at"
+        "id, competition_id, winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code, top_scoring_team_codes, updated_at"
       )
       .single();
 
@@ -205,7 +290,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, result: saved }, { status: 200 });
+    const result = saved
+      ? {
+          ...saved,
+          top_scoring_team_codes: officialTopScoringTeamCodesFromResult(saved),
+        }
+      : null;
+
+    return NextResponse.json({ ok: true, result }, { status: 200 });
   } catch (err) {
     console.error("[WC admin competition-results POST] unexpected", err);
     return NextResponse.json(

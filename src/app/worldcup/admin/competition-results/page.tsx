@@ -28,6 +28,7 @@ type CompetitionResultRow = {
   group_results: Record<string, { first?: string; second?: string }>;
   total_goals: number | null;
   top_scoring_team_code: string | null;
+  top_scoring_team_codes?: string[];
   updated_at?: string;
 };
 
@@ -43,7 +44,7 @@ export default function WorldCupAdminCompetitionResultsPage() {
   const [semiFinalists, setSemiFinalists] = useState(["", "", "", ""]);
   const [groupStage, setGroupStage] = useState<Record<string, { first: string; second: string }>>({});
   const [totalGoals, setTotalGoals] = useState("");
-  const [topScoringTeam, setTopScoringTeam] = useState("");
+  const [topScoringTeams, setTopScoringTeams] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveFlash, setSaveFlash] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -68,14 +69,20 @@ export default function WorldCupAdminCompetitionResultsPage() {
         const row = gr[key];
         const first = typeof row?.first === "string" ? row.first.trim() : "";
         const second = typeof row?.second === "string" ? row.second.trim() : "";
-        let f = first;
+        const f = first;
         let s = second;
         if (f && s && f === s) s = "";
         nextGs[key] = { first: f, second: s };
       }
       setGroupStage(nextGs);
       setTotalGoals(r?.total_goals == null ? "" : String(r.total_goals));
-      setTopScoringTeam(r?.top_scoring_team_code || "");
+      const topCodes =
+        r?.top_scoring_team_codes && r.top_scoring_team_codes.length > 0
+          ? r.top_scoring_team_codes
+          : r?.top_scoring_team_code
+            ? [r.top_scoring_team_code]
+            : [];
+      setTopScoringTeams(topCodes);
     },
     []
   );
@@ -179,7 +186,8 @@ export default function WorldCupAdminCompetitionResultsPage() {
       const groupPayload: Record<string, { first: string; second: string }> = {};
       for (const g of GROUP_LABELS) {
         const row = groupStage[g] || { first: "", second: "" };
-        let { first, second } = row;
+        const { first } = row;
+        let second = row.second;
         if (first && second && first === second) second = "";
         groupPayload[g] = { first, second };
       }
@@ -195,13 +203,25 @@ export default function WorldCupAdminCompetitionResultsPage() {
           semifinalist_team_codes: semiFinalists,
           group_results: groupPayload,
           total_goals: totalGoalsValue,
-          top_scoring_team_code: topScoringTeam || null,
+          top_scoring_team_codes: topScoringTeams,
         }),
       });
-      const json = (await res.json()) as { error?: string; details?: string; ok?: boolean };
+      const json = (await res.json()) as {
+        error?: string;
+        details?: string;
+        ok?: boolean;
+        result?: CompetitionResultRow | null;
+      };
       if (!res.ok) {
         setSaveError(json?.details || json?.error || "Save failed");
         return;
+      }
+      if (json.result) {
+        applyPayload({
+          result: json.result,
+          teams,
+          teamsByGroup,
+        });
       }
       setSaveFlash("Saved");
       window.setTimeout(() => setSaveFlash(null), 2500);
@@ -366,27 +386,69 @@ export default function WorldCupAdminCompetitionResultsPage() {
 
                 <section className={worldCupSectionPanelClass}>
                   <h2 className="text-base font-semibold text-zinc-900">Tournament stats</h2>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <input
-                      type="number"
-                      min={0}
-                      value={totalGoals}
-                      onChange={(e) => setTotalGoals(e.target.value)}
-                      className={worldCupSelectControlClass}
-                      placeholder="Total goals"
-                    />
-                    <select
-                      value={topScoringTeam}
-                      onChange={(e) => setTopScoringTeam(e.target.value)}
-                      className={worldCupSelectControlClass}
-                    >
-                      <option value="">Top scoring team</option>
-                      {teams.map((t) => (
-                        <option key={t.code} value={t.code}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="mt-3 grid gap-6 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Total goals
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={totalGoals}
+                        onChange={(e) => setTotalGoals(e.target.value)}
+                        className={worldCupSelectControlClass}
+                        placeholder="Total goals"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-sm font-medium text-zinc-700">
+                        Top scoring team(s)
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Select every team tied for most group-stage goals. Participants who picked
+                        any selected team receive pool top scorer points.
+                      </p>
+                      {topScoringTeams.length > 0 ? (
+                        <p className="mt-2 text-sm text-zinc-800">
+                          Selected:{" "}
+                          <span className="font-medium">
+                            {topScoringTeams
+                              .map((code) => teams.find((t) => t.code === code)?.name || code)
+                              .join(", ")}
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-sm text-zinc-500">No teams selected.</p>
+                      )}
+                      <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-zinc-200 bg-white p-3">
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {teams.map((t) => {
+                            const checked = topScoringTeams.includes(t.code);
+                            return (
+                              <label
+                                key={t.code}
+                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-zinc-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    setTopScoringTeams((prev) => {
+                                      if (e.target.checked) {
+                                        return prev.includes(t.code) ? prev : [...prev, t.code];
+                                      }
+                                      return prev.filter((c) => c !== t.code);
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-zinc-300 text-[#126BFF] focus:ring-[#126BFF]"
+                                />
+                                <span className="text-zinc-800">{t.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </section>
               </div>

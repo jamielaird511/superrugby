@@ -6,6 +6,7 @@ import {
   computeTotalGoalsPointsByParticipant,
   isWorldCupFootballResultScorable,
   isWorldCupKnockoutFixture,
+  officialTopScoringTeamCodesFromResult,
   scorePoolFinishingPositions,
   scorePoolTopAttackingPick,
   scoreSemiFinalistSlots,
@@ -181,10 +182,12 @@ export async function GET(req: Request) {
     const { data: compResultRow } = await supabaseAdmin
       .from("worldcup_competition_results")
       .select(
-        "winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code"
+        "winner_team_code, semifinalist_team_codes, group_results, total_goals, top_scoring_team_code, top_scoring_team_codes"
       )
       .eq("competition_id", tenant.competitionId)
       .maybeSingle();
+
+    const officialTopScoringTeams = officialTopScoringTeamCodesFromResult(compResultRow);
 
     const { data: participants, error: participantsError } = await supabaseAdmin
       .from("participants")
@@ -331,7 +334,7 @@ export async function GET(req: Request) {
       const semiPts = scoreSemiFinalistSlots(cp?.semifinalist_team_codes, compResultRow?.semifinalist_team_codes);
       const attackingPts = scorePoolTopAttackingPick(
         cp?.top_scoring_team_code,
-        compResultRow?.top_scoring_team_code ?? null
+        officialTopScoringTeams
       );
       const tgPts = totalGoalsPointsByParticipant.get(row.participant_id) || 0;
       const winnerPts = scoreWinnerPick(cp?.winner_team_code, compResultRow?.winner_team_code);

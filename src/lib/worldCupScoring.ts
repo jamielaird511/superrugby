@@ -167,15 +167,39 @@ export function scoreSemiFinalistSlots(
   return pts;
 }
 
+export function officialTopScoringTeamCodesFromResult(
+  row:
+    | {
+        top_scoring_team_codes?: string[] | null;
+        top_scoring_team_code?: string | null;
+      }
+    | null
+    | undefined
+): string[] {
+  if (!row) return [];
+  const fromArray = (row.top_scoring_team_codes || [])
+    .map((c) => normalizeTeamCode(c))
+    .filter((c): c is string => Boolean(c));
+  if (fromArray.length > 0) {
+    return [...new Set(fromArray)];
+  }
+  const legacy = normalizeTeamCode(row.top_scoring_team_code);
+  return legacy ? [legacy] : [];
+}
+
 export function scorePoolTopAttackingPick(
   pick: string | null | undefined,
-  officialTopScoringTeam: string | null | undefined
+  officialTopScoringTeams: string[] | null | undefined
 ): number {
-  const actual = normalizeTeamCode(officialTopScoringTeam);
-  if (!actual) return 0;
+  const actualSet = new Set(
+    (officialTopScoringTeams || [])
+      .map((c) => normalizeTeamCode(c))
+      .filter((c): c is string => Boolean(c))
+  );
+  if (actualSet.size === 0) return 0;
   const p = normalizeTeamCode(pick);
   if (!p) return 0;
-  return p === actual ? WC_POOL_TOP_ATTACKING_POINTS : 0;
+  return actualSet.has(p) ? WC_POOL_TOP_ATTACKING_POINTS : 0;
 }
 
 export function scoreWinnerPick(pick: string | null | undefined, actualWinner: string | null | undefined): number {

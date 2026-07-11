@@ -145,24 +145,26 @@ export function scorePoolFinishingPositions(
   return pts;
 }
 
-/** Full semi line-up: first four non-empty codes must be four distinct teams. */
+/** Award points for each official semi-finalist already entered (no need for all four). */
 export function scoreSemiFinalistSlots(
   predictedSlots: string[] | null | undefined,
   actualSlots: string[] | null | undefined
 ): number {
-  const actualCodes = (actualSlots || [])
-    .map((c) => normalizeTeamCode(c))
-    .filter((c): c is string => Boolean(c));
-  if (actualCodes.length < 4) return 0;
-  const firstFour = actualCodes.slice(0, 4);
-  const actualSet = new Set(firstFour);
-  if (actualSet.size < 4) return 0;
+  const actualSet = new Set(
+    (actualSlots || [])
+      .map((c) => normalizeTeamCode(c))
+      .filter((c): c is string => Boolean(c))
+  );
+  if (actualSet.size === 0) return 0;
 
   const preds = predictedSlots || [];
+  const scoredPreds = new Set<string>();
   let pts = 0;
   for (let i = 0; i < 4; i++) {
     const p = normalizeTeamCode(preds[i]);
-    if (p && actualSet.has(p)) pts += WC_SEMIFINALIST_POINTS;
+    if (!p || scoredPreds.has(p) || !actualSet.has(p)) continue;
+    scoredPreds.add(p);
+    pts += WC_SEMIFINALIST_POINTS;
   }
   return pts;
 }
